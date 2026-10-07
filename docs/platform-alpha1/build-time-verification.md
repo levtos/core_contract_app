@@ -8,6 +8,8 @@ beweist Protokollverhalten, nicht Supervisor-Berechtigungen oder reale HA-Last.
 | Python 3.14 / asyncpg / aiomqtt | frozen uv, strict types, Import-/Unit-/Integrationstests | automatisiert |
 | amd64/aarch64 Wheels und Image | CI-Image-Matrix, kein Push | automatisiert |
 | Migration, Commit, Lock, Restore | PostgreSQL-Service in CI | automatisiert |
+| pg_dump/pg_restore | frische isolierte PostgreSQL-Datenbank in CI | bestanden |
+| Container-Lifecycle | non-root UID 10001, Token 0600, DB bei Start nicht verfügbar, Ausfall/Recovery, SIGTERM <30 s | bestanden: amd64; arm64 gebaut |
 | Supervisor-Installation und non-root | lokales gestagtes App-Repository installieren; Prozess-UID 10001 prüfen | offen: G1 |
 | Bridge Admin-WS | Supervisor-User ruft info/subscribe auf; fehlende Rechte müssen sichtbar fehlschlagen | offen: G2 |
 | HA Reports / Last | gleiche Zustände melden, Reihenfolge und `last_reported` prüfen; Filter nur konfigurierte Entities | offen: G2 |
@@ -15,9 +17,9 @@ beweist Protokollverhalten, nicht Supervisor-Berechtigungen oder reale HA-Last.
 | Ingress | Nur tatsächliche Supervisor-Peer-Adresse zulassen; manipulierte Weiterleitungsheader ablehnen | offen: G3 |
 | Admin-UI | Draft importieren, validieren, aktivieren, neue Revision durch Rollback; TEST-Markierung | offen: G3 |
 | MQTT Services-API | `mqtt:want`, Modus supervisor, Credentials nur serverseitig | offen |
-| Container-SIGTERM | init:true; geordneter Stop in <30 s, kein Ack vor Commit | offen: G10 |
-| DB-Ausfall | externe DB trennen: Readiness rot, Liveness grün, Quality des letzten Standes unverändert | offen: G10 |
-| Recovery | DB verbinden: neuer Epochenschlüssel, history_gap, keine Ereigniswiederholung | offen: G9 Smoke |
+| Supervisor-SIGTERM | init:true; geordneter Stop in <30 s im echten Supervisor | offen: G10; isolierter Docker-Smoke bestanden |
+| Supervisor-Watchdog | externe DB trennen: Readiness rot, Liveness grün, kein App-Neustart | offen: G10; isolierter Ausfall/Recovery bestanden |
+| Recovery | DB verbinden: neuer Epochenschlüssel, history_gap, keine Ereigniswiederholung | PostgreSQL-/Container-Tests bestanden |
 | Backup/Restore | `/data` und separaten PG-Dump konsistent sichern/wiederherstellen; mismatch und ältere DB prüfen | offen |
 
 Die offenen Nachweise blockieren das Acceptance Gate (§27). Ein grüner PR hebt

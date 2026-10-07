@@ -247,10 +247,10 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
 
 def main() -> None:
     data = Path(os.environ.get("CORE_CONTRACTS_DATA", "/data"))
-    options = Options.model_validate_json((data / "options.json").read_text(encoding="utf-8"))
     try:
+        options = Options.model_validate_json((data / "options.json").read_text(encoding="utf-8"))
         asyncio.run(run(options, data, Path("/app/migrations"), Path("/app/frontend")))
-    except (ValueError, OSError, RuntimeError) as error:
+    except Exception as error:
         LOGGER.error("startup_failed", extra={"error_type": type(error).__name__})
         raise SystemExit(1) from None
 
