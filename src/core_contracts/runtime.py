@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
 from .clock import Clock
 from .evidence import Observation, assess, is_new
@@ -32,12 +32,18 @@ from .temporal import start_case
 LOGGER = logging.getLogger(__name__)
 
 
+class CommandOrigin(Model):
+    kind: str = Field(min_length=1)
+    actor: str = Field(min_length=1)
+    client_name: str = Field(min_length=1)
+
+
 class Command(Model):
-    command_id: str
+    command_id: str = Field(min_length=1)
     contract_id: str
     command: str
     args: dict[str, Any]
-    origin: dict[str, str]
+    origin: CommandOrigin
     issued_at: datetime
     valid_until: datetime
     expected_registry_revision: int | None = None
@@ -113,7 +119,8 @@ class Runtime:
         self.state = await self.store.load()
         self.persistence = True
         await self._restore("process_restart")
-        self.task = asyncio.create_task(self.run(), name="processor")
+        if self.task is None:
+            self.task = asyncio.create_task(self.run(), name="processor")
 
     def _gap(self, state: State, reason: str) -> None:
         key = str(uuid4())
@@ -134,7 +141,6 @@ class Runtime:
             "started_at": self.clock.now_utc().isoformat(),
             "ended_at": None,
         }
-        self.latches = {}
         if reason == "process_restart":
             for observation in state.tables["source_observation_current"].values():
                 observation["observation_kind"] = "restore"
@@ -143,7 +149,9 @@ class Runtime:
                 node["restore_pending"] = copy.deepcopy(node["temporal"])
         config = self._config(state)
         if config:
-            self._evaluate(state, config, origin="restore")
+            self._evaluate(state, config, origin="restore", initial_latches={})
+        else:
+            self.pending_latches = {}
         await self._commit(state, publication=bool(config), resync=True)
 
     async def submit(self, operation: str, payload: Any = None) -> Any:
@@ -216,7 +224,12 @@ class Runtime:
                         if current_observation:
                             current_observation["availability"] = "unavailable"
                 self._evaluate(staged, self.config, origin="revision")
-                await self._commit(staged, publication=True)
+                try:
+                    await self._commit(staged, publication=True)
+                except Exception as error:
+                    LOGGER.warning(
+                        "transport_status_uncommitted", extra={"error_type": type(error).__name__}
+                    )
             return None
         if operation == "mqtt_state":
             self.mqtt = str(payload)
@@ -227,7 +240,7 @@ class Runtime:
             self._broadcast(self.service_state())
             return None
         if not self.persistence:
-            if operation == "tick":
+            if operation in {"tick", "gap"}:
                 return None
             if operation == "observation":
                 self.latest[payload.binding_id] = payload
@@ -294,6 +307,7 @@ class Runtime:
                 "at": now.isoformat(),
                 "operation": operation,
             }
+            next_latches = self.latches
             if config:
                 old_fp, new_fp = (
                     fingerprints(config, self.types),
@@ -302,10 +316,10 @@ class Runtime:
                 for binding in new_config.bindings:
                     if old_fp.get(binding.source_id) != new_fp[binding.source_id]:
                         state.tables["source_observation_current"].pop(binding.binding_id, None)
-                self.latches = {
+                next_latches = {
                     k: v for k, v in self.latches.items() if old_fp.get(k) == new_fp.get(k)
                 }
-            self._evaluate(state, new_config, origin="revision")
+            self._evaluate(state, new_config, origin="revision", initial_latches=next_latches)
             await self._commit(state, publication=True)
             self.revision_changed.set()
             return state.tables["registry_revision"][str(revision)]
@@ -315,7 +329,10 @@ class Runtime:
                 if "temporal" in node:
                     node["temporal"]["since_at"] = None
                     node["temporal"]["gap_at"] = now.isoformat()
-            await self._commit(state)
+            try:
+                await self._commit(state)
+            except Exception as error:
+                LOGGER.warning("gap_uncommitted", extra={"error_type": type(error).__name__})
             return None
         if operation == "command":
             return await self._command(state, Command.model_validate(payload))
@@ -353,7 +370,12 @@ class Runtime:
                 origin = (
                     "input" if payload.observation_kind in {"live_change", "report"} else "revision"
                 )
-            self._evaluate(state, config, origin=origin)
+            self._evaluate(
+                state,
+                config,
+                origin=origin,
+                trigger_source=payload.source_id if operation == "observation" else None,
+            )
             await self._commit(state, publication=True)
         else:
             await self._commit(state)
@@ -396,10 +418,15 @@ class Runtime:
         *,
         origin: str,
         machine_override: dict[str, MachineState] | None = None,
+        trigger_source: str | None = None,
+        initial_latches: dict[str, Bucket] | None = None,
     ) -> None:
         now, seq = self.clock.now_utc(), state.publication_seq + 1
-        self.pending_latches = copy.deepcopy(self.latches)
+        self.pending_latches = copy.deepcopy(
+            self.latches if initial_latches is None else initial_latches
+        )
         fps = fingerprints(config, self.types)
+        affected = {trigger_source} if trigger_source else set()
         state.tables["contract_state_current"] = {}
         for contract in topological(config):
             key = contract.contract_id
@@ -411,6 +438,12 @@ class Runtime:
                 }
                 continue
             inputs = self._inputs(contract, config, state)
+            triggered = any(
+                resolve_ref(item.ref, config)[0] in affected for item in contract.inputs
+            )
+            if triggered:
+                affected.add(key)
+            contract_origin = "revision" if origin == "input" and not triggered else origin
             node = state.tables["node_state"].get(key)
             case = start_case(
                 ever_active=bool(lifecycle and lifecycle.get("ever_active")),
@@ -431,7 +464,7 @@ class Runtime:
                     inputs,
                     node,
                     state,
-                    origin,
+                    contract_origin,
                     case,
                     (machine_override or {}).get(key),
                 )

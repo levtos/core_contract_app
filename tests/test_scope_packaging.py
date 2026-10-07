@@ -91,3 +91,8 @@ def test_bridge_has_no_domain_or_await_in_subscription():
     assert not any(name.startswith("core_contracts.") for name in imports)
     text = path.read_text()
     assert "async_track_state_report_event" in text and "require_admin" in text
+
+
+def test_client_supports_declared_python_minimum():
+    for path in (ROOT / "client/core_contracts_client").glob("*.py"):
+        ast.parse(path.read_text(), feature_version=(3, 12))

@@ -19,6 +19,7 @@ jobs:
         options: --health-cmd "pg_isready -U core_contracts_test" --health-interval 2s --health-retries 20
     env:
       TEST_DATABASE_DSN: postgresql://core_contracts_test:ephemeral-test-only@localhost:5432/core_contracts_test
+      PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -69,7 +70,18 @@ jobs:
           file: core_contracts/Dockerfile
           platforms: linux/${{ matrix.arch }}
           push: false
-          outputs: type=oci,dest=/tmp/core-contracts-${{ matrix.arch }}.tar
+          outputs: type=docker,dest=/tmp/core-contracts-${{ matrix.arch }}.tar
+          tags: core-contracts:smoke
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.arch == 'amd64'
+        with:
+          python-version: '3.14.5'
+      - name: Isolated container lifecycle smoke
+        if: matrix.arch == 'amd64'
+        run: |
+          docker load -i /tmp/core-contracts-amd64.tar
+          uv sync --frozen
+          uv run python dev/container_smoke.py core-contracts:smoke
       - uses: actions/upload-artifact@v4
         with:
           name: image-${{ matrix.arch }}

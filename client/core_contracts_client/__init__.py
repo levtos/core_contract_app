@@ -93,7 +93,7 @@ class CoreContractsClient:
         try:
             result: dict[str, Any] = await self._request("POST", "commands", json=envelope)
             return result
-        except aiohttp.ClientConnectionError, TimeoutError:
+        except (aiohttp.ClientConnectionError, TimeoutError):
             try:
                 stored: dict[str, Any] = await self._request(
                     "GET", f"commands/{envelope['command_id']}"
@@ -159,7 +159,7 @@ class CoreContractsClient:
                             self.connection_state = "reconnecting"
                             self.publication_confirmed = False
                         yield event
-            except aiohttp.ClientError, TimeoutError:
+            except (aiohttp.ClientError, TimeoutError):
                 self.connection_state = "reconnecting"
             finally:
                 self.publication_confirmed = False

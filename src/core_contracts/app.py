@@ -65,6 +65,44 @@ class JsonFormatter(logging.Formatter):
         )
 
 
+async def connect_with_health(store: PostgresStore, runtime: Runtime, clock: SystemClock) -> bool:
+    """Keep the bootstrap processor and liveness reachable while the DB is offline."""
+    runtime.task = asyncio.create_task(runtime.run(), name="processor")
+    stopped = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, stopped.set)
+
+    async def health(request: web.Request) -> web.Response:
+        # Receiving the request itself proves the event loop is progressing during bootstrap.
+        runtime.last_heartbeat = clock.monotonic()
+        if request.path.endswith("live"):
+            return web.json_response({"live": runtime.live}, status=200 if runtime.live else 503)
+        return web.json_response(
+            {"ready": False, "reasons": ["persistence_initializing"]}, status=503
+        )
+
+    application = web.Application()
+    application.router.add_get("/health/live", health)
+    application.router.add_get("/health/ready", health)
+    runner = web.AppRunner(application, access_log=None)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", 8787).start()
+    try:
+        while not stopped.is_set():
+            try:
+                await store.open()
+                return True
+            except (OSError, ConnectionError, asyncpg.PostgresError) as error:
+                LOGGER.warning("database_start_pending", extra={"error_type": type(error).__name__})
+                await clock.sleep(2)
+        runtime.task.cancel()
+        await asyncio.gather(runtime.task, return_exceptions=True)
+        return False
+    finally:
+        await runner.cleanup()
+
+
 async def run(options: Options, data: Path, migrations: Path, frontend: Path) -> None:
     clock = SystemClock()
     handler = logging.StreamHandler()
@@ -86,8 +124,10 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
         f"@{options.postgres_host}:{options.postgres_port}/{quote(options.postgres_database, safe='')}"
     )
     store = PostgresStore(dsn, migrations, tls=tls)
+    runtime = Runtime(store, clock, type_registry())
     # A startup failure must not create a fake ready runtime or overwrite installation identity.
-    await store.open()
+    if not await connect_with_health(store, runtime, clock):
+        return
     try:
         installation_id = reconcile(
             load_id(data),
@@ -97,7 +137,6 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
         )
         await store.put_metadata("installation_id", installation_id)
         write_private(data / "installation.json", canonical({"installation_id": installation_id}))
-        runtime = Runtime(store, clock, type_registry())
         shutdown_file = data / "last_shutdown.json"
         if shutdown_file.exists():
             last = json.loads(shutdown_file.read_text(encoding="utf-8"))
@@ -200,6 +239,9 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
                 await ingress.cleanup()
         LOGGER.info("stopped")
     finally:
+        if runtime.task and not runtime.task.done():
+            runtime.task.cancel()
+            await asyncio.gather(runtime.task, return_exceptions=True)
         await store.close()
 
 

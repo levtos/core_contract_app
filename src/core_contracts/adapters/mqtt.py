@@ -38,6 +38,18 @@ class MQTTAdapter:
         self.supervisor_token = supervisor_token
         self.seen: dict[str, str] = {}
         self.sequence = 0
+        self.queue_overflow = False
+        adapter = self
+
+        class ObservableQueue(asyncio.Queue[aiomqtt.Message]):
+            def put_nowait(self, item: aiomqtt.Message) -> None:
+                if self.full():
+                    adapter.queue_overflow = True
+                    adapter.runtime.overflow = True
+                    adapter.runtime.resubscribe.set()
+                super().put_nowait(item)
+
+        self.queue_type = ObservableQueue
 
     def observation(
         self, binding: Binding, config: RegistryConfig, payload: bytes, retained: bool, qos: int
@@ -94,12 +106,14 @@ class MQTTAdapter:
             revision = self.runtime.state.active_revision
             try:
                 credentials = await self.credentials()
+                self.queue_overflow = False
                 async with aiomqtt.Client(
                     hostname=credentials["host"],
                     port=int(credentials["port"]),
                     username=credentials.get("username"),
                     password=credentials.get("password"),
                     max_queued_incoming_messages=256,
+                    queue_type=self.queue_type,
                 ) as client:
                     bindings = [b for b in config.bindings if b.adapter.kind == "mqtt"]
                     for binding in bindings:
@@ -127,6 +141,7 @@ class MQTTAdapter:
                         while (
                             revision == self.runtime.state.active_revision
                             and not self.runtime.resubscribe.is_set()
+                            and not self.queue_overflow
                         ):
                             await self.runtime.clock.sleep(1)
 

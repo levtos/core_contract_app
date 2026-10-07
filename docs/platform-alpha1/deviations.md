@@ -13,8 +13,9 @@ Keine fachliche Contract-Entscheidung wurde geändert. Phase 2 bleibt ausgeschlo
    da der Paket-Audit bekannte Schwachstellen auswies. Vitest 5.0.3 ist im Lockfile
    festgehalten; der Svelte/Vite/TypeScript-Stack bleibt erhalten.
 3. **Lexikalischer Scope-Selbstcheck (§8 des Prompts):** Die ebenfalls vorgeschriebenen
-   API-Felder `published_at`, das Clock-Interface `sleep` sowie Transport-Retry-Aufrufe
-   enthalten Wörter der Suchliste. Diese sind generische Plattform-/Transportbegriffe,
+   API-Felder `published_at`, das Clock-Interface `sleep`, Transport-Retry-Aufrufe,
+   CSS-`@media`, das Lucide-Icon `Activity`, PostgreSQLs `pg_stat_activity` und fremde
+   Paket-Metadaten in Lockfiles enthalten Wörter der Suchliste. Diese sind generische Plattform-/Transportbegriffe,
    keine Domain-Contracts. Die verpflichtende Volltextsuche wird deshalb zusammen mit
    dem Typ-Registry- und AST-Scope-Test bewertet. Diese unvermeidlichen API-/Clock-Namen
    werden nicht umbenannt. Verbotene Registry-Felder werden durch geschlossene Modelle

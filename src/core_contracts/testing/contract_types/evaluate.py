@@ -143,9 +143,16 @@ class FixtureEvaluation:
                     else "input"
                 )
                 if origin == "input" or (event == "deadline" and origin in {"timer", "restore"}):
-                    machine_state, _ = machine.step(
+                    machine_state, outcome = machine.step(
                         machine_state, event, inputs, now, state.active_revision
                     )
+                    if event == "deadline" and outcome != "accepted":
+                        node["machine"] = machine_state.model_dump(mode="json")
+                        return (
+                            unknown(ReasonCode.DEADLINE_OVERDUE, contract.contract_id, now),
+                            node,
+                            machine_state,
+                        )
                 if origin == "restore":
                     machine_state = machine_state.model_copy(update={"origin": "restore"})
             node["machine"] = machine_state.model_dump(mode="json")
