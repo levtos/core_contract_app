@@ -19,7 +19,6 @@ jobs:
         options: --health-cmd "pg_isready -U core_contracts_test" --health-interval 2s --health-retries 20
     env:
       TEST_DATABASE_DSN: postgresql://core_contracts_test:ephemeral-test-only@localhost:5432/core_contracts_test
-      PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -30,6 +29,8 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy --strict src client/core_contracts_client
       - run: uv run pytest -q
+        env:
+          PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
       - run: uv build --wheel
       - run: uv build --wheel --project client
       - uses: actions/upload-artifact@v4
