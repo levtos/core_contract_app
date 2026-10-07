@@ -1,0 +1,48 @@
+[project]
+name = "core-contracts-platform"
+version = "1.0.0a1"
+requires-python = ">=3.14,<3.15"
+dependencies = ["aiohttp>=3.13,<4", "asyncpg>=0.32,<0.33", "pydantic>=2.12,<3", "aiomqtt>=2.5,<3", "tzdata==2026.2"]
+
+[project.scripts]
+core-contracts = "core_contracts.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/core_contracts"]
+
+[dependency-groups]
+dev = ["pytest>=9", "pytest-asyncio>=1.3", "pytest-aiohttp>=1.1", "ruff>=0.14", "mypy>=1.19", "asyncpg-stubs>=0.31", "pyyaml>=6", "types-PyYAML>=6"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src", "client", "."]
+markers = ["postgres: requires TEST_DATABASE_DSN", "ha: requires Home Assistant test runtime"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src", "client/core_contracts_client"]
+mypy_path = "client"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "DTZ", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now" = {msg = "Use Clock.now_utc"}
+"datetime.datetime.utcnow" = {msg = "Use Clock.now_utc"}
+"time.time" = {msg = "Use Clock"}
+"time.monotonic" = {msg = "Use Clock.monotonic"}
+"asyncio.sleep" = {msg = "Use Clock.sleep"}
+"asyncio.get_event_loop" = {msg = "Use Clock for scheduling"}
+
+[tool.ruff.lint.per-file-ignores]
+"src/core_contracts/clock.py" = ["TID251"]
