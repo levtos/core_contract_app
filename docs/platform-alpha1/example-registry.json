@@ -1,0 +1,122 @@
+{
+  "config_schema_version": 1,
+  "dependencies": [
+    {
+      "dependency_id": "dep.test",
+      "kind": "ha",
+      "monitor": "internal"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "source.example",
+      "source_type": "boolean",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 2
+      },
+      "dependency_id": "dep.test",
+      "physical_source_key": "physical.example",
+      "display_name": "Synthetische Testquelle"
+    }
+  ],
+  "bindings": [
+    {
+      "binding_id": "binding.example",
+      "source_id": "source.example",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "sensor.example_1"
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "bool"
+      }
+    }
+  ],
+  "contracts": [
+    {
+      "contract_id": "fixture.echo",
+      "type_id": "test.echo",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.example"
+        }
+      ],
+      "parameters": {},
+      "display_name": "TEST echo"
+    },
+    {
+      "contract_id": "fixture.boolean",
+      "type_id": "test.boolean",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.example"
+        }
+      ],
+      "parameters": {
+        "operator": "not"
+      },
+      "display_name": "TEST boolean"
+    },
+    {
+      "contract_id": "fixture.fusion",
+      "type_id": "test.fusion",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.example"
+        }
+      ],
+      "parameters": {
+        "strategy": "test_agreement"
+      },
+      "display_name": "TEST fusion"
+    },
+    {
+      "contract_id": "fixture.temporal",
+      "type_id": "test.temporal",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.example"
+        }
+      ],
+      "parameters": {
+        "operation": "stable_for",
+        "duration_s": 10,
+        "accepts_held": false
+      },
+      "display_name": "TEST temporal"
+    },
+    {
+      "contract_id": "fixture.state_machine",
+      "type_id": "test.state_machine",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.example"
+        }
+      ],
+      "parameters": {
+        "deadline_s": 30,
+        "sessions": true
+      },
+      "display_name": "TEST state_machine"
+    }
+  ],
+  "catalogs": []
+}

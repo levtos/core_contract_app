@@ -1,0 +1,77 @@
+name: Platform Alpha 1
+on:
+  pull_request:
+  push:
+    branches: [agent/platform-alpha1]
+permissions:
+  contents: read
+jobs:
+  platform:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: core_contracts_test
+          POSTGRES_PASSWORD: ephemeral-test-only
+          POSTGRES_DB: core_contracts_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U core_contracts_test" --health-interval 2s --health-retries 20
+    env:
+      TEST_DATABASE_DSN: postgresql://core_contracts_test:ephemeral-test-only@localhost:5432/core_contracts_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.14.5'
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy --strict src client/core_contracts_client
+      - run: uv run pytest -q
+      - run: uv build --wheel
+      - run: uv build --wheel --project client
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels
+          path: |
+            dist/*.whl
+            client/dist/*.whl
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+  images:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: core_contracts/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: false
+          outputs: type=oci,dest=/tmp/core-contracts-${{ matrix.arch }}.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/core-contracts-${{ matrix.arch }}.tar
+          retention-days: 3

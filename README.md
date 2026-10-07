@@ -4,7 +4,8 @@ Core Contracts als **Supervisor-verwaltete Home-Assistant-App**: kanonische fach
 Status, Quality, Freshness, Evidence und Reasons. Dazu kommen Registry mit stabilen IDs, PostgreSQL-Persistenz,
 Thin HA I/O Bridge und `CoreContractsClient`.
 
-**Stand:** Planung abgeschlossen; **Phase 1 — Platform Foundation (Alpha 1)** steht zum Bau an.
+**Stand:** Phase-1-Implementierung auf dem Review-Branch. Ausschließlich synthetische
+`test.*`-Fixtures; Acceptance Gate und reale Supervisor-/HA-Abnahme bleiben offen.
 
 | Phase | Inhalt |
 |---|---|
@@ -12,6 +13,13 @@ Thin HA I/O Bridge und `CoreContractsClient`.
 | **Phase 2 — Domain Contracts + Consumer Migration** | reale Contracts einzeln je Domäne, erst nach dem Acceptance Gate von Phase 1 |
 
 ## Dokumentation
+
+- [Betrieb, Installation und Backup/Restore](docs/operations.md)
+- [API und Python-Client](docs/api.md)
+- [Wiederverwendungsanalyse](docs/platform-alpha1/reuse-analysis.md)
+- [Technische Auslegungen](docs/platform-alpha1/deviations.md)
+- [Build-Time Verification](docs/platform-alpha1/build-time-verification.md)
+- [Abschlussbericht / G1–G15](docs/platform-alpha1/completion-report.md)
 
 - [Platform-Alpha-1-Build-Spezifikation](docs/platform-alpha1/build-specification.md): **primäre Build-Quelle**
 - [Codex-Build-Prompt Phase 1](docs/platform-alpha1/codex-build-prompt.md)

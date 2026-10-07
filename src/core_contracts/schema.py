@@ -1,5 +1,6 @@
 """Immutable package-internal contract type registry."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .model import Model
 from .quality import FieldValue, ReasonCode, unknown
+from .statemachine import Machine, MachineState
 
 
 class FieldSchema(Model):
@@ -50,6 +52,8 @@ class ContractType:
     parameters: type[BaseModel]
     inputs: tuple[InputDeclaration, ...]
     restore: tuple[str, ...]
+    evaluate: Callable[..., tuple[FieldValue, dict[str, Any], MachineState | None]]
+    machine_factory: Callable[[dict[str, Any]], Machine] | None = None
 
     def description(self) -> dict[str, Any]:
         return {

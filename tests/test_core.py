@@ -178,8 +178,12 @@ def test_clock_jumps_and_dst():
     clock.jump(-10)
     clock.advance(20)
     assert fired == [1]
-    assert berlin_utc(datetime(2026, 3, 29, 2, 30)) == datetime(2026, 3, 29, 1, tzinfo=UTC)
-    assert berlin_utc(datetime(2026, 10, 25, 2, 30)) == datetime(2026, 10, 25, 0, 30, tzinfo=UTC)
+    assert berlin_utc(datetime(2026, 3, 29, 2, 30, tzinfo=UTC).replace(tzinfo=None)) == datetime(
+        2026, 3, 29, 1, tzinfo=UTC
+    )
+    assert berlin_utc(datetime(2026, 10, 25, 2, 30, tzinfo=UTC).replace(tzinfo=None)) == datetime(
+        2026, 10, 25, 0, 30, tzinfo=UTC
+    )
 
 
 @pytest.mark.parametrize(

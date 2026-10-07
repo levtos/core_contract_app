@@ -8,3 +8,14 @@ node_modules/
 dist/
 build/
 .env
+# Build products and local credentials
+frontend/node_modules/
+frontend/dist/
+dist/
+client/dist/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dev/secrets/
+dev/staged/
+work/

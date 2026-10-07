@@ -69,7 +69,7 @@ class Observation(Model):
         if self.observation_kind == "live_change":
             return self.ha_time_fired or self.ha_last_changed
         # A snapshot can carry a source timestamp; last_updated alone proves no observation.
-        return self.ha_last_reported or self.ha_last_changed
+        return self.ha_last_reported or self.ha_last_changed or self.ha_time_fired
 
     @property
     def value(self) -> Any:

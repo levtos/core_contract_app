@@ -92,7 +92,19 @@ def safe_document(value: Any, depth: int = 0) -> None:
         for key, child in value.items():
             if any(
                 part in key.casefold()
-                for part in ("password", "secret", "token", "credential", "dsn")
+                for part in (
+                    "password",
+                    "secret",
+                    "token",
+                    "credential",
+                    "dsn",
+                    "passwd",
+                    "api_key",
+                    "private_key",
+                    "authorization",
+                    "connection_string",
+                    "database_url",
+                )
             ):
                 raise ValueError("sensitive key")
             safe_document(child, depth + 1)
