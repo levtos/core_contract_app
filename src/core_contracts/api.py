@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+import asyncpg
 from aiohttp import WSMsgType, web
 from pydantic import ValidationError
 
@@ -104,7 +105,7 @@ class API:
                     },
                     status=409 if "conflict" in code else 400,
                 )
-            except RuntimeError:
+            except RuntimeError, OSError, asyncpg.PostgresError, asyncpg.InterfaceError:
                 response = web.json_response({"error": "persistence_unavailable"}, status=503)
             response.headers["Cache-Control"] = "no-store"
             response.headers["X-Content-Type-Options"] = "nosniff"

@@ -48,6 +48,7 @@ class MQTTAdapter:
                 if self.full():
                     adapter.queue_overflow = True
                     adapter.runtime.overflow = True
+                    adapter.runtime.overflow_serial += 1
                     adapter.runtime.overflow_bindings.update(
                         b.binding_id
                         for b in (adapter.runtime.config.bindings if adapter.runtime.config else ())

@@ -113,6 +113,7 @@ class FixtureEvaluation:
                 result = temporal.grace(a, p.duration_s, now, trigger=origin == "input")
             elif p.operation == "edge":
                 result = temporal.edge(a, now, allow_edge=origin == "input")
+                node["edge_active"] = result.usable(now) and result.value is True
             elif p.operation == "delta":
                 result = delta(a, b, now)
             else:
@@ -155,7 +156,7 @@ class FixtureEvaluation:
                     if machine_state.deadline and machine_state.deadline.due(now)
                     else "input"
                 )
-                if origin == "input" or (event == "deadline" and origin in {"timer", "restore"}):
+                if origin == "input" or event == "deadline":
                     machine_state, outcome = machine.step(
                         machine_state, event, inputs, now, state.active_revision
                     )

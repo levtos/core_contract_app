@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import socket
 import subprocess
 from uuid import uuid4
 
@@ -27,6 +28,9 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
     configuration = tmp_path / "mosquitto.conf"
     configuration.write_text("listener 1883\nallow_anonymous true\npersistence false\n")
     configuration.chmod(0o644)
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", 0))
+        port = reservation.getsockname()[1]
 
     def docker(*args):
         return subprocess.check_output(["docker", *args], text=True).strip()
@@ -47,12 +51,12 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
             "--name",
             name,
             "-p",
-            "127.0.0.1::1883",
+            f"127.0.0.1:{port}:1883",
             "--mount",
             f"type=bind,source={configuration},target=/mosquitto/config/mosquitto.conf,readonly",
             "eclipse-mosquitto:2",
         )
-        port = int(docker("port", name, "1883").rsplit(":", 1)[1])
+        assert int(docker("port", name, "1883").rsplit(":", 1)[1]) == port
         config["dependencies"][0]["kind"] = "mqtt"
         config["bindings"][0]["adapter"] = {
             "kind": "mqtt",
@@ -96,6 +100,7 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
             await runtime.clock.sleep(3)
             assert len(await runtime.store.rows("history_gap")) == 1
             docker("start", name)
+            assert int(docker("port", name, "1883").rsplit(":", 1)[1]) == port
             await eventually(lambda: runtime.mqtt == "connected")
             await publish(json.dumps({"value": False, "at": runtime.clock.now_utc().isoformat()}))
             await eventually(

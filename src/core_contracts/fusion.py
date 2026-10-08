@@ -25,7 +25,11 @@ class Fusion:
         if strategy in {"any_true", "all_true"}:
             result = boolean("or" if strategy == "any_true" else "and", candidates, now)
         elif not usable:
-            return unknown(ReasonCode.INPUT_UNKNOWN, "candidates", now)
+            return (
+                derive(None, candidates, now)
+                if candidates
+                else unknown(ReasonCode.INPUT_UNKNOWN, "candidates", now)
+            )
         elif strategy == "first_healthy":
             chosen = next((c for c in usable if c.quality == "healthy"), usable[0])
             result = derive(chosen.value, [chosen], now)
@@ -45,7 +49,13 @@ class Fusion:
                 update={
                     "quality": "degraded",
                     "reasons": result.reasons
-                    + (Reason(code=ReasonCode.PARTIAL_EVIDENCE, input="candidates", since=now),),
+                    + (Reason(code=ReasonCode.PARTIAL_EVIDENCE, input="candidates", since=now),)
+                    + tuple(
+                        reason
+                        for candidate in candidates
+                        if not candidate.usable(now)
+                        for reason in candidate.reasons
+                    ),
                 }
             )
         return result

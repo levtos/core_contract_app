@@ -130,6 +130,11 @@ class PostgresStore:
         )
         try:
             if not await connection.fetchval("SELECT pg_try_advisory_lock($1)", LOCK_ID):
+                owner = await connection.fetchval(
+                    "SELECT pid FROM pg_locks WHERE locktype='advisory' AND objid=$1 AND classid=0 AND granted LIMIT 1",
+                    LOCK_ID,
+                )
+                LOGGER.warning("writer_lock_unavailable", extra={"writer_pid": owner})
                 raise PersistenceUnavailable("writer_lock_unavailable")
             self.writer = connection
             await self.migrate()

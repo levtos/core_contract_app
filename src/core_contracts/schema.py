@@ -54,6 +54,7 @@ class ContractType:
     restore: tuple[str, ...]
     evaluate: Callable[..., tuple[FieldValue, dict[str, Any], MachineState | None]]
     machine_factory: Callable[[dict[str, Any]], Machine] | None = None
+    next_due: Callable[[dict[str, Any], dict[str, Any], datetime], datetime | None] | None = None
 
     def description(self) -> dict[str, Any]:
         return {

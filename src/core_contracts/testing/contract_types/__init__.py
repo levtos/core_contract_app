@@ -1,5 +1,6 @@
 """The only registered types in Platform Alpha 1."""
 
+from datetime import datetime, timedelta
 from typing import Any, Literal, Self, cast
 
 from pydantic import Field, model_validator
@@ -111,6 +112,32 @@ def type_registry() -> TypeRegistry:
                 )
                 if name == "state_machine"
                 else None,
+                next_due=next_temporal_due
+                if name == "temporal"
+                else next_machine_due
+                if name == "state_machine"
+                else None,
             )
         )
     return registry
+
+
+def next_temporal_due(
+    parameters: dict[str, Any], node: dict[str, Any], now: datetime
+) -> datetime | None:
+    p = TemporalParameters.model_validate(parameters)
+    context = node.get("temporal", {})
+    if p.operation == "age" or (p.operation == "edge" and node.get("edge_active")):
+        return now + timedelta(seconds=0.5)
+    if p.operation in {"stable_for", "dwell"} and context.get("since_at"):
+        return datetime.fromisoformat(context["since_at"]) + timedelta(seconds=p.duration_s)
+    if p.operation == "grace" and context.get("grace_until"):
+        return datetime.fromisoformat(context["grace_until"])
+    return None
+
+
+def next_machine_due(
+    parameters: dict[str, Any], node: dict[str, Any], now: datetime
+) -> datetime | None:
+    deadline = node.get("machine", {}).get("deadline")
+    return datetime.fromisoformat(deadline["at"]) if deadline and not deadline["fired"] else None

@@ -1,0 +1,1 @@
+{"config":{"step":{"user":{"title":"Core Contracts Bridge","description":"Enable the I/O transport for the Core Contracts app."}},"abort":{"single_instance_allowed":"Only one bridge instance is allowed."}}}

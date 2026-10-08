@@ -4,7 +4,7 @@ import asyncio
 import copy
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -76,6 +76,9 @@ class Runtime:
         self.overflow = False
         self.snapshot_pending = False
         self.overflow_bindings: set[str] = set()
+        self.overflow_serial = 0
+        self.next_evaluation: datetime | None = None
+        self.last_clock = clock.now_utc()
         self.resubscribe = asyncio.Event()
         self.revision_changed = asyncio.Event()
         self.mqtt_revision_changed = asyncio.Event()
@@ -175,6 +178,7 @@ class Runtime:
         except asyncio.QueueFull:
             self.latest[observation.binding_id] = observation
             self.overflow = True
+            self.overflow_serial += 1
             self.resubscribe.set()
 
     def tick(self) -> None:
@@ -190,6 +194,7 @@ class Runtime:
         except asyncio.QueueFull:
             self.latest.update({o.binding_id: o for o in observations})
             self.overflow = True
+            self.overflow_serial += 1
             self.snapshot_pending = True
 
     async def run(self) -> None:
@@ -305,6 +310,17 @@ class Runtime:
         # conflict, duplicate event or failed command cannot discard the buffer.
         if self.overflow:
             await self._drain_overflow()
+        if operation == "tick":
+            try:
+                await self.store.probe()
+            except Exception:
+                self._unavailable()
+                raise
+            now = self.clock.now_utc()
+            clock_went_back = now < self.last_clock
+            self.last_clock = now
+            if not clock_went_back and (self.next_evaluation is None or now < self.next_evaluation):
+                return None
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
@@ -375,6 +391,10 @@ class Runtime:
                 }
             self._evaluate(state, new_config, origin="revision", initial_latches=next_latches)
             await self._commit(state, publication=True)
+            LOGGER.info(
+                "registry_rollback" if operation == "rollback" else "registry_activated",
+                extra={"revision": revision},
+            )
             self.revision_changed.set()
             self.mqtt_revision_changed.set()
             return state.tables["registry_revision"][str(revision)]
@@ -443,13 +463,7 @@ class Runtime:
                 state.tables["source_observation_history"][str(uuid4())] = obs.model_dump(
                     mode="json"
                 )
-        elif operation == "tick":
-            try:
-                await self.store.probe()
-            except Exception:
-                self._unavailable()
-                raise
-        else:
+        elif operation != "tick":
             raise ValueError("unknown runtime operation")
         if config:
             origin = "timer"
@@ -472,7 +486,8 @@ class Runtime:
                 await self._commit(state, publication=True)
             else:
                 self.pending_latches = None
-        else:
+                self._plan_evaluation()
+        elif operation != "tick":
             await self._commit(state)
         if operation == "snapshot":
             self.first_snapshot = True
@@ -489,16 +504,17 @@ class Runtime:
                 continue
             affected.add(contract.contract_id)
             node = state.tables["node_state"].get(contract.contract_id, {})
-            node.pop("restore_pending", None)
             if "temporal" in node:
+                node["restore_pending"] = copy.deepcopy(node["temporal"])
+                node["restore_pending"]["grace_armed"] = False
                 node["temporal"].update(
                     since_at=None,
-                    baseline=None,
                     grace_armed=False,
                     gap_at=self.clock.now_utc().isoformat(),
                 )
 
     async def _drain_overflow(self) -> None:
+        serial = self.overflow_serial
         buffered = dict(self.latest)
         state = self.state.clone()
         config = self._config(state)
@@ -520,8 +536,10 @@ class Runtime:
         for key, value in buffered.items():
             if self.latest.get(key) is value:
                 self.latest.pop(key)
-        self.overflow = bool(self.latest)
-        self.overflow_bindings.clear()
+        newer_overflow = self.overflow_serial != serial
+        self.overflow = bool(self.latest) or newer_overflow
+        if not newer_overflow:
+            self.overflow_bindings.clear()
         if self.snapshot_pending and not self.overflow:
             self.first_snapshot = True
             self.snapshot_pending = False
@@ -690,6 +708,8 @@ class Runtime:
         if (
             state.tables["contract_state_history"]
             or previous_contracts.keys() != state.tables["contract_state_current"].keys()
+            or state.active_revision != self.state.active_revision
+            or state.epoch_id != self.state.epoch_id
         ):
             state.publication_seq = seq
             state.publications[seq] = {
@@ -756,6 +776,14 @@ class Runtime:
         if override and config:
             self._evaluate(state, config, origin="command", machine_override=override)
         await self._commit(state, publication=bool(override))
+        if result["status"] != "accepted":
+            LOGGER.info(
+                "command_rejected",
+                extra={
+                    "contract_id": command.contract_id,
+                    "reason": result.get("reason", result["status"]),
+                },
+            )
         return result
 
     def _unavailable(self) -> None:
@@ -774,6 +802,7 @@ class Runtime:
             self._unavailable()
             raise
         previous_seq = self.state.publication_seq
+        previous_contracts = self.state.tables["contract_state_current"]
         self.state = state
         if self.pending_latches is not None:
             self.latches = self.pending_latches
@@ -781,6 +810,21 @@ class Runtime:
         self.persistence = True
         self.confirmed = True
         self.commit_duration = self.clock.monotonic() - started
+        self._plan_evaluation()
+        for key, envelope in state.tables["contract_state_current"].items():
+            previous_fields = previous_contracts.get(key, {}).get("fields", {})
+            for name, field in envelope["fields"].items():
+                old = previous_fields.get(name, {}).get("status")
+                if old != field["status"]:
+                    LOGGER.info(
+                        "quality_transition",
+                        extra={
+                            "contract_id": key,
+                            "field": name,
+                            "previous_status": old,
+                            "status": field["status"],
+                        },
+                    )
         if resync:
             self._broadcast({"type": "resync_required", "reason": "epoch"})
         elif publication and state.publication_seq != previous_seq:
@@ -790,9 +834,51 @@ class Runtime:
                     "publication_seq": state.publication_seq,
                     "prev_seq": previous_seq,
                     "epoch_id": state.epoch_id,
+                    "registry_revision": state.active_revision,
                     "contracts": state.tables["contract_state_current"],
                 }
             )
+
+    def _plan_evaluation(self) -> None:
+        now = self.clock.now_utc()
+        due: list[datetime] = []
+        config = self.config
+        if config:
+            bindings = {b.source_id: b.binding_id for b in config.bindings}
+            observations = self.state.tables["source_observation_current"]
+            for source in config.sources:
+                for measured_source in {
+                    source.source_id,
+                    source.freshness.liveness_source or source.source_id,
+                }:
+                    raw = observations.get(bindings.get(measured_source, ""))
+                    if raw:
+                        stamp = Observation.model_validate(raw).measurement
+                        if stamp:
+                            due.append(
+                                stamp - timedelta(seconds=source.freshness.future_tolerance_s)
+                            )
+                            if source.freshness.interval_s is not None:
+                                due.append(
+                                    stamp
+                                    + timedelta(seconds=source.freshness.interval_s, microseconds=1)
+                                )
+            for contract in config.contracts:
+                callback = self.types.get(contract.type_id, contract.type_version).next_due
+                if callback and contract.enabled:
+                    try:
+                        at = callback(
+                            contract.parameters,
+                            self.state.tables["node_state"].get(contract.contract_id, {}),
+                            now,
+                        )
+                    except ValueError, TypeError, KeyError, AttributeError:
+                        # Invalid persisted context is already degraded by evaluation;
+                        # a scheduling hint must never undo a committed publication.
+                        at = None
+                    if at:
+                        due.append(at)
+        self.next_evaluation = min((at for at in due if at > now), default=None)
 
     def snapshot(self, contracts: list[str] | None = None) -> dict[str, Any]:
         items = self.state.tables["contract_state_current"]

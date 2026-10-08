@@ -54,7 +54,7 @@ async def test_idle_soak_has_constant_current_state_history_and_publications(run
         await runtime.submit("tick")
     gc.collect()
     initial = tracemalloc.get_traced_memory()[0]
-    for _ in range(2000):
+    for _ in range(10000):
         runtime.clock.advance(60)
         await runtime.submit("tick")
     gc.collect()
@@ -568,3 +568,157 @@ async def test_lost_command_response_is_recovered_without_double_execution(
         )
     assert result["status"] == "accepted" and posts == 1
     assert field(runtime)["value"] == "b"
+
+
+@pytest.mark.parametrize("operation", ["stable_for", "grace"])
+async def test_runtime_restart_restores_only_proven_anchor_or_remaining_grace(
+    runtime, config, operation
+):
+    temporal(config, operation, 60)
+    await activate(runtime, config)
+    original_time = runtime.clock.now_utc()
+    await runtime.submit(
+        "observation", obs(runtime, ha_last_changed=original_time - timedelta(seconds=1))
+    )
+    if operation == "grace":
+        runtime.clock.advance(1)
+        await runtime.submit("observation", obs(runtime, availability="unavailable"))
+        deadline = field(runtime)["held_until"]
+    await runtime.stop()
+    runtime.clock.advance(30)
+    restarted = Runtime(runtime.store, runtime.clock, runtime.types)
+    await restarted.start()
+    try:
+        if operation == "grace":
+            assert field(restarted)["status"] == "held"
+            assert field(restarted)["held_until"] == deadline
+            restarted.clock.advance(31)
+            await restarted.submit("tick")
+            assert field(restarted)["status"] == "unknown"
+        else:
+            await restarted.submit(
+                "observation",
+                obs(restarted, ha_last_changed=original_time - timedelta(seconds=1)).model_copy(
+                    update={"observation_kind": "snapshot"}
+                ),
+            )
+            assert restarted.state.tables["node_state"]["fixture.echo"]["temporal"][
+                "since_at"
+            ] == original_time.isoformat().replace("+00:00", "Z")
+            restarted.clock.advance(30)
+            await restarted.submit("tick")
+            assert field(restarted)["value"] is True
+    finally:
+        await restarted.stop()
+
+
+def test_operator_and_fusion_preserve_affected_source_reason(runtime):
+    from core_contracts.fusion import Fusion
+    from core_contracts.resolver import boolean
+
+    now = runtime.clock.now_utc()
+    missing = unknown(ReasonCode.INPUT_UNAVAILABLE, "source.affected", now)
+    for value in (
+        boolean("not", [missing], now),
+        Fusion().evaluate("first_healthy", [missing], now),
+    ):
+        assert any(
+            r.input == "source.affected" and r.code == ReasonCode.INPUT_UNAVAILABLE
+            for r in value.reasons
+        )
+
+
+@pytest.mark.parametrize(
+    "mode,reports",
+    [
+        ("event_stateful", []),
+        ("report_heartbeat", ["sensor.example_1"]),
+        ("periodic_ttl", ["sensor.example_1"]),
+    ],
+)
+async def test_handshake_revision_wakeup_and_report_filter(
+    runtime, config, aiohttp_server, monkeypatch, mode, reports
+):
+    from dev.fake_ha import FakeHA
+
+    if mode != "event_stateful":
+        config["sources"][0]["freshness"].update(mode=mode, interval_s=10)
+    await activate(runtime, config)
+    fake = FakeHA()
+    server = await aiohttp_server(fake.application())
+    async with aiohttp.ClientSession() as session:
+        adapter = BridgeAdapter(
+            runtime, session, str(server.make_url("/websocket")).replace("http:", "ws:"), "test"
+        )
+        original = adapter._result
+
+        async def request(socket, document):
+            result = await original(socket, document)
+            if document["type"] == "get_config":
+                config["contracts"][0]["display_name"] = "new revision during handshake"
+                await activate(runtime, config)
+            return result
+
+        monkeypatch.setattr(adapter, "_result", request)
+        async with asyncio.timeout(3):
+            await adapter.connect(runtime.config)
+    subscription = next(
+        item for item in fake.requests if item["type"] == "core_contracts_bridge/subscribe"
+    )
+    assert subscription["report_entity_ids"] == reports
+    assert runtime.revision_changed.is_set()
+    assert runtime.mqtt_revision_changed.is_set()
+    assert not runtime.first_snapshot
+
+
+async def test_mqtt_internal_queuefull_invalidates_only_mqtt_bindings(runtime, config):
+    config["bindings"][0]["adapter"] = {"kind": "mqtt", "mqtt_topic": "test/input"}
+    await activate(runtime, config)
+    async with aiohttp.ClientSession() as session:
+        adapter = MQTTAdapter(runtime, session, "disabled", {}, "")
+        queue = adapter.queue_type(1)
+        queue.put_nowait(None)
+        with pytest.raises(asyncio.QueueFull):
+            queue.put_nowait(None)
+        assert runtime.overflow_bindings == {"binding.a"}
+        await runtime.submit("tick")
+        assert len(await runtime.store.rows("history_gap")) == 1
+
+
+async def test_safe_admin_validation_details(runtime, config, aiohttp_client, tmp_path):
+    api = API(runtime, Tokens(tmp_path), str(uuid4()))
+    client = await aiohttp_client(api.application())
+    headers = {"Authorization": "Bearer " + api.tokens.values["admin"]}
+    config["contracts"][0].update(type_id="test.state_machine", parameters={"sessions": False})
+    draft = await (
+        await client.post("/api/v1/registry/drafts", json=config, headers=headers)
+    ).json()
+    response = await client.post(
+        f"/api/v1/registry/drafts/{draft['draft_id']}/validate", json={}, headers=headers
+    )
+    result = await response.json()
+    assert response.status == 400
+    assert result["details"] == [{"location": ["deadline_s"], "type": "missing"}]
+    assert "input_value" not in json.dumps(result) and "ctx" not in json.dumps(result)
+
+
+async def test_idle_without_registry_does_not_commit(runtime):
+    generation = runtime.state.generation
+    for _ in range(100):
+        runtime.clock.advance(1)
+        await runtime.submit("tick")
+    assert runtime.state.generation == generation
+
+
+async def test_source_future_clock_and_backward_jump_are_rechecked(runtime, config):
+    await activate(runtime, config)
+    await runtime.submit(
+        "observation", obs(runtime, device_time=runtime.clock.now_utc() + timedelta(seconds=10))
+    )
+    assert field(runtime)["status"] == "unknown"
+    runtime.clock.advance(9)
+    await runtime.submit("tick")
+    assert field(runtime)["status"] == "valid"
+    runtime.clock.jump(-5)
+    await runtime.submit("tick")
+    assert field(runtime)["status"] == "unknown"

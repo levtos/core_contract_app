@@ -68,6 +68,10 @@ class JsonFormatter(logging.Formatter):
                         "epoch_id",
                         "revision",
                         "operation",
+                        "field",
+                        "previous_status",
+                        "status",
+                        "writer_pid",
                     )
                     if k in record.__dict__
                 },
@@ -258,18 +262,7 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
                     for task in tasks:
                         task.cancel()
         finally:
-            # Cleanup, socket closure and persistence all share the outer budget.
-            if runtime.persistence:
-                write_private(
-                    shutdown_file,
-                    canonical(
-                        {
-                            "publication_seq": runtime.state.publication_seq,
-                            "installation_id": installation_id,
-                        }
-                    ),
-                )
-        LOGGER.info("stopped")
+            LOGGER.info("stopping")
     finally:
         for background in (ticker, stop_waiter, initialization):
             background.cancel()
@@ -278,9 +271,20 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
             async with asyncio.timeout(25):
                 await api.close_sockets(consumer.app)
                 await runtime.stop()
+                if runtime.persistence and api.installation_id:
+                    write_private(
+                        shutdown_file,
+                        canonical(
+                            {
+                                "publication_seq": runtime.state.publication_seq,
+                                "installation_id": api.installation_id,
+                            }
+                        ),
+                    )
                 await consumer.cleanup()
                 await ingress.cleanup()
                 await store.close()
+                LOGGER.info("stopped")
         finally:
             if runtime.task and not runtime.task.done():
                 runtime.task.cancel()
