@@ -1,8 +1,10 @@
 """Dedicated, locked PostgreSQL writer and atomic platform changesets."""
 
 import asyncio
+import copy
 import hashlib
 import json
+import logging
 import ssl
 from collections.abc import Callable
 from datetime import datetime
@@ -43,6 +45,9 @@ IMMUTABLE = {
     "diagnostic_event",
 }
 LOCK_ID = 1128484913
+LOGGER = logging.getLogger(__name__)
+# Historical rows are transaction append/upsert buffers, never a runtime cache.
+ARCHIVE = IMMUTABLE | {"command_log", "sm_episode", "deadline", "runtime_epoch"}
 
 
 class PersistenceUnavailable(RuntimeError):
@@ -62,7 +67,27 @@ class State(BaseModel):
     publications: dict[int, dict[str, Any]] = Field(default_factory=dict)
 
     def clone(self) -> State:
-        return self.model_copy(deep=True)
+        return State(
+            generation=self.generation,
+            active_revision=self.active_revision,
+            publication_seq=self.publication_seq,
+            epoch_id=self.epoch_id,
+            tables={name: copy.deepcopy(rows) for name, rows in self.current_tables().items()},
+        )
+
+    def current_tables(self) -> dict[str, dict[str, dict[str, Any]]]:
+        result = {}
+        for name, rows in self.tables.items():
+            key = str(self.active_revision) if name == "registry_revision" else self.epoch_id
+            if name in {"registry_revision", "runtime_epoch"}:
+                result[name] = {key: rows[key]} if key in rows else {}
+            else:
+                result[name] = {} if name in ARCHIVE else rows
+        return result
+
+    def compact(self) -> None:
+        self.tables = self.current_tables()
+        self.publications = {}
 
 
 class Store(Protocol):
@@ -70,6 +95,10 @@ class Store(Protocol):
     async def commit(self, state: State) -> None: ...
     async def probe(self) -> None: ...
     async def close(self) -> None: ...
+    async def get(self, table: str, key: str) -> dict[str, Any] | None: ...
+    async def rows(
+        self, table: str, *, contract_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]: ...
 
 
 class PostgresStore:
@@ -84,15 +113,30 @@ class PostgresStore:
         self._mutex = asyncio.Lock()
 
     async def open(self) -> None:
-        connection = await asyncpg.connect(self.dsn, ssl=self.tls, command_timeout=10)
+        connection = await asyncpg.connect(
+            self.dsn,
+            ssl=self.tls,
+            timeout=10,
+            command_timeout=10,
+            server_settings={
+                "tcp_keepalives_idle": "15",
+                "tcp_keepalives_interval": "5",
+                "tcp_keepalives_count": "3",
+                "tcp_user_timeout": "30000",
+                "idle_session_timeout": "60000",
+                "idle_in_transaction_session_timeout": "15000",
+                "application_name": "core_contracts_writer",
+            },
+        )
         try:
             if not await connection.fetchval("SELECT pg_try_advisory_lock($1)", LOCK_ID):
                 raise PersistenceUnavailable("writer_lock_unavailable")
             self.writer = connection
             await self.migrate()
             self.pool = await asyncpg.create_pool(
-                self.dsn, ssl=self.tls, min_size=1, max_size=2, command_timeout=10
+                self.dsn, ssl=self.tls, min_size=1, max_size=2, timeout=10, command_timeout=10
             )
+            LOGGER.info("writer_lock_acquired")
         except BaseException:
             await connection.close()
             self.writer = None
@@ -125,6 +169,7 @@ class PostgresStore:
                 await connection.execute(
                     "INSERT INTO cc_schema_migrations VALUES ($1, $2)", version, digest
                 )
+            LOGGER.info("migration_applied", extra={"revision": version})
 
     def _writer(self) -> asyncpg.Connection[Any]:
         if self.writer is None or self.writer.is_closed():
@@ -160,12 +205,19 @@ class PostgresStore:
         async with connection.transaction(isolation="repeatable_read", readonly=True):
             state = State.model_validate(await self.metadata("runtime") or {})
             for table in TABLES:
-                rows = await connection.fetch(f"SELECT key,payload FROM {table}")
+                if table == "registry_revision":
+                    rows = await connection.fetch(
+                        f"SELECT key,payload FROM {table} WHERE key=$1", str(state.active_revision)
+                    )
+                elif table == "runtime_epoch":
+                    rows = await connection.fetch(
+                        f"SELECT key,payload FROM {table} WHERE key=$1", state.epoch_id
+                    )
+                elif table in ARCHIVE:
+                    continue
+                else:
+                    rows = await connection.fetch(f"SELECT key,payload FROM {table}")
                 state.tables[table] = {row["key"]: json.loads(row["payload"]) for row in rows}
-            state.publications = {
-                row["seq"]: json.loads(row["payload"])
-                for row in await connection.fetch("SELECT seq,payload FROM publication")
-            }
         self._committed = state.clone()
         return state
 
@@ -180,17 +232,21 @@ class PostgresStore:
                 for table in TABLES:
                     old, new = previous.tables[table], state.tables[table]
                     for key in old.keys() - new.keys():
-                        if table in IMMUTABLE:
-                            raise ValueError("immutable history")
+                        if table in ARCHIVE:
+                            continue
                         await connection.execute(f"DELETE FROM {table} WHERE key=$1", key)
                     for key, value in new.items():
                         if old.get(key) == value:
                             continue
                         if key in old and table in IMMUTABLE:
                             raise ValueError("immutable history")
+                        suffix = (
+                            ""
+                            if table in IMMUTABLE
+                            else " ON CONFLICT(key) DO UPDATE SET payload=EXCLUDED.payload"
+                        )
                         await connection.execute(
-                            f"INSERT INTO {table} VALUES ($1,$2::jsonb) "
-                            "ON CONFLICT(key) DO UPDATE SET payload=EXCLUDED.payload",
+                            f"INSERT INTO {table} VALUES ($1,$2::jsonb)" + suffix,
                             key,
                             canonical(value),
                         )
@@ -208,14 +264,45 @@ class PostgresStore:
                 if self.before_commit:
                     self.before_commit()
             state.generation += 1
+            state.compact()
             self._committed = state.clone()
+
+    async def get(self, table: str, key: str) -> dict[str, Any] | None:
+        if table not in TABLES or self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        value = await self.pool.fetchval(f"SELECT payload FROM {table} WHERE key=$1", key)
+        return json.loads(value) if value is not None else None
+
+    async def rows(
+        self, table: str, *, contract_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        if table not in TABLES or self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        order = (
+            "(payload->>'publication_seq')::bigint"
+            if table == "contract_state_history"
+            else "(payload->>'revision')::bigint"
+            if table == "registry_revision"
+            else "COALESCE(payload->>'at',payload->>'created_at',payload->>'updated_at','')"
+        )
+        records = await self.pool.fetch(
+            f"SELECT payload FROM {table} WHERE ($1::text IS NULL OR payload->>'contract_id'=$1) ORDER BY {order} DESC, key DESC LIMIT $2",
+            contract_id,
+            min(max(limit, 1), 1000),
+        )
+        return [json.loads(row["payload"]) for row in records]
 
     async def close(self) -> None:
         if self.pool:
-            await self.pool.close()
+            try:
+                async with asyncio.timeout(3):
+                    await self.pool.close()
+            except TimeoutError:
+                LOGGER.warning("reader_pool_close_timeout")
+                self.pool.terminate()
             self.pool = None
         if self.writer and not self.writer.is_closed():
-            await self.writer.close()  # Session lock is released by PostgreSQL.
+            await self.writer.close(timeout=3)  # Session lock is released by PostgreSQL.
         self.writer = None
 
 
@@ -242,8 +329,44 @@ class MemoryStore:
             raise ValueError("stale changeset")
         if self.before_commit:
             self.before_commit()
+        for table, rows in state.tables.items():
+            if table not in ARCHIVE:
+                self.state.tables[table] = copy.deepcopy(rows)
+            else:
+                self.state.tables[table].update(copy.deepcopy(rows))
+        self.state.publications.update(copy.deepcopy(state.publications))
         state.generation += 1
-        self.state = state.clone()
+        for name in ("generation", "active_revision", "publication_seq", "epoch_id"):
+            setattr(self.state, name, getattr(state, name))
+        state.compact()
+
+    async def get(self, table: str, key: str) -> dict[str, Any] | None:
+        await self.probe()
+        return copy.deepcopy(self.state.tables[table].get(key))
+
+    async def rows(
+        self, table: str, *, contract_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        await self.probe()
+        records = [
+            v
+            for v in self.state.tables[table].values()
+            if contract_id is None or v.get("contract_id") == contract_id
+        ]
+        key = (
+            "publication_seq"
+            if table == "contract_state_history"
+            else "revision"
+            if table == "registry_revision"
+            else "at"
+        )
+        return copy.deepcopy(
+            sorted(
+                records,
+                key=lambda row: row.get(key, row.get("created_at", row.get("updated_at", ""))),
+                reverse=True,
+            )[:limit]
+        )
 
     async def close(self) -> None:
         self.locked = False

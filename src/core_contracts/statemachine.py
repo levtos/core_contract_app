@@ -10,7 +10,7 @@ from .model import Model
 from .quality import FieldValue, ReasonCode, unknown
 from .temporal import Deadline
 
-Guard = Callable[[dict[str, FieldValue], datetime], bool]
+Guard = Callable[[dict[str, FieldValue], datetime], bool | None]
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,14 @@ class Machine:
         for rule in self.definition.transitions:
             if rule.source != state.state or rule.event != event:
                 continue
-            if not rule.guard(inputs, now):
+            allowed = rule.guard(inputs, now)
+            if allowed is None:
+                return state, "guard_unknown"
+            if not allowed:
+                if event == "deadline" and state.deadline:
+                    return state.model_copy(
+                        update={"deadline": state.deadline.model_copy(update={"fired": True})}
+                    ), "unchanged"
                 return state, "guard_rejected"
             episode = str(uuid4()) if rule.new_episode else state.episode_id
             deadline = self._deadline(episode, now) if rule.new_episode else state.deadline
@@ -128,6 +135,10 @@ class Machine:
                     "deadline": deadline,
                 }
             ), "accepted"
+        if event == "deadline" and state.deadline:
+            state = state.model_copy(
+                update={"deadline": state.deadline.model_copy(update={"fired": True})}
+            )
         return state, "guard_rejected" if manual else "unchanged"
 
     def validate_restore(

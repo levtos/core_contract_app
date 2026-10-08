@@ -15,6 +15,7 @@ class TemporalState(Model):
     last_valid: FieldValue | None = None
     baseline: FieldValue | None = None
     gap_at: datetime | None = None
+    grace_armed: bool = False
 
 
 @dataclass
@@ -24,7 +25,9 @@ class Temporal:
 
     def stable_for(self, value: FieldValue, seconds: float, now: datetime) -> FieldValue:
         if not value.usable(now) or (value.status == "held" and not self.accepts_held):
-            self.state = self.state.model_copy(update={"since_at": None, "gap_at": now})
+            self.state = self.state.model_copy(
+                update={"since_at": None, "gap_at": self.state.gap_at or now}
+            )
             return unknown(ReasonCode.INPUT_UNKNOWN, "condition", now)
         if type(value.value) is not bool:
             return unknown(ReasonCode.INVALID_VALUE, "condition", now)
@@ -43,13 +46,29 @@ class Temporal:
         self, value: FieldValue, seconds: float, now: datetime, *, trigger: bool
     ) -> FieldValue:
         if value.status == "valid":
-            self.state = self.state.model_copy(update={"last_valid": value, "grace_until": None})
+            self.state = self.state.model_copy(
+                update={
+                    "last_valid": value,
+                    "grace_until": None,
+                    "grace_armed": trigger or self.state.grace_armed,
+                }
+            )
+            return value
+        if value.status == "not_applicable":
+            self.state = self.state.model_copy(
+                update={"last_valid": None, "grace_until": None, "grace_armed": False}
+            )
             return value
         if value.status == "held":
             return derive(value.value, [value], now)  # Never seed another Grace from Held.
-        if self.state.grace_until is None and trigger and self.state.last_valid is not None:
+        if (
+            self.state.grace_until is None
+            and trigger
+            and self.state.grace_armed
+            and self.state.last_valid is not None
+        ):
             self.state = self.state.model_copy(
-                update={"grace_until": now + timedelta(seconds=seconds)}
+                update={"grace_until": now + timedelta(seconds=seconds), "grace_armed": False}
             )
         if self.state.last_valid and self.state.grace_until and now < self.state.grace_until:
             return FieldValue(
@@ -68,7 +87,7 @@ class Temporal:
     def edge(self, value: FieldValue, now: datetime, *, allow_edge: bool) -> FieldValue:
         previous = self.state.baseline
         if not value.usable(now):
-            self.state = self.state.model_copy(update={"gap_at": now})
+            self.state = self.state.model_copy(update={"gap_at": self.state.gap_at or now})
             return value  # Unknown never overwrites the baseline.
         self.state = self.state.model_copy(update={"baseline": value})
         return derive(bool(allow_edge and previous and previous.value != value.value), [value], now)
@@ -104,6 +123,7 @@ class Temporal:
             update={
                 "since_at": state.since_at if continuous or grace_bridges else None,
                 "gap_at": now,
+                "grace_armed": False,
             }
         )
 

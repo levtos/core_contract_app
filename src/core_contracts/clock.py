@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from importlib.resources import files
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
@@ -105,7 +106,9 @@ def berlin_utc(local: datetime) -> datetime:
     """Naive civil time: fold zero; a DST gap advances to the first real second."""
     if local.tzinfo is not None:
         raise ValueError("expected local civil time")
-    zone = ZoneInfo("Europe/Berlin")
+    # Use the locked Python tzdata distribution even if the host has newer tzfiles.
+    with files("tzdata.zoneinfo").joinpath("Europe/Berlin").open("rb") as data:
+        zone = ZoneInfo.from_file(data, key="Europe/Berlin")
     while True:
         candidate = local.replace(tzinfo=zone, fold=0).astimezone(UTC)
         if candidate.astimezone(zone).replace(tzinfo=None) == local:

@@ -32,6 +32,8 @@ class API:
             frontend,
         )
         self.limiter = RateLimiter(runtime.clock)
+        self.auth_limiter = RateLimiter(runtime.clock)
+        self.sockets: set[web.WebSocketResponse] = set()
 
     def application(self, *, ingress: bool = False) -> web.Application:
         @web.middleware
@@ -45,12 +47,16 @@ class API:
             elif request.path.startswith("/health/"):
                 role = "health"
             else:
+                if not self.auth_limiter.allow(f"auth:{request.remote}"):
+                    raise web.HTTPTooManyRequests()
                 role = self.tokens.role(request.headers.get("Authorization", "")) or ""
                 if not role:
                     raise web.HTTPUnauthorized()
-            if not self.limiter.allow(f"{request.remote}:{role}"):
+            if role != "health" and not self.limiter.allow(f"{request.remote}:{role}"):
                 raise web.HTTPTooManyRequests()
             request["role"] = role
+            if not self.installation_id and role != "health":
+                raise web.HTTPServiceUnavailable()
             if request.method not in {"GET", "HEAD"} and request.path != "/api/v1/commands":
                 if role != "admin":
                     raise web.HTTPForbidden()
@@ -70,11 +76,33 @@ class API:
                         "draft_version_conflict",
                         "cycle",
                         "contract_disabled",
+                        "config_incomplete: type or parameters",
+                        "config_incomplete: inputs",
+                        "duplicate identity / producer",
+                        "duplicate adapter evidence path",
+                        "duplicate physical evidence path",
+                        "unknown reference",
+                        "unknown catalog",
+                        "unknown liveness source",
+                        "unbound source",
+                        "disabled required dependency",
+                        "revision_not_found",
                     }
                     else "invalid_request"
                 )
                 response = web.json_response(
-                    {"error": code}, status=409 if "conflict" in code else 400
+                    {
+                        "error": code,
+                        "details": [
+                            {"location": list(item["loc"]), "type": item["type"]}
+                            for item in error.errors(
+                                include_input=False, include_context=False, include_url=False
+                            )
+                        ]
+                        if isinstance(error, ValidationError)
+                        else [],
+                    },
+                    status=409 if "conflict" in code else 400,
                 )
             except RuntimeError:
                 response = web.json_response({"error": "persistence_unavailable"}, status=503)
@@ -86,6 +114,7 @@ class API:
             return response
 
         app = web.Application(middlewares=[boundary], client_max_size=2_000_000)
+        app.on_shutdown.append(self.close_sockets)
         app.router.add_get("/health/live", self.health)
         app.router.add_get("/health/ready", self.health)
         app.router.add_get("/api/v1/ws", self.websocket)
@@ -93,6 +122,17 @@ class API:
         if ingress:
             app.router.add_get("/{path:.*}", self.static)
         return app
+
+    async def close_sockets(self, app: web.Application) -> None:
+        async def close(socket: web.WebSocketResponse) -> None:
+            try:
+                async with asyncio.timeout(2):
+                    await socket.send_json({"type": "going_away"})
+                    await socket.close(code=1001, message=b"shutdown")
+            except TimeoutError, ConnectionError:
+                pass
+
+        await asyncio.gather(*(close(socket) for socket in list(self.sockets)))
 
     async def health(self, request: web.Request) -> web.Response:
         runtime = self.runtime
@@ -156,7 +196,7 @@ class API:
         elif path == "commands" and method == "POST":
             result = await runtime.submit("command", await request.json())
         elif path.startswith("commands/") and method == "GET":
-            result = state.tables["command_log"].get(path.removeprefix("commands/"))
+            result = await runtime.store.get("command_log", path.removeprefix("commands/"))
             if result is None:
                 raise web.HTTPNotFound()
             result = result["result"]
@@ -176,7 +216,7 @@ class API:
                 "service": runtime.service_state(),
                 "queue_size": runtime.queue.qsize(),
                 "commit_duration_s": runtime.commit_duration,
-                "gaps": list(state.tables["history_gap"].values()),
+                "gaps": await runtime.store.rows("history_gap"),
                 "dependencies": [d.model_dump() for d in config.dependencies] if config else [],
             }
         elif path in {"sources", "bindings"} and method == "GET":
@@ -190,11 +230,7 @@ class API:
             ]
         elif path.startswith("history/") and method == "GET":
             key = path.removeprefix("history/")
-            result = [
-                v
-                for v in state.tables["contract_state_history"].values()
-                if v["contract_id"] == key
-            ][-100:]
+            result = await runtime.store.rows("contract_state_history", contract_id=key)
         elif path in {"registry/active", "registry/active/export"} and method == "GET":
             result = (
                 config.model_dump(mode="json")
@@ -202,9 +238,9 @@ class API:
                 else state.tables["registry_revision"].get(str(state.active_revision))
             )
         elif path == "registry/revisions" and method == "GET":
-            result = list(state.tables["registry_revision"].values())
+            result = await runtime.store.rows("registry_revision")
         elif path.startswith("registry/revisions/") and method == "GET":
-            result = state.tables["registry_revision"][path.split("/")[-1]]
+            result = await runtime.store.get("registry_revision", path.split("/")[-1])
         elif path == "registry/drafts" and method == "GET":
             result = list(state.tables["registry_draft"].values())
         elif path == "registry/drafts" and method == "POST":
@@ -240,6 +276,7 @@ class API:
     async def websocket(self, request: web.Request) -> web.WebSocketResponse:
         socket = web.WebSocketResponse(max_msg_size=64_000, heartbeat=30)
         await socket.prepare(request)
+        self.sockets.add(socket)
         queue = None
         sender = None
         selected: list[str] | None = None
@@ -254,6 +291,9 @@ class API:
                         "contracts": {k: v for k, v in event["contracts"].items() if k in selected},
                     }
                 await socket.send_json(event)
+                if event["type"] == "going_away":
+                    await socket.close(code=1001)
+                    return
 
         try:
             hello = await socket.receive_json(timeout=10)
@@ -293,6 +333,7 @@ class API:
         except ValueError, TimeoutError:
             await socket.close(code=1002)
         finally:
+            self.sockets.discard(socket)
             if queue:
                 self.runtime.subscribers.discard(queue)
             if sender:

@@ -127,7 +127,9 @@ class FixtureEvaluation:
                 invalid = machine.validate_restore(machine_state, node["fingerprint"], now)
                 if invalid:
                     return invalid, node, None
-            elif case == "first":
+            elif case == "first" or (origin == "input" and a.status == "valid"):
+                # Synthetic type's declared recovery rule: fresh decisive live
+                # evidence can start a NEW episode; snapshots cannot invent one.
                 machine_state = machine.initial(now, state.active_revision, node["fingerprint"])
             else:
                 code = (
@@ -146,7 +148,7 @@ class FixtureEvaluation:
                     machine_state, outcome = machine.step(
                         machine_state, event, inputs, now, state.active_revision
                     )
-                    if event == "deadline" and outcome != "accepted":
+                    if event == "deadline" and outcome == "guard_unknown":
                         node["machine"] = machine_state.model_dump(mode="json")
                         return (
                             unknown(ReasonCode.DEADLINE_OVERDUE, contract.contract_id, now),

@@ -126,3 +126,30 @@ async def test_connection_loss_recovery(database, config):
     assert runtime.state.epoch_id != epoch
     await runtime.stop()
     await store.close()
+
+
+async def test_history_is_durable_bounded_ordered_and_not_loaded(database, config):
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await activate(runtime, config)
+        for number in range(110):
+            runtime.clock.advance(1)
+            await runtime.submit("observation", obs(runtime, number))
+        loaded = await store.load()
+        assert not loaded.tables["contract_state_history"] and not loaded.publications
+        rows = await store.rows("contract_state_history", contract_id="fixture.echo")
+        assert len(rows) == 100
+        assert rows[0]["fields"]["value"]["value"] == 109
+        assert [row["publication_seq"] for row in rows] == sorted(
+            [row["publication_seq"] for row in rows], reverse=True
+        )
+        assert await store.writer.fetchval("SELECT count(*) FROM contract_state_history") == 111
+        assert await store.writer.fetchval("SHOW tcp_keepalives_idle") == "15"
+        assert await store.writer.fetchval("SHOW tcp_user_timeout") == "30s"
+        assert await store.writer.fetchval("SHOW idle_session_timeout") == "1min"
+    finally:
+        await runtime.stop()
+        await store.close()

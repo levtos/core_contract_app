@@ -3,7 +3,7 @@
 import re
 from typing import Any, Literal, Self
 
-from pydantic import Field, ValidationError, model_validator
+from pydantic import Field, model_validator
 
 from .adapters import AdapterConfig
 from .evidence import Freshness
@@ -149,12 +149,22 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
     catalogs = {c.catalog_id for c in config.catalogs}
     bound: set[str] = set()
     physical: set[str] = set()
+    addresses: set[tuple[str | None, ...]] = set()
     for source in config.sources:
         if source.source_origin != "local" or source.dependency_id not in dependencies:
             raise ValueError("invalid source dependency/origin")
         if source.freshness.liveness_source and source.freshness.liveness_source not in sources:
             raise ValueError("unknown liveness source")
     for binding in config.bindings:
+        adapter = binding.adapter
+        address = (
+            (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
+            if adapter.kind.startswith("ha_")
+            else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
+        )
+        if adapter.kind != "scheduler" and address in addresses:
+            raise ValueError("duplicate adapter evidence path")
+        addresses.add(address)
         if binding.source_id not in sources or binding.source_id in bound:
             raise ValueError("source binding missing or duplicate")
         key = sources[binding.source_id].physical_source_key
@@ -171,9 +181,9 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
     for contract in config.contracts:
         try:
             declaration = types.get(contract.type_id, contract.type_version)
-            declaration.parameters.model_validate(contract.parameters)
-        except (KeyError, ValidationError) as error:
+        except KeyError as error:
             raise ValueError("config_incomplete: type or parameters") from error
+        declaration.parameters.model_validate(contract.parameters)
         names = [i.name for i in contract.inputs]
         allowed = {i.name for i in declaration.inputs}
         required = {i.name for i in declaration.inputs if i.required}
@@ -229,7 +239,15 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
             {
                 "source": source.model_dump(mode="json"),
                 "bindings": bindings,
-                "catalogs": [c.model_dump() for c in config.catalogs],
+                "catalogs": [
+                    c.model_dump()
+                    for c in config.catalogs
+                    if any(
+                        b.transform and b.transform.catalog_id == c.catalog_id
+                        for b in config.bindings
+                        if b.source_id == source.source_id
+                    )
+                ],
             }
         )
     for contract in topological(config):

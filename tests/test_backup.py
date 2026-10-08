@@ -70,7 +70,7 @@ async def test_pg_dump_restore(database, config):
         await second.start()
         assert second.state.active_revision == 1
         assert second.state.publication_seq == original_seq + 1
-        assert second.state.tables["history_gap"]
+        assert await second.store.rows("history_gap")
         await second.stop()
         await restored.close()
     finally:

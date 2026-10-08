@@ -11,6 +11,9 @@ export function serviceState(service:Service):UIState {
 }
 export async function request<T>(path:string,method='GET',body?:unknown):Promise<T> {
   const response=await fetch(`./api/v1/${path}`,{method,headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
-  if (!response.ok) throw new Error(`Anfrage fehlgeschlagen (${response.status})`);
+  if (!response.ok) {
+    const error=await response.json().catch(()=>({error:'invalid_response'}));
+    throw new Error(`Anfrage fehlgeschlagen (${response.status}): ${JSON.stringify(error)}`);
+  }
   return await response.json() as T;
 }

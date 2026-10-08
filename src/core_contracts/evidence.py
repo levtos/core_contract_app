@@ -44,6 +44,7 @@ class Observation(Model):
     observation_kind: Literal["live_change", "report", "snapshot", "restore"]
     ha_restored: bool = False
     assumed_state: bool = False
+    invalid_timestamp: bool = False
     epoch_id: str
     ingest_seq: int = Field(ge=0)
     availability: Literal["available", "unavailable", "unknown", "absent"] = "available"
@@ -108,7 +109,9 @@ def assess(
     if observation is None:
         return unknown(ReasonCode.INPUT_ABSENT, source_id, now)
     code: ReasonCode | None = None
-    if observation.availability != "available":
+    if observation.invalid_timestamp:
+        code = ReasonCode.INVALID_VALUE
+    elif observation.availability != "available":
         code = {
             "absent": ReasonCode.INPUT_ABSENT,
             "unavailable": ReasonCode.INPUT_UNAVAILABLE,
@@ -151,5 +154,5 @@ def assess(
         measured_at=observation.measurement,
         evidence=(observation.reference,),
         freshness="fresh",
-        since_at=observation.ha_last_changed,
+        since_at=observation.ha_last_changed if observation.adapter == "ha_state" else None,
     )

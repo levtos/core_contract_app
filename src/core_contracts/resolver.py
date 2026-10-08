@@ -58,7 +58,9 @@ def boolean(op: str, inputs: list[FieldValue], now: datetime) -> FieldValue:
         return (
             derive(not valid[0].value, valid, now)
             if valid
-            else unknown(ReasonCode.INPUT_UNKNOWN, "boolean", now)
+            else derive(None, inputs, now)
+            if any(not item.usable(now) for item in inputs)
+            else unknown(ReasonCode.INVALID_VALUE, "boolean", now)
         )
     decisive = [item for item in valid if item.value is (op == "or")]
     if decisive:
@@ -66,7 +68,11 @@ def boolean(op: str, inputs: list[FieldValue], now: datetime) -> FieldValue:
         chosen = next((i for i in decisive if i.status == "valid"), decisive[0])
         return derive(op == "or", [chosen], now)
     if len(valid) != len(inputs):
-        return unknown(ReasonCode.INPUT_UNKNOWN, "boolean", now)
+        return (
+            derive(None, inputs, now)
+            if any(not item.usable(now) for item in inputs)
+            else unknown(ReasonCode.INVALID_VALUE, "boolean", now)
+        )
     return derive(op == "and", valid, now)
 
 
@@ -76,7 +82,8 @@ def first_match(cases: list[tuple[FieldValue, FieldValue]], now: datetime) -> Fi
             return FieldValue(
                 status="unresolved",
                 quality="degraded",
-                reasons=(Reason(code=ReasonCode.SELECTION_BLOCKED, input="condition", since=now),),
+                reasons=(Reason(code=ReasonCode.SELECTION_BLOCKED, input="condition", since=now),)
+                + condition.reasons,
             )
         if condition.value:
             return derive(result.value, [condition, result], now)

@@ -55,8 +55,8 @@ async def main():
             )
         )
 
-    async def eventually(predicate):
-        for _ in range(60):
+    async def eventually(predicate, attempts=60):
+        for _ in range(attempts):
             try:
                 if predicate():
                     return
@@ -122,6 +122,7 @@ async def main():
             == "0o600"
         )
         request = "import urllib.request,json; from pathlib import Path; token=Path('/data/secrets/admin_token').read_text(); req=urllib.request.Request('http://127.0.0.1:8787/api/v1/info',headers={'Authorization':'Bearer '+token}); print(json.load(urllib.request.urlopen(req))['installation_id'])"
+        await eventually(lambda: len(inside(request)) == 36)
         identity = inside(request)
         assert len(identity) == 36
         registry = json.loads(
@@ -144,12 +145,52 @@ async def main():
         docker("start", db)
         await eventually(lambda: health("ready")["body"].get("persistence") == "available")
         assert inside(request) == identity
+        # A partition leaves the old PostgreSQL session alive initially. Its
+        # server-side timeout must release the advisory lock without force-unlock.
+        docker("network", "disconnect", network, app)
+        await eventually(
+            lambda: health("ready")["body"].get("persistence") == "persistence_unavailable"
+        )
+        await eventually(
+            lambda: (
+                docker(
+                    "exec",
+                    db,
+                    "psql",
+                    "-U",
+                    "postgres",
+                    "-tAc",
+                    "SELECT count(*) FROM pg_stat_activity WHERE application_name='core_contracts_writer'",
+                ).stdout.strip()
+                == "0"
+            ),
+            attempts=150,
+        )
+        docker("network", "connect", network, app)
+        await eventually(
+            lambda: health("ready")["body"].get("persistence") == "available", attempts=120
+        )
+        assert inside(request) == identity
+        socket_code = "import asyncio,aiohttp; from pathlib import Path\nasync def run():\n async with aiohttp.ClientSession() as session:\n  async with session.ws_connect('http://127.0.0.1:8787/api/v1/ws',headers={'Authorization':'Bearer '+Path('/data/secrets/admin_token').read_text()}) as socket:\n   await socket.send_json({'type':'hello','protocol_version':1})\n   await socket.receive_json()\n   await socket.receive_json()\n   await socket.send_json({'type':'subscribe'})\n   await socket.receive_json()\n   Path('/data/smoke_socket_connected').touch()\n   async for message in socket:\n    if message.type == aiohttp.WSMsgType.TEXT and message.json().get('type') == 'going_away':\n     Path('/data/smoke_socket_going_away').touch()\n   Path('/data/smoke_socket_closed').touch()\nasyncio.run(run())"
+        docker("exec", "-d", app, "python", "-c", socket_code)
+        await eventually(
+            lambda: (
+                inside(
+                    "from pathlib import Path; print(Path('/data/smoke_socket_connected').exists())"
+                )
+                == "True"
+            )
+        )
         started = clock.monotonic()
         docker("stop", "--time", "30", app)
-        assert clock.monotonic() - started < 30
+        elapsed = clock.monotonic() - started
+        assert elapsed < 25
         assert docker("inspect", "-f", "{{.State.ExitCode}}", app).stdout.strip() == "0"
+        with tempfile.TemporaryDirectory() as temporary:
+            docker("cp", app + ":/data/smoke_socket_closed", temporary)
+            docker("cp", app + ":/data/smoke_socket_going_away", temporary)
         print(
-            "PASS: initial DB outage, non-root UID, token permissions, DB outage/recovery, identity, SIGTERM"
+            f"PASS: initial DB outage, non-root UID, token permissions, DB outage/recovery, partition lock expiry, identity, SIGTERM with open WebSocket ({elapsed:.2f}s)"
         )
     finally:
         docker("rm", "-f", app, db, check=False)

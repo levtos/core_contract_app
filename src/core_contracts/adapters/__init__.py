@@ -11,6 +11,7 @@ class AdapterConfig(Model):
     kind: Literal["ha_state", "ha_attribute", "mqtt", "scheduler"]
     ha_entity_id: str | None = None
     ha_attribute: str | None = None
+    ha_time_attribute: str | None = None
     mqtt_topic: str | None = None
     mqtt_value_path: str | None = None
     mqtt_time_path: str | None = None

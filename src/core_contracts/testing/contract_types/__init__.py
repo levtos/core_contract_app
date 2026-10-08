@@ -55,9 +55,9 @@ class MachineParameters(Model):
 
 
 def machine_definition(parameters: MachineParameters) -> Definition:
-    def guard(inputs: dict[str, Any], now: Any) -> bool:
+    def guard(inputs: dict[str, Any], now: Any) -> bool | None:
         value = inputs.get("a")
-        return bool(value and value.usable(now) and value.value is True)
+        return value.value is True if value and value.usable(now) else None
 
     return Definition(
         states=("a", "b", "c"),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -12,6 +13,10 @@ from pydantic import BaseModel, ConfigDict
 
 class InstallationMismatch(ValueError):
     pass
+
+
+class AuthenticationError(PermissionError):
+    """Terminal until the caller supplies valid credentials."""
 
 
 class Snapshot(BaseModel):
@@ -65,6 +70,10 @@ class CoreContractsClient:
         async with self.session.request(
             method, f"{self.base_url}/api/v1/{path}", **kwargs
         ) as response:
+            if response.status in {401, 403}:
+                self.connection_state = "authentication_failed"
+                self.publication_confirmed = False
+                raise AuthenticationError("authentication_failed")
             response.raise_for_status()
             return await response.json()
 
@@ -106,6 +115,7 @@ class CoreContractsClient:
                 return retry
 
     async def subscribe(self, contracts: list[str] | None = None) -> AsyncIterator[dict[str, Any]]:
+        delay = 1.0
         while self._session is not None:
             self.connection_state = "connecting"
             try:
@@ -136,6 +146,8 @@ class CoreContractsClient:
                         if message.type != aiohttp.WSMsgType.TEXT:
                             break
                         event = message.json()
+                        if not isinstance(event, dict):
+                            raise ValueError("invalid_event")
                         kind = event.get("type")
                         if kind == "service_state":
                             self.publication_confirmed = event["publication_confirmed"]
@@ -144,6 +156,7 @@ class CoreContractsClient:
                             seq, epoch = snapshot.publication_seq, snapshot.epoch_id
                             self.publication_confirmed = snapshot.publication_confirmed
                             self.connection_state = "connected"
+                            delay = 1.0
                         elif kind == "resync_required" or (
                             kind == "delta"
                             and (event["prev_seq"] != seq or event["epoch_id"] != epoch)
@@ -159,10 +172,19 @@ class CoreContractsClient:
                             self.connection_state = "reconnecting"
                             self.publication_confirmed = False
                         yield event
-            except (aiohttp.ClientError, TimeoutError):
+            except aiohttp.ClientResponseError as error:
+                if error.status in {401, 403}:
+                    self.connection_state = "authentication_failed"
+                    raise AuthenticationError("authentication_failed") from None
+                self.connection_state = "reconnecting"
+            except InstallationMismatch:
+                self.connection_state = "installation_mismatch"
+                raise
+            except (aiohttp.ClientError, TimeoutError, ValueError, KeyError, TypeError):
                 self.connection_state = "reconnecting"
             finally:
                 self.publication_confirmed = False
             if self._session is not None:
                 # Client scheduling is transport retry only, not contract time.
-                await asyncio.sleep(1)  # noqa: TID251
+                await asyncio.sleep(delay + random.uniform(0, delay * 0.2))  # noqa: TID251
+                delay = min(delay * 2, 30)

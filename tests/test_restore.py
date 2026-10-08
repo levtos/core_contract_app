@@ -101,7 +101,7 @@ async def test_all_fixture_producers_end_to_end(
     assert result["fields"]["value"]["value"] == expected
     stored = await runtime.store.load()
     assert stored.tables["contract_state_current"]["fixture.echo"] == result
-    assert result["publication_seq"] in stored.publications
+    assert result["publication_seq"] in runtime.store.state.publications
 
 
 async def test_overdue_deadline_with_unusable_guard_is_unknown(runtime, config):
@@ -109,6 +109,20 @@ async def test_overdue_deadline_with_unusable_guard_is_unknown(runtime, config):
         type_id="test.state_machine", parameters={"deadline_s": 1, "sessions": False}
     )
     await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    await runtime.submit(
+        "command",
+        {
+            "command_id": "deadline.setup",
+            "contract_id": "fixture.echo",
+            "command": "request_b",
+            "args": {},
+            "origin": {"kind": "test", "actor": "test", "client_name": "test"},
+            "issued_at": runtime.clock.now_utc(),
+            "valid_until": runtime.clock.now_utc() + timedelta(seconds=30),
+        },
+    )
+    await runtime.submit("observation", obs(runtime, availability="unavailable"))
     runtime.clock.advance(2)
     await runtime.submit("tick")
     field = runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]

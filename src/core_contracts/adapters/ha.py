@@ -49,6 +49,7 @@ class BridgeAdapter:
         self.sequence = 0
         self.bridge_version: str | None = None
         self.subscription_count = 0
+        self.retry_delay = 1.0
 
     def observation(
         self,
@@ -73,6 +74,23 @@ class BridgeAdapter:
             except ValueError, TypeError, KeyError:
                 availability = "unknown"
         source = next(s for s in config.sources if s.source_id == binding.source_id)
+        raw_times = {
+            "device_time": attributes.get(binding.adapter.ha_time_attribute)
+            if binding.adapter.ha_time_attribute
+            else None,
+            "ha_last_changed": (state or {}).get("last_changed"),
+            "ha_last_updated": (state or {}).get("last_updated"),
+            "ha_last_reported": event.get("last_reported", (state or {}).get("last_reported")),
+            "ha_time_fired": event.get("time_fired"),
+        }
+        times: dict[str, datetime | None] = {}
+        invalid_timestamp = False
+        for key, raw_time in raw_times.items():
+            try:
+                times[key] = timestamp(raw_time)
+            except ValueError, TypeError, OverflowError:
+                times[key] = None
+                invalid_timestamp = True
         return Observation.model_validate(
             {
                 "source_id": binding.source_id,
@@ -82,13 +100,8 @@ class BridgeAdapter:
                 "value_raw": value,
                 "value_normalized": normalized,
                 "normalized": True,
-                "device_time": timestamp(attributes.get("device_timestamp")),
-                "ha_last_changed": timestamp((state or {}).get("last_changed")),
-                "ha_last_updated": timestamp((state or {}).get("last_updated")),
-                "ha_last_reported": timestamp(
-                    event.get("last_reported", (state or {}).get("last_reported"))
-                ),
-                "ha_time_fired": timestamp(event.get("time_fired")),
+                **times,
+                "invalid_timestamp": invalid_timestamp,
                 "ha_context_id": event.get("context_id", event.get("context", {}).get("id")),
                 "received_at": self.runtime.clock.now_utc(),
                 "observation_kind": kind,
@@ -106,13 +119,14 @@ class BridgeAdapter:
             raise ConnectionError("bridge_reloaded")
         if kind == "snapshot":
             self.states = event["states"]
+            observations = []
             for binding in config.bindings:
                 entity = binding.adapter.ha_entity_id
                 if entity:
-                    self.runtime.ingest(
+                    observations.append(
                         self.observation(binding, self.states.get(entity), "snapshot", {}, config)
                     )
-            await self.runtime.submit("snapshot_complete")
+            self.runtime.ingest_snapshot(observations)
             return
         entity = event["entity_id"]
         if kind == "changed":
@@ -144,6 +158,8 @@ class BridgeAdapter:
         return response.get("result")
 
     async def connect(self, config: RegistryConfig) -> None:
+        self.runtime.resubscribe.clear()
+        self.runtime.revision_changed.clear()
         async with self.session.ws_connect(
             self.url, heartbeat=20, max_msg_size=4_000_000
         ) as socket:
@@ -165,6 +181,12 @@ class BridgeAdapter:
                 {b.adapter.ha_entity_id for b in config.bindings if b.adapter.ha_entity_id}
             )
             self.subscription_count = len(entities)
+            live_sources = {s.freshness.liveness_source for s in config.sources}
+            report_sources = {
+                s.source_id
+                for s in config.sources
+                if s.freshness.mode != "event_stateful" or s.source_id in live_sources
+            }
             await self._result(
                 socket,
                 {
@@ -172,11 +194,18 @@ class BridgeAdapter:
                     "type": "core_contracts_bridge/subscribe",
                     "protocol_version": 1,
                     "entity_ids": entities,
+                    "report_entity_ids": sorted(
+                        {
+                            b.adapter.ha_entity_id
+                            for b in config.bindings
+                            if b.adapter.ha_entity_id and b.source_id in report_sources
+                        }
+                    ),
                 },
             )
             await self.runtime.submit("bridge_state", ("connected", "connected"))
-            self.runtime.resubscribe.clear()
-            self.runtime.revision_changed.clear()
+            self.retry_delay = 1.0
+            LOGGER.info("bridge_connected")
             while True:
                 receive = asyncio.create_task(socket.receive_json())
                 change = asyncio.create_task(self.runtime.revision_changed.wait())
@@ -200,18 +229,19 @@ class BridgeAdapter:
 
     async def run(self) -> None:
         while True:
+            self.runtime.resubscribe.clear()
+            self.runtime.revision_changed.clear()
             config = self.runtime.config
             if config is None:
                 await self.runtime.clock.sleep(1)
                 continue
             try:
                 await self.connect(config)
-            except (aiohttp.ClientError, ConnectionError, ValueError, TypeError) as error:
+            except Exception as error:
                 LOGGER.warning("bridge_disconnected", extra={"error_type": type(error).__name__})
                 await self.runtime.submit("bridge_state", ("unavailable", "disconnected"))
-                if self.runtime.persistence:
-                    await self.runtime.submit("gap", "ha_disconnect")
-                await self.runtime.clock.sleep(2)
+                await self.runtime.clock.sleep(self.retry_delay)
+                self.retry_delay = min(self.retry_delay * 2, 30)
 
     async def request_refresh(self, source_id: str) -> None:
         config = self.runtime.config

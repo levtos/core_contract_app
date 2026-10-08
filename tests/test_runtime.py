@@ -42,7 +42,7 @@ async def test_full_echo_path_and_commit_failure(runtime, config):
     await runtime.submit("recover")
     assert runtime.state.epoch_id != snapshot["epoch_id"]
     assert runtime.state.publication_seq > snapshot["publication_seq"]
-    assert any(g["reason"] == "db_outage" for g in runtime.state.tables["history_gap"].values())
+    assert any(g["reason"] == "db_outage" for g in await runtime.store.rows("history_gap"))
 
 
 async def test_draft_occ_activation_rollback_disabled(runtime, config):
@@ -58,7 +58,7 @@ async def test_draft_occ_activation_rollback_disabled(runtime, config):
     assert runtime.state.active_revision == 3
     assert (
         runtime.state.tables["registry_revision"]["3"]["checksum"]
-        == runtime.state.tables["registry_revision"]["1"]["checksum"]
+        == (await runtime.store.get("registry_revision", "1"))["checksum"]
     )
     with pytest.raises(ValueError):
         await runtime.submit("rollback", {"revision": 1, "expected_active_revision": 1})
