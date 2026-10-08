@@ -81,19 +81,26 @@ class Observation(Model):
         return f"{self.epoch_id}:{self.ingest_seq}:{self.binding_id}"
 
 
+def is_older(current: Observation, previous: Observation | None) -> bool:
+    """Compare source measurements only; missing time proves no ordering."""
+    stamp = current.measurement
+    old_stamp = previous.measurement if previous is not None else None
+    return stamp is not None and old_stamp is not None and stamp < old_stamp
+
+
 def is_new(current: Observation, previous: Observation | None) -> bool:
     if current.ha_restored or current.mqtt_retained or current.observation_kind == "restore":
         return False
     stamp = current.measurement
     if previous is None:
         return stamp is not None
+    if is_older(current, previous):
+        return False
     if current.availability != previous.availability:
         return True
     if stamp is None:
         return False
     old_stamp = previous.measurement
-    if old_stamp and stamp < old_stamp:
-        return False
     if current.observation_kind == "live_change" and current.value != previous.value:
         return True
     return old_stamp is None or stamp > old_stamp

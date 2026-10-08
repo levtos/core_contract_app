@@ -40,7 +40,18 @@ def temporal(config, operation="stable_for", duration=60):
     )
 
 
-async def test_idle_soak_has_constant_current_state_history_and_publications(runtime, config):
+@pytest.mark.parametrize("operation", ["echo", "age", "edge", "grace", "report_heartbeat"])
+async def test_idle_soak_has_constant_current_state_history_and_publications(
+    runtime, config, operation
+):
+    if operation in {"age", "edge", "grace"}:
+        temporal(config, operation)
+    if operation == "report_heartbeat":
+        config["sources"][0]["freshness"] = {
+            "mode": "report_heartbeat",
+            "future_tolerance_s": 1,
+            "interval_s": 1_000_000,
+        }
     await activate(runtime, config)
     await runtime.submit("observation", obs(runtime))
     await runtime.submit("tick")
