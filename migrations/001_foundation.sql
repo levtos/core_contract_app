@@ -1,0 +1,20 @@
+-- Generic platform persistence. All times are supplied by the application Clock.
+CREATE TABLE cc_meta (key text PRIMARY KEY, value jsonb NOT NULL);
+CREATE TABLE publication (seq bigint PRIMARY KEY, created_at timestamptz NOT NULL, payload jsonb NOT NULL);
+CREATE TABLE runtime_epoch (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE registry_revision (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE registry_activation (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE registry_draft (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE contract_lifecycle (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE contract_state_current (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE contract_state_history (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE source_observation_current (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE source_observation_history (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE node_state (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE sm_instance (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE sm_episode (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE sm_transition (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE deadline (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE command_log (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE history_gap (key text PRIMARY KEY, payload jsonb NOT NULL);
+CREATE TABLE diagnostic_event (key text PRIMARY KEY, payload jsonb NOT NULL);

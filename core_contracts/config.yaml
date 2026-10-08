@@ -1,0 +1,62 @@
+name: Core Contracts
+version: 1.0.0a1
+slug: core_contracts
+description: Generic contract platform, Platform Alpha 1
+url: https://github.com/Levtos/core_contract_app
+arch: [amd64, aarch64]
+startup: services
+boot: auto
+init: true
+homeassistant_api: true
+hassio_api: false
+ingress: true
+ingress_port: 8099
+panel_admin: true
+ports:
+  8787/tcp: null
+watchdog: http://[HOST]:[PORT:8787]/health/live
+timeout: 30
+backup: hot
+services: [mqtt:want]
+map: [ssl:ro]
+image: ghcr.io/levtos/{arch}-core-contracts
+options:
+  postgres_host: ""
+  postgres_port: 5432
+  postgres_database: core_contracts
+  postgres_user: core_contracts
+  postgres_password: ""
+  postgres_sslmode: verify-full
+  postgres_ca: ""
+  installation_label: ""
+  initialize_empty_database: false
+  adopt_installation_id: ""
+  mqtt_mode: disabled
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_tls: false
+  mqtt_ca: ""
+  log_level: INFO
+  log_format: json
+schema:
+  postgres_host: str
+  postgres_port: port
+  postgres_database: str
+  postgres_user: str
+  postgres_password: password
+  postgres_sslmode: list(disable|require|verify-full)
+  postgres_ca: str
+  installation_label: str
+  initialize_empty_database: bool
+  adopt_installation_id: str
+  mqtt_mode: list(supervisor|external|disabled)
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_username: str
+  mqtt_password: password
+  mqtt_tls: bool
+  mqtt_ca: str
+  log_level: list(DEBUG|INFO|WARNING|ERROR)
+  log_format: list(text|json)

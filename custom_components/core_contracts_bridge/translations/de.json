@@ -1,0 +1,1 @@
+{"config":{"step":{"user":{"title":"Core Contracts Bridge","description":"Aktiviert den reinen I/O-Transport für die Core Contracts App."}},"abort":{"single_instance_allowed":"Es ist nur eine Bridge-Instanz erlaubt."}}}

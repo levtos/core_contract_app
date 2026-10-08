@@ -1,0 +1,104 @@
+name: Platform Alpha 1
+on:
+  pull_request:
+  push:
+    branches: [agent/platform-alpha1]
+permissions:
+  contents: read
+jobs:
+  platform:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: core_contracts_test
+          POSTGRES_PASSWORD: ephemeral-test-only
+          POSTGRES_DB: core_contracts_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U core_contracts_test" --health-interval 2s --health-retries 20
+    env:
+      TEST_DATABASE_DSN: postgresql://core_contracts_test:ephemeral-test-only@localhost:5432/core_contracts_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy --strict src client/core_contracts_client
+      - run: uv export --frozen --no-dev --no-emit-project --format requirements-txt > /tmp/platform-requirements.txt
+      - run: uvx pip-audit==2.9.0 --strict --no-deps --disable-pip -r /tmp/platform-requirements.txt
+      - run: uv run pytest -q
+        env:
+          PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
+          TEST_MQTT_DOCKER: '1'
+      - run: uv run python dev/resource_probe.py
+      - run: uv build --wheel
+      - run: uv build --wheel --project client
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-wheels
+          path: |
+            dist/*.whl
+            client/dist/*.whl
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+  ha-bridge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - run: uv venv .ha-venv
+      - run: uv pip install --python .ha-venv/bin/python homeassistant==2026.10.0 asyncpg==0.32.0 pydantic==2.12.5 pytest==9.0.2 pytest-asyncio==1.3.0
+      - run: .ha-venv/bin/python -m pytest tests/test_bridge_kernel.py -q
+  images:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: core_contracts/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: false
+          outputs: type=docker,dest=/tmp/core-contracts-${{ matrix.arch }}.tar
+          tags: core-contracts:smoke
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        if: matrix.arch == 'amd64'
+        with:
+          python-version: '3.14.5'
+      - name: Isolated container lifecycle smoke
+        if: matrix.arch == 'amd64'
+        run: |
+          docker load -i /tmp/core-contracts-amd64.tar
+          uv sync --frozen
+          uv run python dev/container_smoke.py core-contracts:smoke
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/core-contracts-${{ matrix.arch }}.tar
+          retention-days: 3
