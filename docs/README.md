@@ -6,6 +6,7 @@
 |---|---|
 | [platform-alpha1/build-specification.md](platform-alpha1/build-specification.md) | Platform Alpha 1 (Phase 1): Lastenheft, Acceptance Gate, Selbstprüfung |
 | [platform-alpha1/codex-build-prompt.md](platform-alpha1/codex-build-prompt.md) | Bauauftrag für Codex, ausschließlich Phase 1 |
+| [platform-alpha1/delta-remediation.md](platform-alpha1/delta-remediation.md) | Issue #3: Pflichtkorrekturen DR-01–03, Betriebsdoku DR-05/06, Tests und verbleibende Gates |
 | [audits/technical-baseline-check-2026-10-07.md](audits/technical-baseline-check-2026-10-07.md) | `TECHNICAL BASELINE CONFIRMED`, HA-I/O-Entscheidung |
 | [audits/profile-delta-audit-2026-10-07.md](audits/profile-delta-audit-2026-10-07.md) | `REMOVE CORE PROFILES FOR V1`, D1–D3 |
 

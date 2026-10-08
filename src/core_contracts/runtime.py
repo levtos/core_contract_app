@@ -11,7 +11,7 @@ from uuid import uuid4
 from pydantic import Field, field_validator
 
 from .clock import Clock
-from .evidence import Observation, assess, is_new
+from .evidence import Observation, assess, is_new, is_older
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
 from .quality import FieldValue, ReasonCode, unknown
@@ -227,6 +227,8 @@ class Runtime:
             # Coalesced outage input is snapshot evidence, never replayed as events.
             buffered = dict(self.latest)
             for obs in buffered.values():
+                if self._older_than_stored(self.state, obs):
+                    continue
                 self.state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                     update={"observation_kind": "snapshot"}
                 ).model_dump(mode="json")
@@ -289,7 +291,12 @@ class Runtime:
                             "unavailable"
                         )
                 self._evaluate(staged, self.config, origin="revision")
-                await self._commit(staged, publication=True)
+                try:
+                    await self._commit(staged, publication=True)
+                except Exception as error:
+                    LOGGER.warning(
+                        "transport_status_uncommitted", extra={"error_type": type(error).__name__}
+                    )
             return None
         if operation == "snapshot_complete":
             self.first_snapshot = True
@@ -416,7 +423,11 @@ class Runtime:
             return await self._command(state, Command.model_validate(payload))
         if operation == "snapshot":
             for obs in payload:
-                if config and obs.binding_id in {b.binding_id for b in config.bindings}:
+                if (
+                    config
+                    and obs.binding_id in {b.binding_id for b in config.bindings}
+                    and not self._older_than_stored(state, obs)
+                ):
                     state.tables["source_observation_current"][obs.binding_id] = obs.model_dump(
                         mode="json"
                     )
@@ -426,6 +437,12 @@ class Runtime:
                 return None
             stored = state.tables["source_observation_current"].get(obs.binding_id)
             previous = Observation.model_validate(stored) if stored else None
+            # Overflow drains the newest coalesced observation before older queue
+            # entries. Quality changes must obey measurement order too. Without
+            # comparable source times, keep the conservative negative-evidence
+            # path below; receipt time must never manufacture a measurement.
+            if is_older(obs, previous):
+                return None
             if (
                 not is_new(obs, previous)
                 and previous is not None
@@ -494,6 +511,11 @@ class Runtime:
             self._broadcast(self.service_state())
         return None
 
+    @staticmethod
+    def _older_than_stored(state: State, observation: Observation) -> bool:
+        stored = state.tables["source_observation_current"].get(observation.binding_id)
+        return is_older(observation, Observation.model_validate(stored) if stored else None)
+
     def _invalidate(self, state: State, config: RegistryConfig, bindings: set[str]) -> None:
         affected = {b.source_id for b in config.bindings if b.binding_id in bindings}
         affected.update(
@@ -527,6 +549,8 @@ class Runtime:
                         "unavailable"
                     )
         for obs in buffered.values():
+            if self._older_than_stored(state, obs):
+                continue
             state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                 update={"observation_kind": "snapshot"}
             ).model_dump(mode="json")

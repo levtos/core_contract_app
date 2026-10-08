@@ -65,6 +65,10 @@ class Observation(Model):
     def measurement(self) -> datetime | None:
         if self.device_time:
             return self.device_time
+        return self.ha_measurement
+
+    @property
+    def ha_measurement(self) -> datetime | None:
         if self.observation_kind == "report":
             return self.ha_last_reported
         if self.observation_kind == "live_change":
@@ -81,22 +85,41 @@ class Observation(Model):
         return f"{self.epoch_id}:{self.ingest_seq}:{self.binding_id}"
 
 
+def _ordering_times(
+    current: Observation, previous: Observation
+) -> tuple[datetime | None, datetime | None]:
+    """Device and HA clocks can differ within the allowed future tolerance."""
+    if current.device_time is not None and previous.device_time is not None:
+        return current.device_time, previous.device_time
+    return current.ha_measurement, previous.ha_measurement
+
+
+def is_older(current: Observation, previous: Observation | None) -> bool:
+    """Only a shared measurement clock proves ordering; receipt time never does."""
+    if previous is None:
+        return False
+    stamp, old_stamp = _ordering_times(current, previous)
+    return stamp is not None and old_stamp is not None and stamp < old_stamp
+
+
 def is_new(current: Observation, previous: Observation | None) -> bool:
     if current.ha_restored or current.mqtt_retained or current.observation_kind == "restore":
         return False
     stamp = current.measurement
     if previous is None:
         return stamp is not None
+    if is_older(current, previous):
+        return False
     if current.availability != previous.availability:
         return True
     if stamp is None:
         return False
-    old_stamp = previous.measurement
-    if old_stamp and stamp < old_stamp:
-        return False
     if current.observation_kind == "live_change" and current.value != previous.value:
         return True
-    return old_stamp is None or stamp > old_stamp
+    if previous.measurement is None:
+        return True
+    stamp, old_stamp = _ordering_times(current, previous)
+    return stamp is not None and old_stamp is not None and stamp > old_stamp
 
 
 def assess(

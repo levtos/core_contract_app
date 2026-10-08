@@ -118,6 +118,18 @@ class FixtureEvaluation:
                 result = delta(a, b, now)
             else:
                 result = age(a, now)
+                # Other contracts' deadlines and clock jumps also evaluate this
+                # fixture. Keep its sampled age stable for identical evidence;
+                # freshness/held expiry must still produce an unknown result.
+                if result.usable(now):
+                    age_input = a.model_dump(mode="json")
+                    if node.get("age_input") == age_input:
+                        result = result.model_copy(update={"value": node["age_value"]})
+                    else:
+                        node["age_input"], node["age_value"] = age_input, result.value
+                else:
+                    node.pop("age_input", None)
+                    node.pop("age_value", None)
             node["temporal"] = temporal.state.model_dump(mode="json")
         elif contract.type_id == "test.state_machine":
             machine = Machine(

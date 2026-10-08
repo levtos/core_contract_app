@@ -9,8 +9,12 @@ reale Installation und Supervisor-Abnahme benötigen Bennis gesonderten Auftrag.
 
 ## Vorbereitung und Installation
 
-1. Eine leere PostgreSQL-Datenbank und Rolle mit DDL-/DML-Rechten ausschließlich
-   auf dieser DB anlegen. Zugangsdaten außerhalb des Repository verwahren.
+1. **PostgreSQL 14 oder neuer** bereitstellen: Der Writer setzt
+   `idle_session_timeout`, das ab PostgreSQL 14 verfügbar ist. Eine leere eigene
+   Datenbank und Rolle mit DDL-/DML-Rechten auf deren Schema/Tabellen anlegen
+   (Migrationen benötigen auch CREATE/ALTER und Index-Erstellung). Die Rolle
+   muss die unten genannten Session-Settings beim Verbindungsaufbau setzen dürfen.
+   Zugangsdaten außerhalb des Repository verwahren.
 2. Bridge-Integration aus `custom_components/core_contracts_bridge` über HACS
    oder manuell installieren und einmal in HA hinzufügen. Keine Entities oder
    Services entstehen. Keine Registry-Konfiguration gehört in die Bridge.
@@ -47,11 +51,16 @@ Authentifizierung. Keine Port-Freigabe nach außen einrichten. Ingress nutzt
 Port 8099 und prüft die Peer-Adresse, nicht vom Browser gesetzte Header.
 Tokens lassen sich in der Admin-UI rotieren; neue Werte erscheinen einmal im
 Antwortfeld, nie im Browser-Speicher. Clients anschließend aktualisieren.
-Rotation und Registry-Rollback verlangen eine Bestätigung. Fehlgeschlagene
-Authentifizierungen sind IP-begrenzt; authentifizierte HTTP-Aufrufe teilen pro
-IP und Rolle ein Budget von 120 pro Minute. Health-Abfragen sind ausgenommen,
-WS-Deltas zählen nicht als einzelne HTTP-Aufrufe. Clients hinter derselben IP
-mit demselben Role-Token teilen dieses Budget in Alpha 1.
+Rotation und Registry-Rollback verlangen eine Bestätigung. Auf dem Bearer-Listener
+zählt der vorgeschaltete Limiter `auth:{ip}` **alle nicht-Health-Anfragen** vor der
+Tokenprüfung: 120 pro Minute je IP, gemeinsam über Consumer- und Admin-Rolle,
+einschließlich fehlgeschlagener Authentifizierung. Zusätzlich gilt für
+authentifizierte Aufrufe ein Budget von 120 pro Minute je IP und Rolle.
+Ein Rollen- oder Tokenwechsel umgeht das gemeinsame IP-Budget nicht. Beispiel:
+100 Consumer-Aufrufe lassen derselben IP noch 20 Admin-Aufrufe im Zeitfenster.
+Health-Abfragen sind ausgenommen; WS-Deltas zählen nicht als HTTP-Aufrufe,
+der WS-Verbindungsaufbau zählt jedoch. Ingress verwendet seine Peer-Prüfung
+und das Budget je IP/Admin-Rolle, keinen Bearer-Auth-Limiter.
 
 ## Fehler und Wiederanlauf
 
@@ -71,16 +80,33 @@ DB-, HA- und MQTT-Verbindungsfehler verwenden einen Backoff bis 30 s. Der Client
 ergänzt Jitter und resynchronisiert nach Transport-/Framefehlern. HTTP-/WS-401/403
 sind terminale Auth-Fehler; Credentials müssen korrigiert werden.
 
-PostgreSQL-Verbindungen konfigurieren Keepalive 15 s / 5 s / 3 Versuche,
+Die dedizierte PostgreSQL-Writer-Verbindung konfiguriert Keepalive 15 s / 5 s / 3 Versuche,
 `tcp_user_timeout=30000`, `idle_session_timeout=60000` und
 `idle_in_transaction_session_timeout=15000` (Millisekunden). Die dedizierte Rolle
-muss diese Einstellungen setzen dürfen. Connect/Command sind auf 10 s begrenzt.
+muss `tcp_keepalives_idle`, `tcp_keepalives_interval`, `tcp_keepalives_count`,
+`tcp_user_timeout`, `idle_session_timeout`, `idle_in_transaction_session_timeout`
+und `application_name` als Session-Settings setzen dürfen. Diese Einstellungen
+benötigen bei Standard-PostgreSQL keine Superuser-Rolle; bei verwalteten Diensten
+muss deren Zulässigkeit für die App-Rolle geprüft werden. Version <14 oder
+abgewiesene Settings verhindern den Connect und lassen den Start im DB-Retry.
+Der reguläre 0,5-s-Probe hält den Writer unter dem 60-s-Idle-Limit aktiv;
+Änderungen am Probe-Takt müssen dieses Verhältnis erhalten.
+Siehe PostgreSQL 14:
+[Session-Timeouts](https://www.postgresql.org/docs/14/runtime-config-client.html#GUC-IDLE-SESSION-TIMEOUT)
+und [TCP-Settings](https://www.postgresql.org/docs/14/runtime-config-connection.html#GUC-TCP-KEEPALIVES-IDLE).
+Connect/Command sind auf 10 s begrenzt.
 Ein Lock-Konflikt wird mit der Backend-PID diagnostiziert, niemals zwangsweise
 entsperrt. Netzwerkpartitionen können bis zur serverseitigen Erkennung eine
 Wiederverbindung verzögern. Reale Firewall-/WAN-Bedingungen separat nachweisen.
 
 Die Runtime hält nur aktuellen Zustand und ausstehende Changesets. Identische
-Idle-Ticks erzeugen keine Historie. Audit-Zeilen echter Änderungen bleiben in
+Idle-Ticks erzeugen keine Historie. `test.temporal/age` publiziert ein bei Änderung
+seiner Evidence abgetastetes Alter; bei unveränderter Evidence bleibt dieser Wert
+auch bei fremden Timer-Auswertungen gleich. Ein laufendes Anzeigealter lässt sich
+aus `measured_at` berechnen. Freshness-Ablauf, Grace-Ende und das Rücksetzen einer
+aktiven Edge bleiben echte, einmalig publizierte Zustandswechsel.
+Neue Heartbeat-Reports sind neue Evidence und erzeugen weiterhin Publications.
+Audit-Zeilen echter Änderungen bleiben in
 PostgreSQL; Retention/Partitionierung ist gemäß Spezifikation §29 vertagt und
 DB-Speicher muss beobachtet werden. API-Historie ist auf die neuesten 100 Einträge
 sortiert begrenzt. SQL-Writes pro geänderter Zeile bleiben seriell; hohe WAN-Latenz

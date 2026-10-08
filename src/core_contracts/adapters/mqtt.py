@@ -186,6 +186,11 @@ class MQTTAdapter:
                         await asyncio.gather(reader, watcher, return_exceptions=True)
             except Exception as error:
                 LOGGER.warning("mqtt_disconnected", extra={"error_type": type(error).__name__})
-                await self.runtime.submit("mqtt_state", "disconnected")
+                try:
+                    await self.runtime.submit("mqtt_state", "disconnected")
+                except Exception as status_error:
+                    LOGGER.warning(
+                        "mqtt_status_failed", extra={"error_type": type(status_error).__name__}
+                    )
                 await self.runtime.clock.sleep(self.retry_delay)
                 self.retry_delay = min(self.retry_delay * 2, 30)

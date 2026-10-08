@@ -127,7 +127,8 @@ def next_temporal_due(
 ) -> datetime | None:
     p = TemporalParameters.model_validate(parameters)
     context = node.get("temporal", {})
-    if p.operation == "age" or (p.operation == "edge" and node.get("edge_active")):
+    # Age is sampled on evidence changes, not scheduled as a ticking counter.
+    if p.operation == "edge" and node.get("edge_active"):
         return now + timedelta(seconds=0.5)
     if p.operation in {"stable_for", "dwell"} and context.get("since_at"):
         return datetime.fromisoformat(context["since_at"]) + timedelta(seconds=p.duration_s)
