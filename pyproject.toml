@@ -33,6 +33,10 @@ mypy_path = "client"
 target-version = "py314"
 line-length = 100
 
+[tool.ruff.format]
+# Preserve the independently authored review, including its original code blocks.
+exclude = ["docs/platform-alpha1/opus-pre-install-review.md"]
+
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "UP", "DTZ", "TID251"]
 

@@ -1,8 +1,10 @@
 """Continuous listener and single-signal ownership during slow bootstrap."""
 
 import asyncio
+import json
 import signal
 from pathlib import Path
+from uuid import uuid4
 
 import aiohttp
 import pytest
@@ -13,7 +15,9 @@ import core_contracts.app as application
 from core_contracts.persistence import MemoryStore
 
 
-@pytest.mark.parametrize("phase", ["connect", "metadata", "ready"])
+@pytest.mark.parametrize(
+    "phase", ["connect", "metadata", "ready", "older_database", "foreign_marker"]
+)
 async def test_startup_listener_and_sigterm_across_slow_initialization(
     tmp_path, monkeypatch, phase
 ):
@@ -21,6 +25,23 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
     signals = {}
     sites = []
     instances = []
+    installation_id = str(uuid4())
+    has_marker = phase in {"older_database", "foreign_marker"}
+    ready_phase = phase in {"ready", "older_database", "foreign_marker"}
+    if has_marker:
+        (tmp_path / "installation.json").write_text(
+            json.dumps({"installation_id": installation_id})
+        )
+        (tmp_path / "last_shutdown.json").write_text(
+            json.dumps(
+                {
+                    "installation_id": installation_id
+                    if phase == "older_database"
+                    else str(uuid4()),
+                    "publication_seq": 100,
+                }
+            )
+        )
     loop = asyncio.get_running_loop()
     monkeypatch.setattr(
         loop, "add_signal_handler", lambda sig, callback: signals.update({sig: callback})
@@ -38,6 +59,9 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
         def __init__(self, *args, **kwargs):
             super().__init__()
             self.metadata_values = {}
+            if has_marker:
+                self.metadata_values["installation_id"] = installation_id
+                self.state.publication_seq = 7
             instances.append(self)
 
         async def open(self):
@@ -45,7 +69,7 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
                 await gate.wait()
 
         async def metadata(self, key):
-            if phase in {"metadata", "ready"}:
+            if phase == "metadata" or ready_phase:
                 await gate.wait()
             return self.metadata_values.get(key)
 
@@ -75,7 +99,7 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
                 url = f"http://127.0.0.1:{port}"
                 assert (await session.get(url + "/health/live")).status == 200
                 assert (await session.get(url + "/health/ready")).status == 503
-                if phase == "ready":
+                if ready_phase:
                     gate.set()
                     token = (tmp_path / "secrets/consumer_token").read_text()
                     for _ in range(100):
@@ -87,10 +111,22 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
                         await asyncio.sleep(0)  # noqa: TID251
                     assert response.status == 200
                     assert (await session.get(url + "/health/live")).status == 200
+                    if has_marker:
+                        assert instances[0].state.publication_seq == (
+                            100 if phase == "older_database" else 7
+                        )
+                        gaps = await instances[0].rows("history_gap")
+                        assert any(
+                            gap["reason"] == "database_older_than_last_shutdown" for gap in gaps
+                        ) == (phase == "older_database")
                 assert set(signals) == {signal.SIGTERM, signal.SIGINT}
                 signals[signal.SIGTERM]()
                 await task
         assert not instances[0].locked
+        if has_marker:
+            marker = json.loads((tmp_path / "last_shutdown.json").read_text())
+            assert marker["installation_id"] == installation_id
+            assert marker["publication_seq"] == instances[0].state.publication_seq
     finally:
         if not task.done():
             task.cancel()

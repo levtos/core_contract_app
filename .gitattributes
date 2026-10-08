@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.png binary
+# The archived external review retains original Markdown hard line breaks.
+docs/platform-alpha1/opus-pre-install-review.md whitespace=-blank-at-eol

@@ -34,6 +34,7 @@ jobs:
         env:
           PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
           TEST_MQTT_DOCKER: '1'
+      - run: uv run python dev/resource_probe.py
       - run: uv build --wheel
       - run: uv build --wheel --project client
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

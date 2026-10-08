@@ -223,6 +223,51 @@ async def test_failed_overflow_commit_keeps_buffer(runtime, config):
     assert field(runtime)["value"] is True
 
 
+async def test_new_overflow_during_commit_is_not_cleared(runtime, config, monkeypatch):
+    await activate(runtime, config)
+    runtime.latest["binding.a"] = obs(runtime, False)
+    runtime.overflow = True
+    commit = runtime.store.commit
+    entered = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
+    calls = 0
+
+    async def delayed_commit(state):
+        nonlocal calls
+        index = calls
+        calls += 1
+        if index < 2:
+            entered[index].set()
+            await release[index].wait()
+        await commit(state)
+
+    monkeypatch.setattr(runtime.store, "commit", delayed_commit)
+    request = asyncio.create_task(runtime.submit("validate", config))
+    try:
+        async with asyncio.timeout(5):
+            await entered[0].wait()
+            runtime.clock.advance(1)
+            for _ in range(runtime.queue.maxsize):
+                runtime.ingest(obs(runtime, False))
+            runtime.clock.advance(1)
+            newest = obs(runtime, True)
+            runtime.ingest(newest)
+            release[0].set()
+            await request
+            await entered[1].wait()
+            assert runtime.overflow and runtime.latest["binding.a"] is newest
+            release[1].set()
+            await runtime.queue.join()
+        assert not runtime.overflow and not runtime.latest
+        assert field(runtime)["value"] is True
+        gaps = await runtime.store.rows("history_gap")
+        assert sum(gap["reason"] == "ingest_overflow" for gap in gaps) == 2
+    finally:
+        for event in release:
+            event.set()
+        await request
+
+
 @pytest.mark.parametrize(
     "case", ["disabled", "incompatible", "missing", "stale", "partial", "corrupt"]
 )
