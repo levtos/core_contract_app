@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Any
 
+from pydantic import ValidationError
+
 from ...clock import Clock
 from ...fusion import Fusion
 from ...persistence import State
@@ -123,10 +125,18 @@ class FixtureEvaluation:
             if override:
                 machine_state = override
             elif "machine" in node:
-                machine_state = MachineState.model_validate(node["machine"])
-                invalid = machine.validate_restore(machine_state, node["fingerprint"], now)
+                try:
+                    machine_state = MachineState.model_validate(node["machine"])
+                    invalid = machine.validate_restore(machine_state, node["fingerprint"], now)
+                except ValidationError:
+                    invalid = unknown(ReasonCode.RESTORE_MISSING, contract.contract_id, now)
                 if invalid:
-                    return invalid, node, None
+                    if origin == "input" and a.status == "valid":
+                        machine_state = machine.initial(
+                            now, state.active_revision, node["fingerprint"]
+                        )
+                    else:
+                        return invalid, node, None
             elif case == "first" or (origin == "input" and a.status == "valid"):
                 # Synthetic type's declared recovery rule: fresh decisive live
                 # evidence can start a NEW episode; snapshots cannot invent one.
@@ -138,6 +148,7 @@ class FixtureEvaluation:
                     else ReasonCode.RESTORE_MISSING
                 )
                 return unknown(code, contract.contract_id, now), node, None
+            assert machine_state is not None
             if not override:
                 event = (
                     "deadline"

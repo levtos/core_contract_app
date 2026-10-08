@@ -211,19 +211,25 @@ class Runtime:
 
     async def process(self, operation: str, payload: Any) -> Any:
         if operation == "recover":
+            last_sequence = self.state.publication_seq
             self.state = await self.store.load()
+            rollback = self.state.publication_seq < last_sequence
+            self.state.publication_seq = max(last_sequence, self.state.publication_seq)
             self.persistence = True
             self.first_snapshot = False
             for observation in self.state.tables["source_observation_current"].values():
                 observation["observation_kind"] = "restore"
             # Coalesced outage input is snapshot evidence, never replayed as events.
-            for obs in self.latest.values():
+            buffered = dict(self.latest)
+            for obs in buffered.values():
                 self.state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                     update={"observation_kind": "snapshot"}
                 ).model_dump(mode="json")
-            await self._restore("db_outage")
-            self.latest.clear()
-            self.overflow = False
+            await self._restore("database_rollback" if rollback else "db_outage")
+            for key, value in buffered.items():
+                if self.latest.get(key) is value:
+                    self.latest.pop(key)
+            self.overflow = bool(self.latest)
             self.resubscribe.set()
             self.mqtt_revision_changed.set()
             return None

@@ -223,7 +223,9 @@ async def test_failed_overflow_commit_keeps_buffer(runtime, config):
     assert field(runtime)["value"] is True
 
 
-@pytest.mark.parametrize("case", ["disabled", "incompatible", "missing", "stale"])
+@pytest.mark.parametrize(
+    "case", ["disabled", "incompatible", "missing", "stale", "partial", "corrupt"]
+)
 async def test_machine_has_declared_fresh_evidence_reinitialization(runtime, config, case):
     config["contracts"][0].update(
         type_id="test.state_machine",
@@ -242,6 +244,10 @@ async def test_machine_has_declared_fresh_evidence_reinitialization(runtime, con
         await activate(runtime, config)
     elif case == "missing":
         runtime.state.tables["node_state"].pop("fixture.echo")
+    elif case == "partial":
+        runtime.state.tables["node_state"]["fixture.echo"]["machine"] = {}
+    elif case == "corrupt":
+        runtime.state.tables["node_state"]["fixture.echo"]["machine"]["state"] = "invalid"
     else:
         config["contracts"][0]["enabled"] = False
         await activate(runtime, config)
@@ -458,3 +464,107 @@ def test_sanitized_logging_retains_context():
     data = json.loads(JsonFormatter().format(record))
     assert data["error_type"] == "TimeoutError" and data["operation"] == "activate"
     assert "do-not-render" not in json.dumps(data)
+
+
+async def test_live_database_rollback_does_not_reuse_sequence(runtime, config):
+    await activate(runtime, config)
+    backup = runtime.store.state.model_copy(deep=True)
+    await runtime.submit("observation", obs(runtime))
+    old_sequence = runtime.state.publication_seq
+    runtime.store.state = backup
+    await runtime.submit("recover")
+    assert runtime.state.publication_seq > old_sequence
+    assert any(g["reason"] == "database_rollback" for g in await runtime.store.rows("history_gap"))
+
+
+async def test_client_malformed_websocket_resynchronizes(aiohttp_server, monkeypatch):
+    import core_contracts_client as client_module
+    from aiohttp import web
+
+    connections = 0
+    delays = []
+
+    async def delay(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr(client_module, "asyncio", SimpleNamespace(sleep=delay))
+    identity = str(uuid4())
+
+    async def info(request):
+        return web.json_response({"installation_id": identity})
+
+    async def websocket(request):
+        nonlocal connections
+        connections += 1
+        socket = web.WebSocketResponse()
+        await socket.prepare(request)
+        await socket.receive_json()
+        await socket.send_json({"type": "welcome", "installation_id": identity})
+        await socket.receive_json()
+        if connections == 1:
+            await socket.send_str("{broken-json")
+        else:
+            await socket.send_json(
+                {"type": "snapshot", "epoch_id": "new", "publication_seq": 7, "contracts": {}}
+            )
+        await socket.close()
+        return socket
+
+    app = web.Application()
+    app.router.add_get("/api/v1/info", info)
+    app.router.add_get("/api/v1/ws", websocket)
+    server = await aiohttp_server(app)
+    async with CoreContractsClient(str(server.make_url("")), "test", identity) as client:
+        stream = client.subscribe()
+        async with asyncio.timeout(3):
+            event = await anext(stream)
+        assert event["type"] == "snapshot" and event["publication_seq"] == 7
+        assert connections == 2 and len(delays) == 1
+        await stream.aclose()
+
+
+async def test_lost_command_response_is_recovered_without_double_execution(
+    runtime, config, aiohttp_server
+):
+    from aiohttp import web
+
+    config["contracts"][0].update(
+        type_id="test.state_machine", parameters={"deadline_s": 60, "sessions": False}
+    )
+    await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    identity = str(uuid4())
+    posts = 0
+
+    async def info(request):
+        return web.json_response({"installation_id": identity})
+
+    async def command(request):
+        nonlocal posts
+        posts += 1
+        await runtime.submit("command", await request.json())
+        request.transport.close()
+        return web.Response()
+
+    async def stored(request):
+        return web.json_response((await runtime.store.get("command_log", "lost"))["result"])
+
+    app = web.Application()
+    app.router.add_get("/api/v1/info", info)
+    app.router.add_post("/api/v1/commands", command)
+    app.router.add_get("/api/v1/commands/lost", stored)
+    server = await aiohttp_server(app)
+    async with CoreContractsClient(str(server.make_url("")), "test", identity) as client:
+        result = await client.command(
+            {
+                "command_id": "lost",
+                "contract_id": "fixture.echo",
+                "command": "request_b",
+                "args": {},
+                "origin": {"kind": "test", "actor": "test", "client_name": "test"},
+                "issued_at": runtime.clock.now_utc().isoformat(),
+                "valid_until": (runtime.clock.now_utc() + timedelta(seconds=30)).isoformat(),
+            }
+        )
+    assert result["status"] == "accepted" and posts == 1
+    assert field(runtime)["value"] == "b"
