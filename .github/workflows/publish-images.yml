@@ -1,0 +1,110 @@
+name: Publish Supervisor images
+run-name: Publish Supervisor images from ${{ inputs.expected_sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full main commit SHA to test and publish (must match the selected main ref)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-supervisor-images
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require explicitly selected main commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+
+  ci:
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, aarch64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/tested-image
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - run: uv sync --frozen
+      - run: docker load -i /tmp/tested-image/core-contracts-${{ matrix.arch }}.tar
+      - name: Login with this repository's short-lived Actions token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish the tested artifact without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run python dev/image_package.py publish --arch "${{ matrix.arch }}" --revision "$GITHUB_SHA" --receipt receipt-${{ matrix.arch }}.json
+          cat receipt-${{ matrix.arch }}.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: published-${{ matrix.arch }}
+          path: receipt-${{ matrix.arch }}.json
+
+  anonymous-pull:
+    needs: publish
+    runs-on: ubuntu-24.04
+    # No packages permission and no registry login in this independent job.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, aarch64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: published-${{ matrix.arch }}
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - run: uv sync --frozen
+      - name: Anonymous pull, digest, platform and content verification
+        run: |
+          uv run python dev/image_package.py anonymous --arch "${{ matrix.arch }}" --revision "$GITHUB_SHA" --receipt receipt-${{ matrix.arch }}.json
+          echo "Anonymous ${{ matrix.arch }} pull and source/digest verification passed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Lifecycle smoke of the anonymously pulled image
+        if: matrix.arch == 'amd64'
+        run: |
+          image=$(uv run python dev/image_package.py metadata --arch amd64 --revision "$GITHUB_SHA" | sed -n 's/^image=//p')
+          uv run python dev/container_smoke.py "$image"
+      - name: Explain an incomplete distribution gate
+        if: failure()
+        run: |
+          echo "Installability is NOT verified. For DENIED, check the package visibility: Settings > Change visibility > Public. Repository visibility alone is insufficient. After correcting visibility, re-run failed jobs; do not replace the tested version tag. See docs/publishing.md." >> "$GITHUB_STEP_SUMMARY"

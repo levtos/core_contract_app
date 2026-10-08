@@ -18,10 +18,13 @@ reale Installation und Supervisor-Abnahme benötigen Bennis gesonderten Auftrag.
 2. Bridge-Integration aus `custom_components/core_contracts_bridge` über HACS
    oder manuell installieren und einmal in HA hinzufügen. Keine Entities oder
    Services entstehen. Keine Registry-Konfiguration gehört in die Bridge.
-3. Für einen lokalen Supervisor-Test `uv run python dev/stage_app.py <neues-ziel>`
-   ausführen. Das erzeugte Verzeichnis bildet ein lokales App-Repository; Benni
-   kopiert es in den lokalen Supervisor-App-Bereich. Die unveröffentlichte
-   Alpha-Image-Referenz des Source-Repository wird beim Staging entfernt.
+3. Für die Installation aus dem GitHub-App-Repository müssen beide in
+   `core_contracts/config.yaml` referenzierten GHCR-Images öffentlich
+   verfügbar sein. Den aktuellen [Veröffentlichungs- und anonymen Pull-Nachweis](publishing.md)
+   prüfen; eine grüne Build-CI allein genügt nicht. Für einen separaten lokalen
+   Supervisor-Build `uv run python dev/stage_app.py <neues-ziel>` ausführen.
+   Das erzeugte lokale App-Repository enthält den vollständigen Build-Kontext;
+   beim Staging wird die Referenz auf ein vorgebautes Image entfernt.
 4. DB-Optionen, TLS/CA unter `/ssl`, Anzeigename und MQTT-Modus konfigurieren.
    `SUPERVISOR_TOKEN` kommt ausschließlich aus der App-Umgebung.
    Externes MQTT unterstützt `mqtt_tls` und `mqtt_ca`; bei aktivem TLS werden
