@@ -19,4 +19,9 @@ Der Bearer-Listener begrenzt alle nicht-Health-Anfragen mit `auth:{ip}` auf
 von 120 pro Minute. Auch erfolgreiche Anfragen zählen zum gemeinsamen IP-Budget.
 Details zu Ingress, Health und WebSocket stehen in Operations.
 
+Die Installation aus diesem Repository setzt öffentlich lesbare Images unter
+`ghcr.io/levtos/{arch}-core-contracts:1.0.0a1` voraus. Ein erfolgreicher Build
+beweist noch keine Veröffentlichung. Ablauf, mögliche GHCR-Freigabe und
+anonyme Pull-Prüfung: [Veröffentlichung](https://github.com/Levtos/core_contract_app/blob/main/docs/publishing.md).
+
 Supervisor-/Live-Abnahme erfolgt separat durch Benni.
