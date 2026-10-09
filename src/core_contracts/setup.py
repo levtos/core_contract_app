@@ -305,8 +305,11 @@ class Setup:
                     previous = {"request_id": str(uuid4()), "connection": spec}
                     write_private(target, canonical(previous))
                 template = Path(__file__).with_name("provision.py").read_text(encoding="utf-8")
+                program = template.replace("REQUEST = None", f"REQUEST = {previous!r}")
                 return {
-                    "script": template.replace("REQUEST = None", f"REQUEST = {previous!r}"),
+                    "script": "sudo -H -u postgres python3 - <<'CORE_CONTRACTS_SETUP'\n"
+                    + program
+                    + "\nCORE_CONTRACTS_SETUP\n",
                     "request_id": previous["request_id"],
                 }
         if path == "import" and method == "POST":

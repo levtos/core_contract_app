@@ -86,7 +86,11 @@ async def test_provision_request_resume_import_and_redaction(tmp_path, monkeypat
     again = await Setup(tmp_path, None).dispatch("provision", "POST", spec)
     assert again["request_id"] == first["request_id"]
     assert "REQUEST = None" not in first["script"]
-    compile(first["script"], "generated.py", "exec")
+    import ast
+
+    program = "\n".join(first["script"].splitlines()[1:-1])
+    ast.parse(program, feature_version=(3, 10))
+    compile(program, "generated.py", "exec")
     code = base64.b64encode(
         json.dumps(
             {"request_id": first["request_id"], "connection": connection().private()}

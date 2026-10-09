@@ -19,10 +19,11 @@ Versionsstand festlegen; vorhandene Tags nicht stillschweigend ersetzen.
    Standard. CA liegt auf dem bestehenden read-only SSL-Mount unter `/ssl`.
    require prüft den Server nicht; disable verschlüsselt nicht. Beide benötigen
    eine sichtbare ausdrückliche Bestätigung.
-4. Für eine neue DB/Rolle das generierte Skript prüfen und privat im richtigen
-   PostgreSQL-LXC speichern. Linux, Python >=3.10 und psql müssen vorhanden sein.
-   Lokal als postgres mit Peer-Authentifizierung ausführen:
-   `sudo -u postgres python3 /privater/pfad/setup.py`. Die App erhält keine
+4. Für eine neue DB/Rolle das generierte Skript prüfen und vollständig in ein
+   privates Terminal des richtigen PostgreSQL-LXC einfügen. Linux, Python >=3.10,
+   psql und sudo müssen vorhanden sein. Der kopierte Here-Document-Aufruf beginnt
+   mit `sudo -H -u postgres python3 -` und nutzt lokale Peer-Authentifizierung.
+   Keine Datei und kein Verzeichnis müssen manuell angelegt werden. Die App erhält keine
    Administratorzugangsdaten. Kein Passwort erscheint in Kommandoargumenten;
    SQL enthält einen SCRAM-Verifier statt Klartext. Normales Statement-/Fehler-
    Logging wird für die SQL-Sitzung abgeschaltet. Externe Terminalaufzeichnung

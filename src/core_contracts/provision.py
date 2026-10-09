@@ -1,6 +1,6 @@
 """Standalone generated LXC script. Run as postgres with local peer authentication.
 
-Save script privately; execute with `sudo -u postgres python3 /private/path/setup.py`.
+The wizard wraps this program in a reviewed sudo/Python Here-Document.
 Never paste the secret output into shell commands, URLs, issues or diagnostic logs.
 """
 

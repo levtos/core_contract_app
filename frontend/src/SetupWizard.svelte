@@ -68,7 +68,7 @@
     </section>
   {:else if phase === 2}
     <section><h2>{mode === 'new' ? 'Einrichtungsskript und geheimer Import' : 'Verbindung übernehmen'}</h2>
-      {#if mode === 'new'}<p>Skript prüfen, privat als Datei im PostgreSQL-LXC speichern und mit <code>sudo -u postgres python3 /privater/pfad/setup.py</code> ausführen. Python 3 und psql erforderlich. Fremde Datenbanken/Rollen werden abgewiesen.</p>
+      {#if mode === 'new'}<p>Skript prüfen und vollständig einmal in ein privates Terminal des PostgreSQL-LXC einfügen. Es läuft lokal als postgres; keine Datei und kein Verzeichnis müssen manuell angelegt werden. Linux, Python ab 3.10, psql und sudo erforderlich. Fremde Datenbanken/Rollen werden abgewiesen.</p>
         <label>Skript<textarea readonly value={script} aria-label="PostgreSQL-Einrichtungsskript"></textarea></label><button onclick={() => action(() => navigator.clipboard.writeText(script))}>Skript kopieren</button>
         <p>Importcode enthält das Passwort. Nur hier einfügen; keine URLs, Shell-Befehle, Logs oder Issues. Privater Resume-Zustand verbleibt für Wiederholung im LXC.</p>
         <label>Geheimer Importcode<input type="password" bind:value={code} autocomplete="off"/></label>
