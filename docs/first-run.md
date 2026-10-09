@@ -86,7 +86,10 @@ Nicht gescannte Dateien sind über diese API nicht sichtbar: daher ausdrücklich
 
 Bereitstellung über HACS: `Levtos/core_contract_app` als benutzerdefinierte
 Integration hinzufügen, Bridge herunterladen, nach informiertem Wartungsfenster
-HA Core neu starten, „Core Contracts Bridge“ hinzufügen (ein leerer Eintrag).
+HA Core neu starten. Sobald der Config-Flow erkannt wird, kann der Wizard nach
+ausdrücklicher Bestätigung den einzelnen leeren Bridge-Eintrag über die offizielle
+HA-Config-Flow-API anlegen. Vorhandene Einträge werden nicht geändert oder erneut
+angelegt. Alternativ „Core Contracts Bridge“ in HA hinzufügen.
 Der Wizard verlinkt den normalen HA-Config-Flow und führt keinen Neustart aus.
 Neustart unterbricht auch die produktive Legacy vorübergehend. Nur die Domain
 `core_contracts_bridge`; niemals `benni_core_contracts` ersetzen/entladen.

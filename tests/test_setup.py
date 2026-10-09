@@ -290,3 +290,83 @@ async def test_bridge_detection_readonly_and_no_false_filesystem_claim(
     assert result["state"] == expected
     assert result["release_blocker"] == (expected != "active")
     assert [command["type"] for command in commands] == ["auth", "core_contracts_bridge/info"]
+
+
+@pytest.mark.parametrize(
+    "existing,handler,expected_posts",
+    [
+        (True, "core_contracts_bridge", 0),
+        (False, "core_contracts_bridge", 2),
+        (False, "other_domain", 1),
+    ],
+)
+async def test_supported_bridge_flow_is_fixed_domain_and_preserves_existing_entries(
+    monkeypatch, existing, handler, expected_posts
+):
+    posts = []
+    values = [
+        {
+            "type": "form",
+            "handler": handler,
+            "step_id": "user",
+            "flow_id": "test_flow",
+            "data_schema": [],
+        },
+        {"type": "create_entry", "handler": "core_contracts_bridge"},
+    ]
+
+    class Response:
+        status = 200
+
+        def __init__(self, value):
+            self.value = value
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def json(self):
+            return self.value
+
+    class Session:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def get(self, url, **kwargs):
+            assert url.endswith("/entry?domain=core_contracts_bridge")
+            return Response([{"domain": "core_contracts_bridge"}] if existing else [])
+
+        def post(self, url, **kwargs):
+            posts.append((url, kwargs["json"]))
+            return Response(values.pop(0))
+
+    monkeypatch.setattr(setup_control.aiohttp, "ClientSession", Session)
+    if handler != "core_contracts_bridge":
+        with pytest.raises(ValueError, match="bridge_flow_changed"):
+            await setup_control.configure_bridge("ephemeral-token")
+    else:
+        assert (await setup_control.configure_bridge("ephemeral-token"))["created"] == (
+            not existing
+        )
+    assert len(posts) == expected_posts
+    if posts:
+        assert posts[0][1] == {"handler": "core_contracts_bridge"}
+    if len(posts) == 2:
+        assert posts[1][0].endswith("/flow/test_flow") and posts[1][1] == {}
+
+
+@pytest.mark.parametrize("value", [None, [], 42])
+async def test_malformed_import_is_safe_and_never_persisted(tmp_path, value):
+    setup = Setup(tmp_path, None)
+    code = base64.b64encode(json.dumps(value).encode()).decode()
+    with pytest.raises(ValueError, match="invalid_import"):
+        await setup.dispatch("import", "POST", {"code": code})
+    assert not setup.path.exists()

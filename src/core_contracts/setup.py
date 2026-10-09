@@ -3,6 +3,8 @@
 import asyncio
 import base64
 import json
+import os
+import re
 import secrets
 import ssl
 import struct
@@ -13,7 +15,7 @@ from uuid import UUID, uuid4
 
 import aiohttp
 import asyncpg
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, StrictBool, field_validator
 
 from .identity import load_id, reconcile, write_private
 from .model import Model, canonical
@@ -65,9 +67,9 @@ class Connection(Model):
 
 class ConnectRequest(Model):
     connection: Connection
-    confirm: bool = False
-    allow_insecure: bool = False
-    initialize_empty_database: bool = False
+    confirm: StrictBool = False
+    allow_insecure: StrictBool = False
+    initialize_empty_database: StrictBool = False
     adopt_installation_id: str = ""
 
 
@@ -78,6 +80,54 @@ class ProvisionRequest(Model):
     user: str = "core_contracts_app"
     sslmode: Literal["verify-full", "require", "disable"] = "verify-full"
     ca: str = ""
+
+
+class ConfirmRequest(Model):
+    confirm: StrictBool = False
+
+
+async def configure_bridge(token: str) -> dict[str, Any]:
+    """Supported HA config flow, fixed Bridge domain, after explicit confirmation."""
+    if not token:
+        raise ValueError("ha_unavailable")
+    base = "http://supervisor/core/api/config/config_entries"
+    headers = {"Authorization": "Bearer " + token}
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+        async with session.get(
+            base + "/entry?domain=core_contracts_bridge", headers=headers
+        ) as response:
+            if response.status != 200:
+                raise ValueError("ha_unavailable")
+            entries = await response.json()
+        if not isinstance(entries, list):
+            raise ValueError("ha_unavailable")
+        if any(entry.get("domain") == "core_contracts_bridge" for entry in entries):
+            return {"created": False, "state": "existing_entry"}
+        async with session.post(
+            base + "/flow", headers=headers, json={"handler": "core_contracts_bridge"}
+        ) as response:
+            if response.status != 200:
+                raise ValueError("bridge_not_discovered")
+            flow = await response.json()
+        if flow.get("type") == "abort":
+            return {"created": False, "state": "existing_entry_or_aborted"}
+        if (
+            flow.get("handler") != "core_contracts_bridge"
+            or flow.get("type") != "form"
+            or flow.get("step_id") != "user"
+            or flow.get("data_schema") != []
+            or not re.fullmatch(r"[a-zA-Z0-9_-]+", str(flow.get("flow_id", "")))
+        ):
+            raise ValueError("bridge_flow_changed")
+        async with session.post(
+            base + "/flow/" + flow["flow_id"], headers=headers, json={}
+        ) as response:
+            if response.status != 200:
+                raise ValueError("bridge_configuration_failed")
+            result = await response.json()
+        if result.get("type") != "create_entry" or result.get("handler") != "core_contracts_bridge":
+            raise ValueError("bridge_configuration_failed")
+        return {"created": True, "state": "configuration_created"}
 
 
 async def reachability(host: str, port: int) -> dict[str, Any]:
@@ -195,7 +245,10 @@ class Setup:
         self.completed = False
         self.restart_required = False
         self.pending: dict[str, Any] = {}
+        if self.directory.exists():
+            os.chmod(self.directory, 0o700)
         if self.path.exists():
+            os.chmod(self.path, 0o600)
             self.pending = json.loads(self.path.read_text(encoding="utf-8"))
             self.connection: Connection | None = Connection.model_validate(
                 self.pending["connection"]
@@ -227,9 +280,11 @@ class Setup:
         if path == "status" and method == "GET":
             return self.status()
         if path == "bridge" and method == "GET":
-            import os
-
             return await bridge_status(os.environ.get("SUPERVISOR_TOKEN", ""))
+        if path == "bridge_configure" and method == "POST":
+            if not ConfirmRequest.model_validate(body).confirm:
+                raise ValueError("confirmation_required")
+            return await configure_bridge(os.environ.get("SUPERVISOR_TOKEN", ""))
         if path == "reachability" and method == "POST":
             request = ProvisionRequest.model_validate(body)
             checked = Connection.model_validate({**request.model_dump(), "password": ""})
@@ -265,6 +320,8 @@ class Setup:
                 decoded = json.loads(base64.b64decode(body["code"].strip(), validate=True))
             except ValueError, UnicodeError:
                 raise ValueError("invalid_import") from None
+            if not isinstance(decoded, dict):
+                raise ValueError("invalid_import")
             target = self.directory / "provision.json"
             if not target.exists():
                 raise ValueError("provision_request_missing")

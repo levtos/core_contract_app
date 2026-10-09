@@ -54,7 +54,8 @@ Docker socket, host access, manager role or new Supervisor authority. HA REST/WS
 has no supported custom-integration file installation operation. HACS is the
 supported file-management route, with an explicit custom-repository install and
 HA Core restart; the config entry can then be added through HA's normal config
-flow link. The wizard checks loaded protocol and HA's discoverable integration
+flow link or, after explicit confirmation, the fixed Bridge-only HA config-flow API.
+Existing entries remain untouched. The wizard checks loaded protocol and HA's discoverable integration
 list; installed files not yet scanned after a restart cannot be proven via WS.
 Report this as unknown/restart required, never infer file absence from unknown_command.
 Automatic file installation is blocked under these permissions. The remaining

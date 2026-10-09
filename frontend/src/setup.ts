@@ -8,6 +8,11 @@ export interface SetupStatus {
   installation_id: string | null; error: string; restart_required: boolean;
 }
 const errors: Record<string, string> = {
+  ha_unavailable: 'HA-Verbindung nicht verfügbar. Keine Bridge-Konfiguration übernommen.',
+  ha_connection_failed: 'HA-Verbindung fehlgeschlagen. Erreichbarkeit und Berechtigung prüfen.',
+  bridge_not_discovered: 'Bridge noch nicht erkannt. HACS-Installation und bestätigten HA-Neustart prüfen.',
+  bridge_flow_changed: 'Bridge-Config-Flow entspricht nicht dem erwarteten leeren Formular. In HA prüfen.',
+  bridge_configuration_failed: 'Bridge-Konfiguration nicht bestätigt. Zustand in HA prüfen; nicht blind wiederholen.',
   database_connection_failed: 'PostgreSQL nicht erreichbar oder Anmeldung/TLS fehlgeschlagen. Host, Zugangsdaten und Zertifikat prüfen.',
   postgres_version_unsupported: 'PostgreSQL 14 oder neuer ist erforderlich.',
   application_role_too_privileged: 'Die Anwendungsrolle besitzt Administratorrechte.',

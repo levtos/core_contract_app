@@ -109,6 +109,7 @@ def _provision(request: dict[str, Any], directory: Path) -> str:
     path = directory / (request["request_id"] + ".json")
     if path.is_symlink() or path.parent.is_symlink():
         raise RuntimeError("unsafe_resume_path")
+    had_state = path.exists()
     state: dict[str, Any] = (
         json.loads(path.read_text())
         if path.exists()
@@ -116,7 +117,6 @@ def _provision(request: dict[str, Any], directory: Path) -> str:
     )
     if state["request"] != request:
         raise RuntimeError("resume_request_mismatch")
-    save(path, state)
     role_name, db_name = literal(config["user"]), literal(config["database"])
     role_marker = sql(
         "SELECT coalesce(shobj_description(oid,'pg_authid'),'') FROM pg_roles WHERE rolname="
@@ -127,11 +127,17 @@ def _provision(request: dict[str, Any], directory: Path) -> str:
     )
     if role_exists and role_marker != marker:
         raise RuntimeError("existing_role_conflict; no changes made to existing role")
+    if role_exists and not had_state:
+        raise RuntimeError("resume_state_missing; existing password will not be reset")
     db_exists = sql("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=" + db_name + ")") == "t"
     db_marker = sql(
         "SELECT coalesce(shobj_description(oid,'pg_database'),'') FROM pg_database WHERE datname="
         + db_name
     )
+    if db_exists and db_marker == marker:
+        owner = sql("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=" + db_name)
+        if owner != config["user"]:
+            raise RuntimeError("existing_database_conflict; database owner changed")
     if db_exists and db_marker != marker:
         owner = sql("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=" + db_name)
         # CREATE DATABASE cannot share a transaction with COMMENT. Resume only our
@@ -147,6 +153,7 @@ def _provision(request: dict[str, Any], directory: Path) -> str:
             == "0"
         ):
             raise RuntimeError("existing_database_conflict; no changes made to existing database")
+    save(path, state)
     if not role_exists:
         sql(
             "BEGIN; CREATE ROLE " + role + " LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE "

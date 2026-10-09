@@ -12,6 +12,10 @@ never credential/exception reflection. No setup endpoint activates a Registry,
 installs files in HA, creates a HA helper or restarts HA/App.
 See [First Run](first-run.md) for payload confirmations, persistence and gates.
 
+`POST /api/v1/setup/bridge_configure` uses the fixed `core_contracts_bridge`
+HA config flow after explicit confirmation; existing entries remain untouched.
+It shares the same Ingress/JSON/CSRF boundary and grants no file-install/restart access.
+
 Consumer: Port 8787, `Authorization: Bearer <consumer_token>`; Admin-Token erlaubt
 zusätzlich Administration. Ingress: Port 8099, ausschließlich Supervisor-Peer.
 Health-Endpunkte auf 8787 benötigen kein Token. JSON-Zeiten sind RFC3339 UTC.

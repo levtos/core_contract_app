@@ -87,6 +87,7 @@
         <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=core_contracts_bridge" target="_blank" rel="noreferrer">Bridge-Konfiguration in HA öffnen</a>
       {/if}
       <button disabled={busy} onclick={() => action(refresh)}>Bridge erneut prüfen</button><button onclick={() => phase = 4}>Ergebnisse ansehen</button>
+      {#if bridge === 'installed_not_configured'}<button disabled={busy} onclick={() => action(async () => { if (window.confirm('Genau einen Core Contracts Bridge-Eintrag in HA anlegen? Die Legacy-Integration wird nicht geändert.')) { await setupRequest('bridge_configure',{confirm:true},status.csrf_token); await refresh(); } })}>Bridge-Konfigurationseintrag anlegen</button>{/if}
     </section>
   {:else}
     <section><h2>Ergebnis</h2><p>Datenbank: {status.phase === 'completed' ? 'eingerichtet' : 'Initialisierung noch ausstehend'}. Bridge: {bridgeLabels[bridge] ?? bridge}.</p>

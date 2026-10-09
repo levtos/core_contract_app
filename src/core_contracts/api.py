@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 import asyncpg
 from aiohttp import WSMsgType, web
 from pydantic import ValidationError
@@ -153,6 +154,8 @@ class API:
                 await request.json() if request.method != "GET" else None,
             )
             return web.json_response(result)
+        except aiohttp.ClientError:
+            return web.json_response({"error": "ha_connection_failed"}, status=503)
         except asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError:
             return web.json_response({"error": "database_connection_failed"}, status=503)
         except (ValueError, RuntimeError) as error:
@@ -167,6 +170,10 @@ class API:
                 "postgres_version_unsupported",
                 "provision_request_mismatch",
                 "provision_request_missing",
+                "ha_unavailable",
+                "bridge_not_discovered",
+                "bridge_flow_changed",
+                "bridge_configuration_failed",
             }
             return web.json_response(
                 {
