@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { setupRequest, validConnection, type Connection, type SetupStatus } from './setup';
-  let { initial, oncomplete }: { initial: SetupStatus; oncomplete: () => void } = $props();
+  let { initial, oncomplete, automatic = false }: { initial: SetupStatus; oncomplete: () => void; automatic?: boolean } = $props();
   const startingStatus = () => initial;
   let status = $state(startingStatus()), phase = $state(0), mode = $state('new');
   let connection = $state<Connection>({ host: '', port: 5432, database: 'core_contracts_app', user: 'core_contracts_app', password: '', sslmode: 'verify-full', ca: '' });
@@ -9,7 +9,11 @@
   let confirm = $state(false), initialize = $state(false), insecure = $state(false), adopt = $state('');
   let bridge = $state('unknown');
   const phases = ['Willkommen', 'PostgreSQL verbinden', 'Skript und Import', 'Bridge einrichten', 'Abschluss'];
-  async function refresh() { status = await setupRequest<SetupStatus>('status'); bridge = (await setupRequest<{ state: string }>('bridge')).state; }
+  async function refresh() {
+    status = await setupRequest<SetupStatus>('status');
+    bridge = (await setupRequest<{ state: string }>('bridge')).state;
+    if (automatic && status.phase === 'completed' && status.onboarding_complete) oncomplete();
+  }
   async function action(callback: () => Promise<void>) {
     busy = true; notice = '';
     try { await callback(); } catch (error) { notice = error instanceof Error ? error.message : 'Einrichtung fehlgeschlagen.'; }
@@ -31,6 +35,7 @@
   }
   onMount(() => {
     if (initial.database) connection = { ...initial.database, password: '' };
+    if (initial.authority === 'wizard' && initial.database_configured && !initial.onboarding_complete) phase = 3;
     void action(refresh);
     const timer = setInterval(() => { if (status.phase === 'connecting' && !busy) void action(refresh); }, 3000);
     return () => clearInterval(timer);
@@ -93,8 +98,8 @@
     <section><h2>Ergebnis</h2><p>Datenbank: {status.phase === 'completed' ? 'eingerichtet' : 'Initialisierung noch ausstehend'}. Bridge: {bridgeLabels[bridge] ?? bridge}.</p>
       {#if status.restart_required}<p role="alert">Neue Verbindung gespeichert. Eigener App-Neustart erforderlich. Vorher Backup und Ziel prüfen.</p>{/if}
       <p>Ersteinrichtung und Runtime-Readiness sind getrennt. Aktive Registry und erster Bridge-Snapshot folgen als ausdrücklich freigegebene Schritte. Keine Registry wurde aktiviert.</p>
-      <button disabled={status.phase !== 'completed'} onclick={oncomplete}>Normale Oberfläche öffnen</button>
+      <button disabled={status.phase !== 'completed' || bridge !== 'active' || busy} onclick={() => action(async () => {await setupRequest('finish',{confirm:true},status.csrf_token); oncomplete();})}>Einrichtung abschließen und Oberfläche öffnen</button>
     </section>
   {/if}
-  <div class="actions"><button disabled={phase === 0 || busy} onclick={() => phase--}>Zurück</button>{#if status.phase === 'completed'}<button onclick={oncomplete}>Zur Administration</button>{/if}</div>
+  <div class="actions"><button disabled={phase === 0 || busy} onclick={() => phase--}>Zurück</button>{#if status.phase === 'completed'}<button onclick={oncomplete}>Zur Administration (offene Einrichtung bleibt erhalten)</button>{/if}</div>
 </main>

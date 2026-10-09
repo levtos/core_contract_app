@@ -259,6 +259,12 @@ class Setup:
             self.authority = "supervisor" if legacy else "unconfigured"
 
     def status(self) -> dict[str, Any]:
+        onboarding = self.directory / "onboarding.json"
+        finished = (
+            json.loads(onboarding.read_text()).get("completed", False)
+            if onboarding.exists()
+            else self.authority == "supervisor"
+        )
         return {
             "phase": "completed"
             if self.completed
@@ -266,6 +272,7 @@ class Setup:
             if self.connection
             else "welcome",
             "database_configured": self.connection is not None,
+            "onboarding_complete": finished,
             "authority": self.authority,
             "installation_id": load_id(self.data),
             "error": self.error,
@@ -279,6 +286,15 @@ class Setup:
     async def dispatch(self, path: str, method: str, body: Any) -> Any:
         if path == "status" and method == "GET":
             return self.status()
+        if path == "finish" and method == "POST":
+            if not ConfirmRequest.model_validate(body).confirm:
+                raise ValueError("confirmation_required")
+            if not self.completed:
+                raise ValueError("database_setup_pending")
+            if (await bridge_status(os.environ.get("SUPERVISOR_TOKEN", "")))["state"] != "active":
+                raise ValueError("bridge_setup_pending")
+            write_private(self.directory / "onboarding.json", canonical({"completed": True}))
+            return {"completed": True}
         if path == "bridge" and method == "GET":
             return await bridge_status(os.environ.get("SUPERVISOR_TOKEN", ""))
         if path == "bridge_configure" and method == "POST":

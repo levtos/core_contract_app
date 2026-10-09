@@ -5,9 +5,12 @@ export interface Connection {
 export interface SetupStatus {
   phase: 'welcome' | 'connecting' | 'completed'; authority: string;
   database_configured: boolean; database: Connection | null; csrf_token: string;
+  onboarding_complete: boolean;
   installation_id: string | null; error: string; restart_required: boolean;
 }
 const errors: Record<string, string> = {
+  database_setup_pending: 'Datenbankeinrichtung noch nicht abgeschlossen.',
+  bridge_setup_pending: 'Bridge noch nicht aktiv. Einrichtung bleibt offen; Registry-Readiness folgt separat.',
   ha_unavailable: 'HA-Verbindung nicht verfügbar. Keine Bridge-Konfiguration übernommen.',
   ha_connection_failed: 'HA-Verbindung fehlgeschlagen. Erreichbarkeit und Berechtigung prüfen.',
   bridge_not_discovered: 'Bridge noch nicht erkannt. HACS-Installation und bestätigten HA-Neustart prüfen.',

@@ -7,7 +7,7 @@ import type { SetupStatus } from './setup';
 
 vi.mock('./Admin.svelte', () => import('../test/StubAdmin.svelte'));
 
-const initial: SetupStatus = {phase:'welcome',authority:'unconfigured',database_configured:false,database:null,csrf_token:'ephemeral-csrf',installation_id:null,error:'',restart_required:false};
+const initial: SetupStatus = {phase:'welcome',authority:'unconfigured',database_configured:false,onboarding_complete:false,database:null,csrf_token:'ephemeral-csrf',installation_id:null,error:'',restart_required:false};
 let component: ReturnType<typeof mount> | undefined;
 afterEach(async () => { if(component) await unmount(component); component=undefined; document.body.innerHTML=''; vi.unstubAllGlobals(); });
 function backend(status=initial) {
@@ -15,6 +15,25 @@ function backend(status=initial) {
   vi.stubGlobal('fetch',fetch); return fetch;
 }
 function click(text:string) { const button=[...document.querySelectorAll('button')].find(node => node.textContent?.includes(text)); expect(button).toBeDefined(); button!.click(); }
+it('reload after DB initialization resumes the unfinished Bridge step',async () => {
+  backend({...initial,phase:'completed',authority:'wizard',database_configured:true});
+  component=mount(App,{target:document.body});
+  await vi.waitFor(() => expect(document.body.textContent).toContain('Home-Assistant-Bridge'));
+  expect(document.querySelector('h1')?.textContent).toBe('Core Contracts einrichten');
+  expect(document.body.textContent).toContain('SELF-INSTALL-01');
+});
+it('completed onboarding opens Administration after DB recovery but manual setup stays open',async () => {
+  const status={...initial,phase:'connecting' as SetupStatus['phase'],authority:'wizard',database_configured:true,onboarding_complete:true};
+  backend(status);
+  component=mount(App,{target:document.body});
+  await vi.waitFor(() => expect(document.body.textContent).toContain('Core Contracts einrichten'));
+  status.phase='completed';
+  // Polling performs the same recovery refresh without changing configuration.
+  await vi.waitFor(() => expect(document.body.textContent).toContain('Administration'),{timeout:5000});
+  click('Einrichtung prüfen');
+  await vi.waitFor(() => expect(document.body.textContent).toContain('Bestehende Identität wird beibehalten'));
+  expect(document.body.textContent).not.toContain('Einrichtung prüfen');
+});
 it('fresh installation automatically renders guided UI before ordinary API',async () => {
   const fetch=backend();
   component=mount(App,{target:document.body});

@@ -191,6 +191,36 @@ def test_existing_alpha_authority_no_new_database_or_identity(tmp_path):
     assert setup.authority == "supervisor" and setup.connection is legacy
     assert not setup.directory.exists()
     assert setup.status()["installation_id"] is None
+    assert setup.status()["onboarding_complete"]
+
+
+async def test_wizard_completion_requires_database_and_bridge_and_survives_restart(
+    tmp_path, monkeypatch
+):
+    setup = Setup(tmp_path, None)
+    with pytest.raises(ValueError, match="database_setup_pending"):
+        await setup.dispatch("finish", "POST", {"confirm": True})
+    setup.completed = True
+
+    async def missing(token):
+        return {"state": "missing_or_restart_pending"}
+
+    monkeypatch.setattr(setup_control, "bridge_status", missing)
+    with pytest.raises(ValueError, match="bridge_setup_pending"):
+        await setup.dispatch("finish", "POST", {"confirm": True})
+    assert not setup.status()["onboarding_complete"]
+
+    async def active(token):
+        return {"state": "active"}
+
+    monkeypatch.setattr(setup_control, "bridge_status", active)
+    with pytest.raises(ValueError, match="confirmation_required"):
+        await setup.dispatch("finish", "POST", {"confirm": False})
+    assert await setup.dispatch("finish", "POST", {"confirm": True}) == {"completed": True}
+    restored = Setup(tmp_path, None)
+    assert restored.status()["onboarding_complete"]
+    assert restored.status()["phase"] == "welcome"
+    assert {path.name for path in tmp_path.iterdir()} == {"setup"}
 
 
 def test_tls_and_secret_repr():

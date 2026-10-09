@@ -16,6 +16,10 @@ See [First Run](first-run.md) for payload confirmations, persistence and gates.
 HA config flow after explicit confirmation; existing entries remain untouched.
 It shares the same Ingress/JSON/CSRF boundary and grants no file-install/restart access.
 
+`POST /api/v1/setup/finish` requires `{"confirm":true}`, initialized database and
+an active protocol-1 Bridge. It persists only onboarding completion, independently
+of Registry/Snapshot readiness, under the same Ingress/JSON/CSRF boundary.
+
 Consumer: Port 8787, `Authorization: Bearer <consumer_token>`; Admin-Token erlaubt
 zusätzlich Administration. Ingress: Port 8099, ausschließlich Supervisor-Peer.
 Health-Endpunkte auf 8787 benötigen kein Token. JSON-Zeiten sind RFC3339 UTC.

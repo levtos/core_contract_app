@@ -11,7 +11,9 @@ Versionsstand festlegen; vorhandene Tags nicht stillschweigend ersetzen.
    Kein manueller Supervisor-Optionsschritt für die DB erforderlich.
 2. Der Assistent erkennt vorhandene Konfiguration und Identität. Bei einer
    bestehenden Alpha-Installation werden DB/Rolle/Identität nicht neu angelegt.
-   Erreichbare, erfolgreich initialisierte Installationen öffnen die normale UI;
+   Bestehende Alpha-Installationen und vollständig abgeschlossene Wizard-Installationen
+   öffnen nach erfolgreicher DB-Initialisierung die normale UI. Neue Installationen
+   nehmen einen offenen Bridge-Schritt nach Neuladen oder Neustart wieder auf;
    „Einrichtung prüfen“ öffnet den Assistenten erneut.
 3. PostgreSQL >=14 im separat bereitgestellten LXC, Host/Port und TLS auswählen.
    „Erreichbarkeit“ sendet ausschließlich einen PostgreSQL-SSLRequest; Version
@@ -47,7 +49,9 @@ Versionsstand festlegen; vorhandene Tags nicht stillschweigend ersetzen.
    Abbruch zwischen DB-/Datei-Identitätswrites. Initialisierungs-/Adoptionsflags
    werden nach erfolgreichem Abschluss verbraucht.
 8. Bridge prüfen und über den unten beschriebenen HACS-Weg einrichten. Danach
-   normale Oberfläche öffnen. Registry und erster HA-Snapshot sind separate
+   Einrichtung ausdrücklich abschließen und normale Oberfläche öffnen.
+   Der Abschluss setzt initialisierte DB und aktive Bridge mit Protokoll 1 voraus.
+   Registry und erster HA-Snapshot sind separate
    Readiness-Schritte: keinen produktiven Contract automatisch aktivieren.
 
 ## Persistenz und Konfigurationsautorität
@@ -60,6 +64,10 @@ Verzeichnis 0700. Status zeigt die Autorität und Nicht-Secret-Felder. Ab dann
 haben Änderungen der Supervisor-DB-Optionen keine Wirkung. MQTT und Logging
 bleiben Supervisor-Optionen. `/data/setup/provision.json` enthält die nicht
 geheime Skriptanfrage, niemals das DB-Passwort.
+
+Der bestätigte Wizard-Abschluss liegt separat in `/data/setup/onboarding.json`.
+DB-Initialisierung allein beendet die Ersteinrichtung nicht. Ein vorzeitiger
+Wechsel zur Administration bewahrt die offene Einrichtung für den nächsten Aufruf.
 
 Setup-Zustand, Secrets und installation.json gemeinsam mit der externen DB
 sichern. App-Updates/Neustarts erhalten `/data`. Kein Browser-LocalStorage für

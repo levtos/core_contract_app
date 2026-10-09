@@ -174,6 +174,8 @@ class API:
                 "bridge_not_discovered",
                 "bridge_flow_changed",
                 "bridge_configuration_failed",
+                "database_setup_pending",
+                "bridge_setup_pending",
             }
             return web.json_response(
                 {
