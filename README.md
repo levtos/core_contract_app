@@ -1,3 +1,5 @@
+![TERRA](brand/logos/logo-256.png)
+
 # Core Contracts App
 
 Core Contracts als **Supervisor-verwaltete Home-Assistant-App**: kanonische fachliche Wahrheiten mit
@@ -29,3 +31,8 @@ Thin HA I/O Bridge und `CoreContractsClient`.
 
 Die bisherige HA-Integration (v0.2.x, Legacy) liegt in
 [Levtos/core-contracts](https://github.com/Levtos/core-contracts) und bleibt bis zur Ablösung in Phase 2 unverändert.
+
+
+## Unicorn Station branding
+
+**TERRA** is the product brand. See [asset provenance and HA display conventions](brand/README.md). Technical identities and behavior remain unchanged.

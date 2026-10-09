@@ -1,0 +1,32 @@
+{
+  "brand": "TERRA",
+  "repository": "levtos/core_contract_app",
+  "domain": "core_contracts_bridge",
+  "original_sha256": "63b10ffceaf45938885ebc2530c7536e06ef31dabaa42e5a3a1b3646ec3d16bc",
+  "original_size": [
+    1254,
+    1254
+  ],
+  "original_mode": "RGB",
+  "icon_crop_xyxy": [
+    177,
+    0,
+    1077,
+    900
+  ],
+  "resampling": "Pillow LANCZOS",
+  "files": {
+    "brand/icons/icon-128.png": "67bc960a49b1500ee16b5505d445437fd2a9389d4f3660425cb30923e8871bf5",
+    "brand/icons/icon-256.png": "db7626b7614053e7f0abafdf93e2432df28ba7ebbe545799092e67d37b274d77",
+    "brand/icons/icon-32.png": "107350899b3d589b2f89ef47fbed836c7b6b77c03491ae05e69ec725d5289e6b",
+    "brand/icons/icon-512.png": "5f19da4e0eae7055fb2ebbab2486b6f001aa03a101625da7fbbbe5db1936dbf3",
+    "brand/icons/icon-64.png": "023a4651bd33b916283c5bdee17a2ef355de09877b16da0e39fe11e3fa7bddde",
+    "brand/logos/logo-1024.png": "13bd5624399d285fae5157bea5c3b2fd96c7f2000b17f7bc3b279d78d84d7a1e",
+    "brand/logos/logo-128.png": "ce8aff16a971317f0a573d93a503ae81668260c5bf86b022233d211f7179c35a",
+    "brand/logos/logo-256.png": "1de7a6ca90eac3af447a78595d20b2dc4d0a9b84e5f1101089f53a78c38453de",
+    "brand/logos/logo-512.png": "540c47791496a98c6345be9f15ae34323d7411b3a815bc5e974fb61b83feaa6b",
+    "brand/original/TERRA.png": "63b10ffceaf45938885ebc2530c7536e06ef31dabaa42e5a3a1b3646ec3d16bc",
+    "core_contracts/icon.png": "67bc960a49b1500ee16b5505d445437fd2a9389d4f3660425cb30923e8871bf5",
+    "core_contracts/logo.png": "1de7a6ca90eac3af447a78595d20b2dc4d0a9b84e5f1101089f53a78c38453de"
+  }
+}
