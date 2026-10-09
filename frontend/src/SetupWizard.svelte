@@ -51,7 +51,7 @@
   <header><div><p class="eyebrow">ERSTEINRICHTUNG · ALPHA 1</p><h1>Core Contracts einrichten</h1><p>Schritt {phase + 1} von {phases.length}: {phases[phase]}</p></div></header>
   <nav aria-label="Einrichtungsfortschritt"><ol>{#each phases as name, index}<li aria-current={index === phase ? 'step' : undefined}>{name}{index < phase ? ' ✓' : ''}</li>{/each}</ol></nav>
   {#if notice}<p role="alert" class="notice">{notice}</p>{/if}
-  {#if status.error}<p role="alert">Identität oder Schema abgewiesen. Verbindung prüfen; keine automatische Neuinitialisierung.</p>{/if}
+  {#if status.error}<p role="alert">{status.error === 'database_connection_failed' ? 'PostgreSQL nicht erreichbar oder Anmeldung/TLS fehlgeschlagen. Verbindung und Zertifikat prüfen; Einrichtung bleibt offen.' : 'Identität oder Schema abgewiesen. Verbindung prüfen; keine automatische Neuinitialisierung.'}</p>{/if}
   {#if phase === 0}
     <section><h2>Willkommen</h2><p>Benötigt werden PostgreSQL 14 oder neuer in einer eigenen Datenbank sowie die Core Contracts Bridge in Home Assistant. Die Bereitstellung des PostgreSQL-LXC erfolgt separat.</p>
       <p>Konfigurationsquelle: {status.authority === 'supervisor' ? 'Vorhandene Supervisor-Optionen' : status.authority === 'wizard' ? 'Privater App-Einrichtungszustand' : 'Noch nicht konfiguriert'}.</p>

@@ -22,6 +22,12 @@ it('reload after DB initialization resumes the unfinished Bridge step',async () 
   expect(document.querySelector('h1')?.textContent).toBe('Core Contracts einrichten');
   expect(document.body.textContent).toContain('SELF-INSTALL-01');
 });
+it('database outage is not presented as an identity rejection',async () => {
+  backend({...initial,phase:'connecting',authority:'wizard',database_configured:true,error:'database_connection_failed'});
+  component=mount(App,{target:document.body});
+  await vi.waitFor(() => expect(document.body.textContent).toContain('PostgreSQL nicht erreichbar'));
+  expect(document.body.textContent).not.toContain('Identität oder Schema abgewiesen');
+});
 it('completed onboarding opens Administration after DB recovery but manual setup stays open',async () => {
   const status={...initial,phase:'connecting' as SetupStatus['phase'],authority:'wizard',database_configured:true,onboarding_complete:true};
   backend(status);
