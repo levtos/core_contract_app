@@ -5,10 +5,8 @@ import json
 import logging
 import os
 import signal
-import ssl
 from pathlib import Path
 from typing import Literal
-from urllib.parse import quote
 
 import aiohttp
 import asyncpg
@@ -24,6 +22,7 @@ from .model import Model, canonical
 from .persistence import PersistenceUnavailable, PostgresStore
 from .runtime import Runtime
 from .security import Tokens
+from .setup import Connection, Setup, probe
 from .testing.contract_types import type_registry
 
 LOGGER = logging.getLogger(__name__)
@@ -114,17 +113,26 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
     handler.setFormatter(JsonFormatter() if options.log_format == "json" else TextFormatter())
     logging.basicConfig(level=options.log_level, handlers=[handler], force=True)
     logging.getLogger("aiohttp.access").disabled = True
-    tls: ssl.SSLContext | bool = False
-    if options.postgres_sslmode != "disable":
-        tls = ssl.create_default_context(cafile=options.postgres_ca or None)
-        if options.postgres_sslmode == "require":
-            tls.check_hostname = False
-            tls.verify_mode = ssl.CERT_NONE
-    dsn = (
-        f"postgresql://{quote(options.postgres_user, safe='')}:{quote(options.postgres_password.get_secret_value(), safe='')}"
-        f"@{options.postgres_host}:{options.postgres_port}/{quote(options.postgres_database, safe='')}"
+    legacy = (
+        Connection(
+            host=options.postgres_host,
+            port=options.postgres_port,
+            database=options.postgres_database,
+            user=options.postgres_user,
+            password=options.postgres_password,
+            sslmode=options.postgres_sslmode,
+            ca=options.postgres_ca,
+        )
+        if options.postgres_host
+        else None
     )
-    store = PostgresStore(dsn, migrations, tls=tls)
+    setup = Setup(data, legacy)
+    connection = setup.connection
+    store = PostgresStore(
+        connection.dsn() if connection else "",
+        migrations,
+        tls=False,
+    )
     runtime = Runtime(store, clock, type_registry())
     runtime.task = asyncio.create_task(runtime.run(), name="processor")
     stopped = asyncio.Event()
@@ -137,6 +145,7 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
         "",
         installation_label=options.installation_label,
         frontend=frontend,
+        setup=setup,
     )
     consumer = web.AppRunner(api.application(), access_log=None, shutdown_timeout=3)
     ingress = web.AppRunner(api.application(ingress=True), access_log=None, shutdown_timeout=3)
@@ -158,12 +167,46 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
     shutdown_file = data / "last_shutdown.json"
 
     async def initialize_once() -> str:
-        await connect_with_health(store, clock)
+        while setup.connection is None:
+            await setup.changed.wait()
+            setup.changed.clear()
+        async with setup.lock:
+            return await initialize_connection()
+
+    async def initialize_connection() -> str:
+        connection = setup.connection
+        assert connection is not None
+        store.dsn, store.tls = connection.dsn(), connection.tls()
+        if setup.authority == "wizard":
+            checked = await probe(
+                connection, resume=bool(setup.pending.get("initialize_empty_database"))
+            )
+            expected = load_id(data) or setup.pending.get("prepared_identity")
+            if checked["database_id"] and checked["database_id"] != expected:
+                raise ValueError("installation_mismatch")
+            if not checked["database_id"] and not setup.pending.get("initialize_empty_database"):
+                raise ValueError("initialize_empty_database_required")
+        await store.open()
+        local = load_id(data)
+        pending = setup.pending
+        # The prepared UUID closes the DB/local identity crash window without
+        # inventing a new identity when resuming first-run initialization.
+        database_id = await store.metadata("installation_id")
+        if setup.authority == "wizard" and not local:
+            prepared = pending.get("prepared_identity")
+            if database_id and prepared and database_id != prepared:
+                raise ValueError("installation_mismatch")
+            local = prepared
         installation_id = reconcile(
-            load_id(data),
-            await store.metadata("installation_id"),
-            initialize_empty_database=options.initialize_empty_database,
-            adopt_installation_id=options.adopt_installation_id or None,
+            local,
+            database_id,
+            initialize_empty_database=pending.get(
+                "initialize_empty_database", options.initialize_empty_database
+            ),
+            adopt_installation_id=pending.get(
+                "adopt_installation_id", options.adopt_installation_id
+            )
+            or None,
         )
         await store.put_metadata("installation_id", installation_id)
         write_private(data / "installation.json", canonical({"installation_id": installation_id}))
@@ -179,6 +222,7 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
                 runtime._gap(loaded, "database_older_than_last_shutdown")
                 await store.commit(loaded)
         await runtime.start()
+        setup.initialized()
         return installation_id
 
     async def initialize() -> str:
@@ -188,10 +232,18 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
                 return await initialize_once()
             except RETRYABLE_DATABASE as error:
                 runtime._unavailable()
+                setup.error = "database_connection_failed"
                 LOGGER.warning("initialization_retry", extra={"error_type": type(error).__name__})
                 await store.close()
                 await clock.sleep(delay)
                 delay = min(delay * 2, 30)
+            except ValueError:
+                # A rejected identity/schema remains diagnosable through setup.
+                # Reconfigure explicitly; never auto-adopt or reinitialize.
+                setup.error = "identity_or_schema_rejected"
+                await store.close()
+                await setup.changed.wait()
+                setup.changed.clear()
 
     initialization = asyncio.create_task(initialize())
     try:

@@ -16,7 +16,18 @@ from core_contracts.persistence import MemoryStore
 
 
 @pytest.mark.parametrize(
-    "phase", ["connect", "metadata", "ready", "older_database", "foreign_marker"]
+    "phase",
+    [
+        "fresh",
+        "connect",
+        "metadata",
+        "ready",
+        "older_database",
+        "foreign_marker",
+        "wizard_prepared",
+        "wizard_db_identity",
+        "wizard_completed",
+    ],
 )
 async def test_startup_listener_and_sigterm_across_slow_initialization(
     tmp_path, monkeypatch, phase
@@ -26,8 +37,44 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
     sites = []
     instances = []
     installation_id = str(uuid4())
+    wizard = phase.startswith("wizard")
     has_marker = phase in {"older_database", "foreign_marker"}
-    ready_phase = phase in {"ready", "older_database", "foreign_marker"}
+    ready_phase = phase in {"ready", "older_database", "foreign_marker"} or wizard
+    if wizard:
+        from core_contracts.identity import write_private
+
+        write_private(
+            tmp_path / "setup/connection.json",
+            json.dumps(
+                {
+                    "connection": {
+                        "host": "fake-postgres",
+                        "port": 5432,
+                        "database": "cc_test",
+                        "user": "cc_test",
+                        "password": "ephemeral-test-only",
+                        "sslmode": "disable",
+                        "ca": "",
+                    },
+                    "prepared_identity": installation_id,
+                    "initialize_empty_database": phase != "wizard_completed",
+                    "adopt_installation_id": "",
+                }
+            ),
+        )
+        if phase == "wizard_completed":
+            write_private(
+                tmp_path / "installation.json", json.dumps({"installation_id": installation_id})
+            )
+
+        async def probe(connection, **kwargs):
+            return {
+                "server_version": 170000,
+                "database_id": installation_id if phase != "wizard_prepared" else None,
+                "empty": phase == "wizard_prepared",
+            }
+
+        monkeypatch.setattr(application, "probe", probe)
     if has_marker:
         (tmp_path / "installation.json").write_text(
             json.dumps({"installation_id": installation_id})
@@ -59,7 +106,7 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
         def __init__(self, *args, **kwargs):
             super().__init__()
             self.metadata_values = {}
-            if has_marker:
+            if has_marker or (wizard and phase != "wizard_prepared"):
                 self.metadata_values["installation_id"] = installation_id
                 self.state.publication_seq = 7
             instances.append(self)
@@ -87,6 +134,13 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
     options = application.Options.model_validate(
         yaml.safe_load((root / "core_contracts/config.yaml").read_text())["options"]
     )
+    if phase != "fresh" and not wizard:
+        options = options.model_copy(
+            update={
+                "postgres_host": "fake-postgres",
+                "postgres_password": application.SecretStr("ephemeral-test-only"),
+            }
+        )
     task = asyncio.create_task(
         application.run(options, tmp_path, root / "migrations", root / "frontend")
     )
@@ -110,6 +164,8 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
                             break
                         await asyncio.sleep(0)  # noqa: TID251
                     assert response.status == 200
+                    if wizard:
+                        assert (await response.json())["installation_id"] == installation_id
                     assert (await session.get(url + "/health/live")).status == 200
                     if has_marker:
                         assert instances[0].state.publication_seq == (
@@ -123,6 +179,10 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
                 signals[signal.SIGTERM]()
                 await task
         assert not instances[0].locked
+        if wizard:
+            pending = json.loads((tmp_path / "setup/connection.json").read_text())
+            assert pending["prepared_identity"] == installation_id
+            assert not pending["initialize_empty_database"]
         if has_marker:
             marker = json.loads((tmp_path / "last_shutdown.json").read_text())
             assert marker["installation_id"] == installation_id
