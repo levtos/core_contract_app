@@ -1,8 +1,8 @@
 # First-Run-Wizard (Issue #8)
 
-Technischer Entwicklungsstand, noch kein veröffentlichtes Image. Die bestehenden
-Images `1.0.0a1` enthalten diesen Wizard nicht. Vor Veröffentlichung einen neuen
-Versionsstand festlegen; vorhandene Tags nicht stillschweigend ersetzen.
+Der Wizard gehört zu `1.0.0a2`. Die bestehenden Images `1.0.0a1` enthalten ihn
+nicht und bleiben unverändert. Veröffentlichung nur über den geprüften
+[Publikationsworkflow](publishing.md); [Alpha-2-Upgrade und Einschränkungen](releases/1.0.0a2.md).
 
 ## Reguläre Einrichtung
 
@@ -117,6 +117,11 @@ Quellen: [Ingress](https://developers.home-assistant.io/docs/apps/presentation/#
 [HACS requirements](https://www.hacs.xyz/docs/publish/integration/).
 
 ## Reale Supervisor-Acceptance auf zweiter Instanz (offen)
+
+Diese Neuinstallationsmatrix bleibt offen. Benni besitzt nur Einhornzentrale;
+die genehmigte nächste Abnahme ist deshalb ein gesondert freizugebendes
+Bestandsupdate gemäß [Alpha-2-Runbook](releases/1.0.0a2.md). Es ersetzt keinen
+Nachweis einer frischen zweiten Installation.
 
 - Vorher explizit zweite Instanz identifizieren/freigeben; vorhandene Einhornzentrale
   und Legacy nicht als Versuchsumgebung verwenden. Kein Auto-Deployment dieses PRs.

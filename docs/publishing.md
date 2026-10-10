@@ -6,8 +6,8 @@ Konfiguration `core_contracts/config.yaml` verlangt diese öffentlichen Images:
 
 | Supervisor-Architektur | Docker-Plattform | Image |
 |---|---|---|
-| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a1 |
-| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a1 |
+| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a2 |
+| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a2 |
 
 `{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-core-contracts` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
