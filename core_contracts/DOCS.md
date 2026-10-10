@@ -1,5 +1,12 @@
 # Core Contracts Platform Alpha 1
 
+Entwicklungsstand: App mit Standardoptionen starten und Weboberfläche über
+Home Assistant öffnen. Der First-Run-Wizard bleibt ohne Datenbank erreichbar.
+Anleitung, sichere Konfigurationsautorität und offener HACS-Bridge-Release-Blocker:
+[First Run](https://github.com/Levtos/core_contract_app/blob/main/docs/first-run.md).
+Vorhandene Alpha-Installationen behalten ihre Supervisor-DB-Konfiguration,
+bis eine neue Verbindung ausdrücklich im Wizard übernommen wird.
+
 Nur generische Plattform und synthetische TEST-Fixtures. Keine produktiven
 Domain-Contracts oder Consumer-Migration. Betrieb, Identität, Tokens und
 Backup/Restore: [Operations](https://github.com/Levtos/core_contract_app/blob/main/docs/operations.md).
@@ -20,7 +27,7 @@ von 120 pro Minute. Auch erfolgreiche Anfragen zählen zum gemeinsamen IP-Budget
 Details zu Ingress, Health und WebSocket stehen in Operations.
 
 Die Installation aus diesem Repository setzt öffentlich lesbare Images unter
-`ghcr.io/levtos/{arch}-core-contracts:1.0.0a1` voraus. Ein erfolgreicher Build
+`ghcr.io/levtos/{arch}-core-contracts:1.0.0a2` voraus. Ein erfolgreicher Build
 beweist noch keine Veröffentlichung. Ablauf, mögliche GHCR-Freigabe und
 anonyme Pull-Prüfung: [Veröffentlichung](https://github.com/Levtos/core_contract_app/blob/main/docs/publishing.md).
 

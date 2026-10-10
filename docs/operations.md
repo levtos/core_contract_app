@@ -9,6 +9,14 @@ reale Installation und Supervisor-Abnahme benötigen Bennis gesonderten Auftrag.
 
 ## Vorbereitung und Installation
 
+Für neue Installationen gilt der [First-Run-Wizard](first-run.md): App mit
+Standardoptionen starten und Ingress öffnen. DB-Provisionierung, privater Import,
+Identitätsprüfung und Migration werden geführt; Supervisor-DB-Optionen müssen
+nicht manuell bearbeitet werden. Bestehende Alpha-Konfigurationen bleiben gültig.
+Der noch manuelle HACS-Bridge-Schritt ist dort als Release-Blocker dokumentiert.
+Die folgende Liste beschreibt den bisherigen Alpha-Optionspfad und ist keine
+Aufforderung, die bestehenden produktiven Optionen zu ändern.
+
 1. **PostgreSQL 14 oder neuer** bereitstellen: Der Writer setzt
    `idle_session_timeout`, das ab PostgreSQL 14 verfügbar ist. Eine leere eigene
    Datenbank und Rolle mit DDL-/DML-Rechten auf deren Schema/Tabellen anlegen

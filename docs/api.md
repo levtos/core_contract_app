@@ -1,5 +1,25 @@
 # HTTP/WS API, protocol 1
 
+## Ingress-only setup (before installation identity)
+
+`/api/v1/setup/status` and `/api/v1/setup/bridge` are read-only Ingress routes.
+`POST /api/v1/setup/reachability`, `/provision`, `/import`, `/connect` require
+JSON plus `X-Setup-CSRF` from status; cross-site requests are rejected. These
+routes do not exist on the consumer listener, even with an admin bearer token.
+Ordinary API/WS stays unavailable until initialization; UI and health remain
+accessible within their original trust boundaries. Responses use static errors,
+never credential/exception reflection. No setup endpoint activates a Registry,
+installs files in HA, creates a HA helper or restarts HA/App.
+See [First Run](first-run.md) for payload confirmations, persistence and gates.
+
+`POST /api/v1/setup/bridge_configure` uses the fixed `core_contracts_bridge`
+HA config flow after explicit confirmation; existing entries remain untouched.
+It shares the same Ingress/JSON/CSRF boundary and grants no file-install/restart access.
+
+`POST /api/v1/setup/finish` requires `{"confirm":true}`, initialized database and
+an active protocol-1 Bridge. It persists only onboarding completion, independently
+of Registry/Snapshot readiness, under the same Ingress/JSON/CSRF boundary.
+
 Consumer: Port 8787, `Authorization: Bearer <consumer_token>`; Admin-Token erlaubt
 zusätzlich Administration. Ingress: Port 8099, ausschließlich Supervisor-Peer.
 Health-Endpunkte auf 8787 benötigen kein Token. JSON-Zeiten sind RFC3339 UTC.

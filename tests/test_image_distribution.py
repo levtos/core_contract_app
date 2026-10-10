@@ -42,7 +42,7 @@ def image_info(meta):
 @pytest.mark.parametrize("arch,docker_arch", [("amd64", "amd64"), ("aarch64", "arm64")])
 def test_supervisor_reference_and_platform(arch, docker_arch):
     meta = package.metadata(arch, REVISION)
-    assert meta["image"] == f"ghcr.io/levtos/{arch}-core-contracts:1.0.0a1"
+    assert meta["image"] == f"ghcr.io/levtos/{arch}-core-contracts:1.0.0a2"
     assert meta["docker_arch"] == docker_arch
 
 
@@ -57,7 +57,7 @@ def test_distribution_rejects_config_drift(tmp_path, change):
     (tmp_path / "core_contracts").mkdir()
     config = yaml.safe_load((package.ROOT / "core_contracts/config.yaml").read_text())
     config["image" if change == "namespace" else "version"] = (
-        "ghcr.io/levtos/arm64-core-contracts" if change == "namespace" else "1.0.0a2"
+        "ghcr.io/levtos/arm64-core-contracts" if change == "namespace" else "0.0.0-invalid"
     )
     (tmp_path / "core_contracts/config.yaml").write_text(yaml.safe_dump(config))
     (tmp_path / "pyproject.toml").write_text((package.ROOT / "pyproject.toml").read_text())

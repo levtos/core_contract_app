@@ -14,6 +14,7 @@ Thin HA I/O Bridge und `CoreContractsClient`.
 
 ## Dokumentation
 
+- [First-Run-Wizard, DB-Provisionierung und offene Bridge-Grenze](docs/first-run.md)
 - [Betrieb, Installation und Backup/Restore](docs/operations.md)
 - [API und Python-Client](docs/api.md)
 - [Wiederverwendungsanalyse](docs/platform-alpha1/reuse-analysis.md)

@@ -1,10 +1,12 @@
 """Two listeners with independent ingress and bearer trust boundaries."""
 
 import asyncio
+import secrets
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 import asyncpg
 from aiohttp import WSMsgType, web
 from pydantic import ValidationError
@@ -13,6 +15,7 @@ from . import __version__
 from .model import canonical
 from .runtime import Runtime
 from .security import RateLimiter, Tokens
+from .setup import Setup
 
 
 class API:
@@ -25,6 +28,7 @@ class API:
         installation_label: str = "",
         ingress_address: str = "172.30.32.2",
         frontend: Path | None = None,
+        setup: Setup | None = None,
     ) -> None:
         self.runtime, self.tokens, self.installation_id = runtime, tokens, installation_id
         self.installation_label, self.ingress_address, self.frontend = (
@@ -33,6 +37,7 @@ class API:
             frontend,
         )
         self.limiter = RateLimiter(runtime.clock)
+        self.setup = setup
         self.auth_limiter = RateLimiter(runtime.clock)
         self.sockets: set[web.WebSocketResponse] = set()
 
@@ -56,7 +61,21 @@ class API:
             if role != "health" and not self.limiter.allow(f"{request.remote}:{role}"):
                 raise web.HTTPTooManyRequests()
             request["role"] = role
-            if not self.installation_id and role != "health":
+            setup_path = request.path.startswith("/api/v1/setup/")
+            static_path = ingress and not request.path.startswith(("/api/", "/health/"))
+            if setup_path and (not ingress or self.setup is None):
+                raise web.HTTPNotFound()
+            if setup_path and request.method != "GET":
+                if (
+                    request.content_type != "application/json"
+                    or request.headers.get("Sec-Fetch-Site") == "cross-site"
+                    or not secrets.compare_digest(
+                        request.headers.get("X-Setup-CSRF", ""),
+                        self.setup.csrf if self.setup else "",
+                    )
+                ):
+                    raise web.HTTPForbidden()
+            if not self.installation_id and role != "health" and not (setup_path or static_path):
                 raise web.HTTPServiceUnavailable()
             if request.method not in {"GET", "HEAD"} and request.path != "/api/v1/commands":
                 if role != "admin":
@@ -119,10 +138,53 @@ class API:
         app.router.add_get("/health/live", self.health)
         app.router.add_get("/health/ready", self.health)
         app.router.add_get("/api/v1/ws", self.websocket)
+        if ingress and self.setup:
+            app.router.add_route("*", "/api/v1/setup/{operation}", self.setup_dispatch)
         app.router.add_route("*", "/api/v1/{path:.*}", self.dispatch)
         if ingress:
             app.router.add_get("/{path:.*}", self.static)
         return app
+
+    async def setup_dispatch(self, request: web.Request) -> web.Response:
+        assert self.setup is not None
+        try:
+            result = await self.setup.dispatch(
+                request.match_info["operation"],
+                request.method,
+                await request.json() if request.method != "GET" else None,
+            )
+            return web.json_response(result)
+        except aiohttp.ClientError:
+            return web.json_response({"error": "ha_connection_failed"}, status=503)
+        except asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError:
+            return web.json_response({"error": "database_connection_failed"}, status=503)
+        except (ValueError, RuntimeError) as error:
+            safe = {
+                "confirmation_required",
+                "insecure_tls_confirmation_required",
+                "initialize_empty_database_required",
+                "adopt_installation_id_required",
+                "installation_mismatch",
+                "foreign_database",
+                "application_role_too_privileged",
+                "postgres_version_unsupported",
+                "provision_request_mismatch",
+                "provision_request_missing",
+                "ha_unavailable",
+                "bridge_not_discovered",
+                "bridge_flow_changed",
+                "bridge_configuration_failed",
+                "database_setup_pending",
+                "bridge_setup_pending",
+            }
+            return web.json_response(
+                {
+                    "error": str(error)
+                    if type(error) is ValueError and str(error) in safe
+                    else "invalid_setup_request"
+                },
+                status=400,
+            )
 
     async def close_sockets(self, app: web.Application) -> None:
         async def close(socket: web.WebSocketResponse) -> None:
