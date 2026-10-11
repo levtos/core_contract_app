@@ -15,6 +15,14 @@ function backend(status=initial) {
   vi.stubGlobal('fetch',fetch); return fetch;
 }
 function click(text:string) { const button=[...document.querySelectorAll('button')].find(node => node.textContent?.includes(text)); expect(button).toBeDefined(); button!.click(); }
+it('invalid Supervisor options are visible and cannot be imported through the wizard',async () => {
+  const fetch=backend({...initial,phase:'configuration_error',authority:'supervisor',error:'invalid_supervisor_options'});
+  component=mount(App,{target:document.body});
+  await vi.waitFor(() => expect(document.body.textContent).toContain('Vorhandene App-Optionen sind ungültig'));
+  expect(document.querySelector('input')).toBeNull();
+  expect(document.body.textContent).not.toContain('Verbindung einrichten');
+  expect(fetch.mock.calls.some(([url]) => url.endsWith('/connect') || url.endsWith('/provision'))).toBe(false);
+});
 it('reload after DB initialization resumes the unfinished Bridge step',async () => {
   backend({...initial,phase:'completed',authority:'wizard',database_configured:true});
   component=mount(App,{target:document.body});

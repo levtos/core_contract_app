@@ -1,0 +1,207 @@
+{
+  "config_schema_version": 1,
+  "dependencies": [
+    {
+      "dependency_id": "dep.alpha_ha",
+      "kind": "ha",
+      "monitor": "internal"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "source.cc_alpha_test_a",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-a"
+    },
+    {
+      "source_id": "source.cc_alpha_test_b",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-b"
+    },
+    {
+      "source_id": "source.cc_alpha_test_number",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-number"
+    }
+  ],
+  "bindings": [
+    {
+      "binding_id": "binding.cc_alpha_test_a",
+      "source_id": "source.cc_alpha_test_a",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_boolean.cc_alpha_test_a"
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "bool"
+      }
+    },
+    {
+      "binding_id": "binding.cc_alpha_test_b",
+      "source_id": "source.cc_alpha_test_b",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_boolean.cc_alpha_test_b"
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "bool"
+      }
+    },
+    {
+      "binding_id": "binding.cc_alpha_test_number",
+      "source_id": "source.cc_alpha_test_number",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_number.cc_alpha_test_number"
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "number"
+      }
+    }
+  ],
+  "catalogs": [],
+  "contracts": [
+    {
+      "contract_id": "test.alpha1.echo",
+      "type_id": "test.echo",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 echo",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_a"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "test.alpha1.grace",
+      "type_id": "test.temporal",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 grace",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_a"
+        }
+      ],
+      "parameters": {
+        "operation": "grace",
+        "duration_s": 10,
+        "accepts_held": false
+      }
+    },
+    {
+      "contract_id": "test.alpha1.not",
+      "type_id": "test.boolean",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 not",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.grace"
+        }
+      ],
+      "parameters": {
+        "operator": "not"
+      }
+    },
+    {
+      "contract_id": "test.alpha1.fusion",
+      "type_id": "test.fusion",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 fusion",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.not"
+        },
+        {
+          "name": "b",
+          "ref": "source.cc_alpha_test_b"
+        }
+      ],
+      "parameters": {
+        "strategy": "first_healthy"
+      }
+    },
+    {
+      "contract_id": "test.alpha1.stable",
+      "type_id": "test.temporal",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 stable",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.fusion"
+        }
+      ],
+      "parameters": {
+        "operation": "stable_for",
+        "duration_s": 2,
+        "accepts_held": true
+      }
+    },
+    {
+      "contract_id": "test.alpha1.multi",
+      "type_id": "test.multi",
+      "type_version": 1,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 multi",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_number"
+        },
+        {
+          "name": "b",
+          "ref": "test.alpha1.stable"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "test.alpha1.machine",
+      "type_id": "test.state_machine",
+      "type_version": 2,
+      "enabled": true,
+      "display_name": "TEST Alpha 1 machine",
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.stable"
+        }
+      ],
+      "parameters": {
+        "deadline_s": 30,
+        "sessions": false
+      }
+    }
+  ]
+}

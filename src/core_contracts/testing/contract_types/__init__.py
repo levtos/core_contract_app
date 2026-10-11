@@ -1,17 +1,22 @@
 """The only registered types in Platform Alpha 1."""
 
-from datetime import datetime, timedelta
+from dataclasses import replace
 from typing import Any, Literal, Self, cast
 
 from pydantic import Field, model_validator
 
 from ...model import Model
+from ...producer import Producer, TemporalParameters, next_machine_due, next_temporal_due
 from ...schema import ContractType, FieldSchema, InputDeclaration, Schema, TypeRegistry
 from ...statemachine import Definition, Machine, Transition
 
 
 class EchoParameters(Model):
     pass
+
+
+class RequestArguments(Model):
+    confirm: bool
 
 
 class BooleanParameters(Model):
@@ -44,42 +49,60 @@ class FusionParameters(Model):
     strategy: Literal["first_healthy", "latest", "any_true", "all_true", "test_agreement"]
 
 
-class TemporalParameters(Model):
-    operation: Literal["stable_for", "dwell", "grace", "edge", "delta", "age"]
-    duration_s: float = Field(gt=0)
-    accepts_held: bool
-
-
 class MachineParameters(Model):
     deadline_s: float = Field(gt=0)
     sessions: bool
 
 
-def machine_definition(parameters: MachineParameters) -> Definition:
+def machine_definition(parameters: MachineParameters, *, typed: bool = False) -> Definition:
     def guard(inputs: dict[str, Any], now: Any) -> bool | None:
         value = inputs.get("a")
         return value.value is True if value and value.usable(now) else None
 
+    typed_transitions = (
+        (
+            Transition(
+                "a",
+                "b",
+                "request_b_if",
+                guard,
+                "test_request",
+                argument_guard=lambda args: args["confirm"] is True,
+            ),
+        )
+        if typed
+        else ()
+    )
     return Definition(
         states=("a", "b", "c"),
         initial="a",
-        commands=("request_b",),
+        commands=("request_b", "request_b_if") if typed else ("request_b",),
         transitions=(
             Transition("a", "b", "request_b", guard, "test_request"),
             Transition("b", "c", "deadline", guard, "test_deadline", ends_episode=True),
             Transition("c", "a", "input", guard, "test_episode", new_episode=True),
-        ),
+        )
+        + typed_transitions,
         deadline_seconds=parameters.deadline_s,
         sessions=parameters.sessions,
     )
 
 
 def type_registry() -> TypeRegistry:
-    from .evaluate import FixtureEvaluation
+    from .evaluate import echo, fusion, machine, multi, refresh_echo, resolver, timed
 
     registry = TypeRegistry()
+    evaluators = {
+        "echo": echo,
+        "boolean": resolver,
+        "fusion": fusion,
+        "temporal": timed,
+        "state_machine": machine,
+        "multi": multi,
+    }
     for name, producer, parameters, restore in (
         ("echo", "resolver", EchoParameters, ()),
+        ("multi", "resolver", EchoParameters, ()),
         ("boolean", "resolver", BooleanParameters, ("baseline",)),
         ("fusion", "fusion", FusionParameters, ()),
         ("temporal", "resolver", TemporalParameters, ("temporal",)),
@@ -91,6 +114,17 @@ def type_registry() -> TypeRegistry:
             grace_capable=name == "temporal",
             grace_parameter="duration_s" if name == "temporal" else None,
         )
+        if name == "multi":
+            schema = Schema(
+                fields={
+                    "value": FieldSchema(type="number", required=True, physical_state=True),
+                    "flag": FieldSchema(type="bool", required=True, physical_state=False),
+                    "label": FieldSchema(
+                        type="enum", required=False, physical_state=False, value_catalog=("a", "b")
+                    ),
+                },
+                available_projection=("value", "flag"),
+            )
         registry.register(
             ContractType(
                 type_id=f"test.{name}",
@@ -102,9 +136,7 @@ def type_registry() -> TypeRegistry:
                     InputDeclaration(name=key, required=key == "a") for key in ("a", "b", "c", "d")
                 ),
                 restore=restore,
-                evaluate=lambda clock, latches, *args: FixtureEvaluation(clock, latches).produce(
-                    *args
-                ),
+                evaluate=Producer(evaluators[name]),
                 machine_factory=(
                     lambda parameters: Machine(
                         machine_definition(MachineParameters.model_validate(parameters))
@@ -119,26 +151,22 @@ def type_registry() -> TypeRegistry:
                 else None,
             )
         )
+    registry.register(
+        replace(
+            registry.get("test.state_machine", 1),
+            type_version=2,
+            commands={"request_b": EchoParameters, "request_b_if": RequestArguments},
+            machine_factory=lambda parameters: Machine(
+                machine_definition(MachineParameters.model_validate(parameters), typed=True)
+            ),
+        )
+    )
+    registry.register(
+        replace(
+            registry.get("test.echo", 1),
+            type_version=2,
+            evaluate=Producer(refresh_echo),
+            refresh_inputs=("a",),
+        )
+    )
     return registry
-
-
-def next_temporal_due(
-    parameters: dict[str, Any], node: dict[str, Any], now: datetime
-) -> datetime | None:
-    p = TemporalParameters.model_validate(parameters)
-    context = node.get("temporal", {})
-    # Age is sampled on evidence changes, not scheduled as a ticking counter.
-    if p.operation == "edge" and node.get("edge_active"):
-        return now + timedelta(seconds=0.5)
-    if p.operation in {"stable_for", "dwell"} and context.get("since_at"):
-        return datetime.fromisoformat(context["since_at"]) + timedelta(seconds=p.duration_s)
-    if p.operation == "grace" and context.get("grace_until"):
-        return datetime.fromisoformat(context["grace_until"])
-    return None
-
-
-def next_machine_due(
-    parameters: dict[str, Any], node: dict[str, Any], now: datetime
-) -> datetime | None:
-    deadline = node.get("machine", {}).get("deadline")
-    return datetime.fromisoformat(deadline["at"]) if deadline and not deadline["fired"] else None

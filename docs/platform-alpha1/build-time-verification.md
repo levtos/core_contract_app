@@ -1,5 +1,10 @@
 # Build-Time Verification / menschliches Acceptance Gate
 
+Stand Phase-1A-Fertigstellung auf Basis 1.0.0a2, 11.10.2026. Maßgeblich sind die
+[aktuelle P0/P1-/G1–G15-Matrix](phase1a-completion.md) und der grüne CI-Lauf am finalen
+PR-Head. Historische a2-Installation/Stabilität/Ingress sind kein Test dieses neuen Builds.
+Das [gebündelte Abnahmepaket](live-acceptance.md) bleibt gesondert freizugeben.
+
 Die automatisierten Tests laufen ohne produktive Home-Assistant-Instanz. Ein
 separater CI-Job verwendet den echten Home-Assistant-2026.10.0-State-Engine und
 den Bridge-Callback. Das belegt Eventformat und Subscription-Lifecycle, keine
@@ -11,6 +16,8 @@ Protokollsimulation. Vollständige Einzelnachweise: [Befundmatrix](opus-remediat
 | Python 3.14 / asyncpg / aiomqtt | frozen uv, strict types, Import-/Unit-/Integrationstests | automatisiert |
 | Python-Wheels / amd64- und arm64-Images | Plattform-/Client-Wheels und CI-Image-Matrix, kein Push | automatisiert |
 | Migration, Commit, Lock, Restore | PostgreSQL-Service in CI | automatisiert |
+| Mehrfeld-/Contract-Graph | typed fields, Grace→NOT→Fusion→stable_for, Held/Partial Evidence, Revision/Rollback, Memory-/PostgreSQL-Restart und echter Client | automatisiert, isoliert; Live offen |
+| Producer/Commands/Dependencies | Lifecycle, Restore/Deadline/Re-Init, typisierte args/Idempotenz, Monitor/Transforms/Refresh, HA-/MQTT-Readiness | automatisiert, isoliert |
 | pg_dump/pg_restore | frische isolierte PostgreSQL-Datenbank in CI | bestanden |
 | Container-Lifecycle | non-root UID 10001, Token 0600, DB bei Start nicht verfügbar, Restart und echte Netzwerkpartition/Lock-Freigabe, SIGTERM mit offenem WS <25 s | bestanden: amd64; arm64 gebaut |
 | HA-Bridge-Kernel | echtes state_reported mit last_reported, gefilterte Events, 100 Subscribe/Unsubscribe-Zyklen, Unload | isoliert bestanden, ersetzt nicht G2 |

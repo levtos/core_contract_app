@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from math import isfinite
 from typing import Any
 
 import aiohttp
@@ -22,12 +23,17 @@ def timestamp(value: Any) -> datetime | None:
 
 
 def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
+    def finite(number: float) -> float:
+        if not isfinite(number):
+            raise ValueError("non-finite number")
+        return number
+
     transformation = binding.transform
     if transformation is None:
         return value
     if transformation.kind == "type_cast":
         if transformation.target == "number":
-            return float(value)
+            return finite(float(value))
         if transformation.target == "bool":
             if value not in (True, False, "true", "false", "on", "off"):
                 raise ValueError("invalid boolean")
@@ -35,7 +41,7 @@ def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
         return str(value)
     if transformation.kind == "unit_scale":
         assert transformation.factor is not None and transformation.offset is not None
-        return float(value) * transformation.factor + transformation.offset
+        return finite(float(value) * transformation.factor + transformation.offset)
     catalog = next(c for c in config.catalogs if c.catalog_id == transformation.catalog_id)
     return catalog.entries[str(value)]
 
@@ -58,6 +64,7 @@ class BridgeAdapter:
         kind: str,
         event: dict[str, Any],
         config: RegistryConfig,
+        revision: int | None = None,
     ) -> Observation:
         self.sequence += 1
         attributes = (state or {}).get("attributes", {})
@@ -68,10 +75,15 @@ class BridgeAdapter:
         if binding.adapter.kind == "ha_attribute":
             value = attributes.get(binding.adapter.ha_attribute)
         normalized = value
+        transform_error = None
         if availability == "available":
             try:
                 normalized = transform(value, binding, config)
-            except ValueError, TypeError, KeyError:
+            except KeyError:
+                transform_error = "unmapped_value"
+                availability = "unknown"
+            except ValueError, TypeError:
+                transform_error = "invalid_value"
                 availability = "unknown"
         source = next(s for s in config.sources if s.source_id == binding.source_id)
         raw_times = {
@@ -102,6 +114,7 @@ class BridgeAdapter:
                 "normalized": True,
                 **times,
                 "invalid_timestamp": invalid_timestamp,
+                "transform_error": transform_error,
                 "ha_context_id": event.get("context_id", event.get("context", {}).get("id")),
                 "received_at": self.runtime.clock.now_utc(),
                 "observation_kind": kind,
@@ -109,11 +122,16 @@ class BridgeAdapter:
                 "assumed_state": bool(attributes.get("assumed_state", False)),
                 "epoch_id": self.runtime.state.epoch_id,
                 "ingest_seq": self.sequence,
+                "registry_revision": self.runtime.state.active_revision
+                if revision is None
+                else revision,
                 "availability": availability,
             }
         )
 
-    async def event(self, event: dict[str, Any], config: RegistryConfig) -> None:
+    async def event(
+        self, event: dict[str, Any], config: RegistryConfig, revision: int | None = None
+    ) -> None:
         kind = event["kind"]
         if kind == "bridge_reloaded":
             raise ConnectionError("bridge_reloaded")
@@ -124,9 +142,11 @@ class BridgeAdapter:
                 entity = binding.adapter.ha_entity_id
                 if entity:
                     observations.append(
-                        self.observation(binding, self.states.get(entity), "snapshot", {}, config)
+                        self.observation(
+                            binding, self.states.get(entity), "snapshot", {}, config, revision
+                        )
                     )
-            self.runtime.ingest_snapshot(observations)
+            self.runtime.ingest_snapshot(observations, revision)
             return
         entity = event["entity_id"]
         if kind == "changed":
@@ -145,6 +165,7 @@ class BridgeAdapter:
                         "report" if kind == "reported" else "live_change",
                         event,
                         config,
+                        revision,
                     )
                 )
 
@@ -158,6 +179,7 @@ class BridgeAdapter:
         return response.get("result")
 
     async def connect(self, config: RegistryConfig) -> None:
+        revision = self.runtime.state.active_revision
         self.runtime.resubscribe.clear()
         self.runtime.revision_changed.clear()
         async with self.session.ws_connect(
@@ -172,6 +194,7 @@ class BridgeAdapter:
             if info.get("protocol_version") != 1:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
+            self.runtime.bridge_version = self.bridge_version
             await self._result(socket, {"id": 2, "type": "get_config"})
             for number, event_type in enumerate(("homeassistant_started", "homeassistant_stop"), 3):
                 await self._result(
@@ -181,6 +204,7 @@ class BridgeAdapter:
                 {b.adapter.ha_entity_id for b in config.bindings if b.adapter.ha_entity_id}
             )
             self.subscription_count = len(entities)
+            self.runtime.bridge_subscriptions = self.subscription_count
             live_sources = {s.freshness.liveness_source for s in config.sources}
             report_sources = {
                 s.source_id
@@ -218,7 +242,7 @@ class BridgeAdapter:
                     message = receive.result()
                     if message.get("type") == "event":
                         if message["id"] == 5:
-                            await self.event(message["event"], config)
+                            await self.event(message["event"], config, revision)
                         else:
                             raise ConnectionError("ha_lifecycle")
                 finally:
@@ -232,12 +256,14 @@ class BridgeAdapter:
             self.runtime.resubscribe.clear()
             self.runtime.revision_changed.clear()
             config = self.runtime.config
-            if config is None:
+            if config is None or not self.runtime.requires_ha_snapshot:
+                self.runtime.bridge_subscriptions = 0
                 await self.runtime.clock.sleep(1)
                 continue
             try:
                 await self.connect(config)
             except Exception as error:
+                self.runtime.bridge_subscriptions = 0
                 LOGGER.warning("bridge_disconnected", extra={"error_type": type(error).__name__})
                 await self.runtime.submit("bridge_state", ("unavailable", "disconnected"))
                 await self.runtime.clock.sleep(self.retry_delay)
@@ -260,3 +286,18 @@ class BridgeAdapter:
             json={"entity_id": entity},
         ) as response:
             response.raise_for_status()
+
+    async def refresh_worker(self) -> None:
+        while True:
+            revision, source_id = await self.runtime.refresh_requests.get()
+            try:
+                if (
+                    revision == self.runtime.state.active_revision
+                    and self.runtime.persistence
+                    and not self.runtime.stopping
+                ):
+                    await self.request_refresh(source_id)
+            except Exception as error:
+                LOGGER.warning("refresh_failed", extra={"error_type": type(error).__name__})
+            finally:
+                self.runtime.refresh_requests.task_done()

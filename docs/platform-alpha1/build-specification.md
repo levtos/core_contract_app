@@ -4,6 +4,10 @@
 **Ersetzt:** `Core_Contracts_Alpha1_Build_Specification.md` (SUPERSEDED: vermischte Phase 1 und Phase 2)
 **Zielrepository:** `Levtos/core_contract_app`
 
+**Verbindliche Ergänzung 11.10.2026:** [ADR 0002](../adr/0002-phase1a-producer-and-ownership.md)
+setzt E1–E4 und die generischen Phase-1A-Korrekturen um. Nachweismatrix:
+[Phase-1A-Fertigstellung](phase1a-completion.md). Kein Phase-2-/Live-Auftrag.
+
 > **Alpha 1 baut ausschließlich das generische Core-Contracts-Plattformfundament: Framework,
 > Infrastruktur, Registry, Persistenz, Runtime, Bridge und API. Alpha 1 baut keine produktiven
 > fachlichen Contracts und migriert keine Consumer.** Bewiesen wird die Plattform mit synthetischen
@@ -108,7 +112,7 @@ Climate, Media, Light) bleiben unverändert.
 Microservices · Kubernetes · Redis · Kafka · RabbitMQ · Cluster · Multi-Writer · Multi-Tenant-Core ·
 **Core-Profile** · Cross-HA-Federation · **Shadow-Modus** · Umbrella-UX · Drag-and-Drop-Workbench ·
 visuelle Regel-/SM-Editoren · generisches Plugin-System für Dritte · generisches `set_state` ·
-Policy- oder Apply-Hosting im Core · HA-Entity-Projektionen · MQTT als Contract-Bus · freie
+produktive Domain-Policy oder Apply-Hosting in Phase 1A · HA-Entity-Projektionen · MQTT als Contract-Bus · freie
 Ausdruckssprache (Jinja/Python/eval) · vollständige Legacy-Datenmigration.
 
 ## 4. Terminologie
@@ -137,9 +141,9 @@ Ausdruckssprache (Jinja/Python/eval) · vollständige Legacy-Datenmigration.
 
 | Ebene | Verantwortung |
 |---|---|
-| **Core Contracts (Plattform + später Contract-Typen)** | kanonische Wahrheit mit Status, Quality, Freshness, Evidence, Reasons |
-| **Policy** | Reaktion auf Wahrheiten (außerhalb Core) |
-| **Apply/Controller** | Ausführung (außerhalb Core) |
+| **Core Contracts (Plattform + später Contract-Typen)** | kanonische beobachtete und deterministisch abgeleitete Zustände einschließlich fachlicher Zielwerte, mit Status, Quality, Freshness, Evidence, Reasons |
+| **Spätere Module** | Contracts konsumieren, reale Geräteaktionen ausführen, Feedback als Sources zurückmelden |
+| **Apply/Controller** | Aktorik ausschließlich außerhalb Core |
 | **Bridge** | HA-I/O-Transport, keine Wahrheit |
 | **CoreContractsClient** | Zugriff, keine Wahrheit, keine Neuinterpretation |
 | **Admin-UI** | Anzeige/Administration über öffentliche API |
@@ -156,6 +160,8 @@ Apply-Aktionen aus.
   Restore-Deklaration). Das ist **kein** Plugin-System für Dritte, sondern ein Paket-interner
   Registrierungsmechanismus.
 - In Alpha 1 sind **nur** die synthetischen Typen aus §6.8 registriert.
+- Der interne Registrar bleibt für weitere code-definierte versionierte Typen erweiterbar;
+  die App-Ladestelle und G13 erzwingen den Phase-1A-Katalog. Kein zusätzlicher `core.*`-Katalog.
 - Contract-Instanzen werden in der Registry konfiguriert (§10) und referenzieren `type_id`/`type_version`.
 
 ### 6.2 Contract-Identität
@@ -233,6 +239,12 @@ Schema als `fixture: true` markiert und werden in der Admin-UI als „TEST“ ge
 | `test.fusion` | Fusion-Strategien, Konflikt, Teil-Evidence, Erweiterungspunkt mit synthetischer Teststrategie. |
 | `test.temporal` | `stable_for`/`dwell`, `grace` mit Parameter, Held-Propagation (frühestes Grace-Ende), `delta`, `age`, Edge-Baseline. |
 | `test.state_machine` | abstrakte Zustände `a`, `b`, `c`; Guards; Command `request_b`; Deadline; Episoden; Session; Restore. |
+| `test.multi` | unabhängige benannte Number-/Bool-/Enum-Felder; Pflichtfeld-Health und available. |
+
+`test.state_machine` v2 ergänzt streng typisiertes `request_b_if {confirm: bool}`;
+v1 bleibt parameterlos kompatibel. `test.echo` v2 deklariert HA-request_refresh,
+einmal pro negativer Evidence-Phase. Generische Orchestrierung liegt in `producer.py`,
+nicht in den Fixture-Definitionen; staged Lifecycle-Hooks gemäß ADR 0002.
 
 Werte und Parameter dieser Typen sind abstrakt (z. B. Zustände `a/b/c`, Schwellen nur im Test gesetzt).
 
@@ -375,6 +387,11 @@ RegistryConfig {
   catalogs:  [ {catalog_id, kind: map, version, entries} ]
 }
 ```
+Für `monitor=source` ist zusätzlich `source_id` verpflichtend: gesundes, verwendbares
+Bool `true` belegt Verfügbarkeit; andernfalls `dependency_unavailable`. Source-Monitor-
+Zyklen/ungebundene Monitore und interne `other`-Monitore werden abgelehnt. Der als
+Quelladapter reservierte Wert `scheduler` wird bis zu einer echten Implementierung
+explizit abgewiesen; Clock-/Temporal-/Deadline-Scheduling wird dadurch nicht beschränkt.
 **Verboten** (Validierung lehnt ab): `profile`, `profile_id`, `consumer_ids`, Shadow-/Published-Modi,
 `safe_default`, `hold_last`, freie Ausdrücke, Secrets.
 
@@ -627,6 +644,9 @@ Der Client ändert nie Status oder Quality. Alte `hass.data`- oder Cross-Import-
 - Gleiche ID + gleicher Inhalt → gespeichertes Ergebnis ohne erneute Wirkung.
 - Kein `set_state`, keine freie Wertmutation, keine Wiederholung nach Restore, keine externen Aktionen.
 - In Alpha 1 nur synthetisch: `test.state_machine` → `request_b` (mit Guard).
+- E3: Typen dürfen geschlossene Argumentmodelle deklarieren, strikt validiert ohne Coercion;
+  der vollständige Originalcommand bestimmt die Idempotenz. Kein Argumentmodell bedeutet
+  weiterhin ausschließlich leere args. Revisionskonflikt: `rejected/active_revision_conflict`.
 
 ## 17. MQTT
 
@@ -673,7 +693,8 @@ Der Client ändert nie Status oder Quality. Alte `hass.data`- oder Cross-Import-
 
 - `/health/live`: Event-Loop-Heartbeat + Processor-Task lebt. **Einziges Ziel für Watchdog und
   Healthcheck.**
-- `/health/ready`: Migrationen, DB, Lock, ID-Prüfung, aktive Registry, erster Bridge-Snapshot der Epoche.
+- `/health/ready`: Migrationen, DB, Lock, ID-Prüfung, aktive Registry; erster Bridge-Snapshot
+  der Epoche nur wenn aktive Contracts HA-Quellen (auch via Monitor/Liveness) benötigen.
   Komponentenliste mit Reasons.
 - Ein späterer HA-Verlust macht Readiness nicht rot (erscheint als Komponente).
 - DB- oder Lock-Verlust macht Readiness rot, Liveness bleibt grün.
@@ -723,7 +744,7 @@ Versionen (getrennt):
 
 | Komponente | Version |
 |---|---|
-| App | `1.0.0a1` |
+| App | `1.0.0a2` (veröffentlichte Basis; neue Veröffentlichung separat freizugeben) |
 | API-Protokoll | 1 |
 | Konfigurationsschema | 1 |
 | DB-Schema | Migrationsnummer |

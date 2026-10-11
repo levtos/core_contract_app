@@ -107,6 +107,12 @@ class API:
                         "unbound source",
                         "disabled required dependency",
                         "revision_not_found",
+                        "scheduler source adapter not implemented",
+                        "dependency monitor source required",
+                        "dependency monitor cycle",
+                        "unbound dependency monitor",
+                        "unsupported internal dependency monitor",
+                        "refresh requires HA source binding",
                     }
                     else "invalid_request"
                 )
@@ -160,6 +166,7 @@ class API:
             return web.json_response({"error": "database_connection_failed"}, status=503)
         except (ValueError, RuntimeError) as error:
             safe = {
+                "invalid_supervisor_options",
                 "confirmation_required",
                 "insecure_tls_confirmation_required",
                 "initialize_empty_database_required",
@@ -202,11 +209,13 @@ class API:
         if request.path.endswith("live"):
             return web.json_response({"live": runtime.live}, status=200 if runtime.live else 503)
         reasons = []
+        if self.setup and self.setup.configuration_error:
+            reasons.append("invalid_supervisor_options")
         if not runtime.persistence:
             reasons.append("persistence_unavailable")
         if runtime.state.active_revision == 0:
             reasons.append("no_active_registry")
-        if not runtime.first_snapshot:
+        if runtime.requires_ha_snapshot and not runtime.first_snapshot:
             reasons.append("first_bridge_snapshot_pending")
         return web.json_response(
             {**runtime.service_state(), "reasons": reasons}, status=200 if runtime.ready else 503
@@ -279,6 +288,10 @@ class API:
                 "service": runtime.service_state(),
                 "queue_size": runtime.queue.qsize(),
                 "commit_duration_s": runtime.commit_duration,
+                "bridge_version": runtime.bridge_version,
+                "bridge_subscriptions": runtime.bridge_subscriptions,
+                "ingest_overflow_count": runtime.overflow_serial,
+                "refresh_overflow_count": runtime.refresh_overflow,
                 "gaps": await runtime.store.rows("history_gap"),
                 "dependencies": [d.model_dump() for d in config.dependencies] if config else [],
             }

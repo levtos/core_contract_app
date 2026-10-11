@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import ssl
-from typing import Any
+from typing import Any, Literal
 
 import aiohttp
 import aiomqtt
@@ -60,7 +60,13 @@ class MQTTAdapter:
         self.queue_type = ObservableQueue
 
     def observation(
-        self, binding: Binding, config: RegistryConfig, payload: bytes, retained: bool, qos: int
+        self,
+        binding: Binding,
+        config: RegistryConfig,
+        payload: bytes,
+        retained: bool,
+        qos: int,
+        revision: int | None = None,
     ) -> Observation | None:
         data = json.loads(payload)
         value = at_path(data, binding.adapter.mqtt_value_path)
@@ -74,12 +80,22 @@ class MQTTAdapter:
             return None
         self.seen[binding.binding_id] = digest
         self.sequence += 1
+        transform_error: Literal["unmapped_value", "invalid_value"] | None = None
+        normalized = None
+        try:
+            normalized = transform(value, binding, config)
+        except KeyError:
+            transform_error = "unmapped_value"
+        except ValueError, TypeError:
+            transform_error = "invalid_value"
         return Observation(
             source_id=binding.source_id,
             binding_id=binding.binding_id,
             adapter="mqtt",
             value_raw=value,
-            value_normalized=transform(value, binding, config),
+            value_normalized=normalized,
+            transform_error=transform_error,
+            availability="unknown" if transform_error else "available",
             normalized=True,
             device_time=measured,
             received_at=self.runtime.clock.now_utc(),
@@ -88,6 +104,7 @@ class MQTTAdapter:
             mqtt_qos=qos,
             epoch_id=self.runtime.state.epoch_id,
             ingest_seq=self.sequence,
+            registry_revision=self.runtime.state.active_revision if revision is None else revision,
         )
 
     async def credentials(self) -> dict[str, Any]:
@@ -145,7 +162,12 @@ class MQTTAdapter:
                                     if not isinstance(raw, (bytes, bytearray)):
                                         raise ValueError("non-byte payload")
                                     observation = self.observation(
-                                        binding, config, bytes(raw), message.retain, message.qos
+                                        binding,
+                                        config,
+                                        bytes(raw),
+                                        message.retain,
+                                        message.qos,
+                                        revision,
                                     )
                                     if observation:
                                         self.runtime.ingest(observation)
@@ -160,6 +182,7 @@ class MQTTAdapter:
                                             observation_kind="report",
                                             epoch_id=self.runtime.state.epoch_id,
                                             ingest_seq=self.sequence,
+                                            registry_revision=revision,
                                             invalid_timestamp=True,
                                         )
                                     )
