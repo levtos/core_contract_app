@@ -23,7 +23,7 @@ MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
 async def test_review_hysteresis_recovery_and_time_filters(database, config):
-    from .test_alpha4_review import exercise_history_times, exercise_latch_restore, observation
+    from .test_alpha4_review import exercise_latch_restore, observation
 
     store = PostgresStore(database, MIGRATIONS, tls=False)
     await store.open()
@@ -52,7 +52,6 @@ async def test_review_hysteresis_recovery_and_time_filters(database, config):
         )
         assert field(runtime)["value"] is False
         assert field(runtime, key="held")["held_until"] == end
-        await exercise_history_times(store)
         runtime.clock.advance(1)
         await runtime.submit("observation", observation(runtime, 6, ingest_seq=7))
         runtime.clock.advance(1)
@@ -79,6 +78,17 @@ async def test_review_hysteresis_recovery_and_time_filters(database, config):
     finally:
         await restarted.stop()
         await restored.close()
+
+
+async def test_review_history_time_filters(database):
+    from .test_alpha4_review import exercise_history_times
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    try:
+        await exercise_history_times(store)
+    finally:
+        await store.close()
 
 
 async def test_multistage_chain_postgres_restart_restore(database, config):
