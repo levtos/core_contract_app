@@ -56,6 +56,63 @@ class BridgeAdapter:
         self.bridge_version: str | None = None
         self.subscription_count = 0
         self.retry_delay = 1.0
+        self.discovery_cache: list[dict[str, Any]] = []
+        self.discovery_at = float("-inf")
+        self.discovery_lock = asyncio.Lock()
+        runtime.entity_discovery = self.discover
+
+    async def discover(self) -> list[dict[str, Any]]:
+        """Read-only HA discovery; values and arbitrary attributes never leave HA."""
+        async with self.discovery_lock:
+            if self.runtime.clock.monotonic() - self.discovery_at < 15:
+                return self.discovery_cache
+            async with asyncio.timeout(10):
+                async with self.session.ws_connect(
+                    self.url, heartbeat=20, max_msg_size=4_000_000
+                ) as socket:
+                    if (await socket.receive_json()).get("type") != "auth_required":
+                        raise ConnectionError("ha_auth_protocol")
+                    await socket.send_json({"type": "auth", "access_token": self.token})
+                    if (await socket.receive_json()).get("type") != "auth_ok":
+                        raise ConnectionError("ha_auth_failed")
+                    states = await self._result(socket, {"id": 1, "type": "get_states"})
+                    if not isinstance(states, list) or len(states) > 10000:
+                        raise ValueError("discovery_resource_limit")
+            result = []
+            for state in states:
+                entity = state.get("entity_id")
+                if not isinstance(entity, str) or len(entity) > 256:
+                    continue
+                attributes = state.get("attributes", {})
+                result.append(
+                    {
+                        "entity_id": entity,
+                        "display_name": str(attributes.get("friendly_name", entity))[:256],
+                        "unit": attributes.get("unit_of_measurement"),
+                        "device_class": attributes.get("device_class"),
+                        "state_class": attributes.get("state_class"),
+                        "attributes": sorted(
+                            key
+                            for key in attributes
+                            if isinstance(key, str)
+                            and len(key) <= 128
+                            and not any(
+                                part in key.casefold()
+                                for part in (
+                                    "token",
+                                    "password",
+                                    "secret",
+                                    "credential",
+                                    "key",
+                                    "authorization",
+                                )
+                            )
+                        )[:128],
+                    }
+                )
+            self.discovery_cache = sorted(result, key=lambda item: item["entity_id"])
+            self.discovery_at = self.runtime.clock.monotonic()
+            return self.discovery_cache
 
     def observation(
         self,

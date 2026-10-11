@@ -1,14 +1,16 @@
 """Stable identities, strict validation, graph ordering and semantic fingerprints."""
 
 import re
+from functools import lru_cache
 from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
 from .adapters import AdapterConfig
+from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
 from .model import Model, canonical, semantic_fingerprint
-from .schema import TypeRegistry
+from .schema import ContractType, FieldSchema, TypeRegistry
 
 
 class Dependency(Model):
@@ -26,6 +28,7 @@ class Source(Model):
     dependency_id: str
     physical_source_key: str = Field(min_length=1)
     display_name: str = ""
+    value_schema: FieldSchema | None = None
 
 
 class Transform(Model):
@@ -84,6 +87,25 @@ class RegistryConfig(Model):
     bindings: tuple[Binding, ...]
     contracts: tuple[Contract, ...]
     catalogs: tuple[Catalog, ...]
+    definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
+
+
+@lru_cache(maxsize=128)
+def _compile_definition(document: str) -> ContractType:
+    from .declarative import compile_definition
+
+    return compile_definition(DeclarativeDefinition.model_validate_json(document))
+
+
+def registry_types(config: RegistryConfig, base: TypeRegistry) -> TypeRegistry:
+    """Compile into a revision-local registry; drafts cannot modify live types."""
+    if not config.definitions:
+        return base
+    result = TypeRegistry()
+    result.types.update(base.types)
+    for definition in config.definitions:
+        result.register(_compile_definition(canonical(definition)))
+    return result
 
 
 def safe_document(value: Any, depth: int = 0) -> None:
@@ -91,6 +113,8 @@ def safe_document(value: Any, depth: int = 0) -> None:
         raise ValueError("document too deep")
     if isinstance(value, dict):
         for key, child in value.items():
+            if not isinstance(key, str):
+                raise ValueError("document keys must be strings")
             if any(
                 part in key.casefold()
                 for part in (
@@ -109,7 +133,7 @@ def safe_document(value: Any, depth: int = 0) -> None:
             ):
                 raise ValueError("sensitive key")
             safe_document(child, depth + 1)
-    elif isinstance(value, list):
+    elif isinstance(value, (list, tuple)):
         for child in value:
             safe_document(child, depth + 1)
     elif isinstance(value, str) and re.search(r"\w+://[^\s/@]+:[^\s/@]+@", value):
@@ -128,118 +152,9 @@ def resolve_ref(ref: str, config: RegistryConfig) -> tuple[str, str | None]:
 
 
 def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
-    if len(canonical(document).encode()) > 2_000_000:
-        raise ValueError("document too large")
-    safe_document(document)
-    config = RegistryConfig.model_validate(document)
-    for items, attribute in [
-        (config.sources, "source_id"),
-        (config.bindings, "binding_id"),
-        (config.contracts, "contract_id"),
-        (config.catalogs, "catalog_id"),
-        (config.dependencies, "dependency_id"),
-    ]:
-        ids = [getattr(i, attribute) for i in items]
-        if len(set(ids)) != len(ids):
-            raise ValueError("duplicate identity / producer")
-    sources = {s.source_id: s for s in config.sources}
-    contracts = {c.contract_id: c for c in config.contracts}
-    if sources.keys() & contracts.keys():
-        raise ValueError("ambiguous identity")
-    dependencies = {d.dependency_id for d in config.dependencies}
-    if any(s.dependency_id not in dependencies for s in config.sources):
-        raise ValueError("invalid source dependency/origin")
-    for dependency in config.dependencies:
-        if dependency.monitor == "source":
-            if dependency.source_id not in sources:
-                raise ValueError("dependency monitor source required")
-            if sources[dependency.source_id].dependency_id == dependency.dependency_id:
-                raise ValueError("dependency monitor cycle")
-        elif dependency.kind == "other" or dependency.source_id is not None:
-            raise ValueError("unsupported internal dependency monitor")
-    monitors = {d.dependency_id: d for d in config.dependencies}
-    for dependency in config.dependencies:
-        visited: set[str] = set()
-        current = dependency
-        while current.source_id:
-            if current.dependency_id in visited:
-                raise ValueError("dependency monitor cycle")
-            visited.add(current.dependency_id)
-            current = monitors[sources[current.source_id].dependency_id]
-    catalogs = {c.catalog_id for c in config.catalogs}
-    bound: set[str] = set()
-    physical: set[str] = set()
-    addresses: set[tuple[str | None, ...]] = set()
-    for source in config.sources:
-        if source.source_origin != "local" or source.dependency_id not in dependencies:
-            raise ValueError("invalid source dependency/origin")
-        if source.freshness.liveness_source and source.freshness.liveness_source not in sources:
-            raise ValueError("unknown liveness source")
-    for binding in config.bindings:
-        adapter = binding.adapter
-        if adapter.kind == "scheduler":
-            raise ValueError("scheduler source adapter not implemented")
-        address = (
-            (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
-            if adapter.kind.startswith("ha_")
-            else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
-        )
-        if address in addresses:
-            raise ValueError("duplicate adapter evidence path")
-        addresses.add(address)
-        if binding.source_id not in sources or binding.source_id in bound:
-            raise ValueError("source binding missing or duplicate")
-        key = sources[binding.source_id].physical_source_key
-        if key in physical:
-            raise ValueError("duplicate physical evidence path")
-        physical.add(key)
-        bound.add(binding.source_id)
-        if (
-            binding.transform
-            and binding.transform.kind == "map_ref"
-            and binding.transform.catalog_id not in catalogs
-        ):
-            raise ValueError("unknown catalog")
-    for dependency in config.dependencies:
-        if dependency.source_id and dependency.source_id not in bound:
-            raise ValueError("unbound dependency monitor")
-    for contract in config.contracts:
-        try:
-            declaration = types.get(contract.type_id, contract.type_version)
-        except KeyError as error:
-            raise ValueError("config_incomplete: type or parameters") from error
-        declaration.parameters.model_validate(contract.parameters)
-        if declaration.schema.grace_capable:
-            duration = contract.parameters.get(declaration.schema.grace_parameter or "")
-            if (
-                not isinstance(duration, (int, float))
-                or isinstance(duration, bool)
-                or duration <= 0
-            ):
-                raise ValueError("positive grace parameter required")
-        names = [i.name for i in contract.inputs]
-        allowed = {i.name for i in declaration.inputs}
-        required = {i.name for i in declaration.inputs if i.required}
-        if len(set(names)) != len(names) or not required.issubset(names) or set(names) - allowed:
-            raise ValueError("config_incomplete: inputs")
-        for item in contract.inputs:
-            ref, field = resolve_ref(item.ref, config)
-            if item.name in declaration.refresh_inputs:
-                if field is not None or not any(
-                    b.source_id == ref and b.adapter.kind.startswith("ha_") for b in config.bindings
-                ):
-                    raise ValueError("refresh requires HA source binding")
-            if field is None:
-                if ref not in bound:
-                    raise ValueError("unbound source")
-            else:
-                target = contracts[ref]
-                if field not in types.get(target.type_id, target.type_version).schema.fields:
-                    raise ValueError("unknown contract field")
-                if contract.enabled and not target.enabled and item.name in required:
-                    raise ValueError("disabled required dependency")
-    topological(config)
-    return config
+    from .validation import validate_document
+
+    return validate_document(document, types)
 
 
 def required_sources(config: RegistryConfig) -> set[str]:
@@ -304,6 +219,7 @@ def topological(config: RegistryConfig) -> list[Contract]:
 
 
 def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
+    types = registry_types(config, types)
     result: dict[str, str] = {}
     for source in config.sources:
         bindings = [
@@ -311,7 +227,9 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
         ]
         result[source.source_id] = semantic_fingerprint(
             {
-                "source": source.model_dump(mode="json"),
+                "source": source.model_dump(
+                    mode="json", exclude={"value_schema"} if source.value_schema is None else set()
+                ),
                 "bindings": bindings,
                 "catalogs": [
                     c.model_dump()
@@ -353,11 +271,118 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     return result
 
 
-def diff(before: RegistryConfig | None, after: RegistryConfig) -> dict[str, list[str]]:
+def diff(
+    before: RegistryConfig | None, after: RegistryConfig, types: TypeRegistry | None = None
+) -> dict[str, Any]:
     old = {c.contract_id: c for c in before.contracts} if before else {}
     new = {c.contract_id: c for c in after.contracts}
-    return {
+    result: dict[str, Any] = {
         "added": sorted(new.keys() - old.keys()),
         "removed": sorted(old.keys() - new.keys()),
         "changed": sorted(k for k in new.keys() & old.keys() if old[k] != new[k]),
     }
+    objects: dict[str, Any] = {}
+    changed_sources: set[str] = set()
+    for group, identity in (
+        ("dependencies", "dependency_id"),
+        ("sources", "source_id"),
+        ("bindings", "binding_id"),
+        ("catalogs", "catalog_id"),
+        ("contracts", "contract_id"),
+        ("definitions", "type_id"),
+    ):
+
+        def entries(config: RegistryConfig | None) -> dict[str, Any]:
+            return (
+                {
+                    (
+                        f"{item.type_id}@{item.type_version}"
+                        if group == "definitions"
+                        else getattr(item, identity)
+                    ): item.model_dump(mode="json")
+                    for item in getattr(config, group)
+                }
+                if config
+                else {}
+            )
+
+        previous, current = entries(before), entries(after)
+        changed = sorted(k for k in previous.keys() & current.keys() if previous[k] != current[k])
+        objects[group] = {
+            "added": sorted(current.keys() - previous.keys()),
+            "removed": sorted(previous.keys() - current.keys()),
+            "changed": changed,
+            "fields": {
+                key: sorted(
+                    name
+                    for name in previous[key].keys() | current[key].keys()
+                    if previous[key].get(name) != current[key].get(name)
+                )
+                for key in changed
+            },
+        }
+        if group == "sources":
+            changed_sources.update(objects[group]["added"] + objects[group]["removed"] + changed)
+        if group == "bindings":
+            for key in objects[group]["added"] + objects[group]["removed"] + changed:
+                changed_sources.update(
+                    item[key]["source_id"] for item in (previous, current) if key in item
+                )
+    old_fp = fingerprints(before, types) if before and types else {}
+    new_fp = fingerprints(after, types) if types else {}
+    fingerprint_changed = sorted(
+        k for k in old_fp.keys() | new_fp.keys() if old_fp.get(k) != new_fp.get(k)
+    )
+    direct = set(result["added"] + result["changed"] + result["removed"])
+    for config in (before, after):
+        if not config:
+            continue
+        for contract in config.contracts:
+            if any(resolve_ref(item.ref, config)[0] in changed_sources for item in contract.inputs):
+                direct.add(contract.contract_id)
+            definition_key = f"{contract.type_id}@{contract.type_version}"
+            if any(
+                definition_key in objects["definitions"][kind]
+                for kind in ("added", "removed", "changed")
+            ):
+                direct.add(contract.contract_id)
+    affected = set(direct)
+    affected.update(k for k in fingerprint_changed if k in old or k in new)
+    while True:
+        expanded = set(affected)
+        for config in (before, after):
+            if config:
+                expanded.update(
+                    c.contract_id
+                    for c in config.contracts
+                    if any(resolve_ref(i.ref, config)[0] in affected for i in c.inputs)
+                )
+        if expanded == affected:
+            break
+        affected = expanded
+    stateful = []
+    if types:
+        after_types = registry_types(after, types)
+        stateful = sorted(
+            c.contract_id
+            for c in after.contracts
+            if c.contract_id in fingerprint_changed
+            and after_types.get(c.type_id, c.type_version).restore
+        )
+    result.update(
+        objects=objects,
+        directly_affected_contracts=sorted(direct),
+        transitively_affected_contracts=sorted(affected - direct),
+        affected_contracts=sorted(affected),
+        fingerprint_changes=fingerprint_changed,
+        source_identity_changes=sorted(changed_sources),
+        possibly_invalidated_contexts=stateful,
+        restore={
+            "reinitialize_contracts": stateful,
+            "retains_absolute_deadlines_if_compatible": True,
+        },
+        snapshot={"revision_changes": True, "affected_contracts": sorted(affected)},
+        analysis="static",
+        predicts_values=False,
+    )
+    return result

@@ -1,0 +1,355 @@
+"""Safe aggregate diagnostics with JSON Pointer locations, shared by all writers."""
+
+from typing import Any
+
+from pydantic import ValidationError
+
+from .declarative import DefinitionValidationErrors, RuleValidationError, compatible
+from .model import Model, canonical
+from .registry import RegistryConfig, _compile_definition, resolve_ref, safe_document, topological
+from .schema import FieldSchema, TypeRegistry
+
+
+class ValidationIssue(Model):
+    code: str
+    path: str
+    object_id: str | None = None
+    message: str
+
+
+class RegistryValidationError(ValueError):
+    def __init__(self, issues: list[ValidationIssue]) -> None:
+        self.issues = issues
+        super().__init__(issues[0].message)
+
+
+def pointer(parts: tuple[str | int, ...]) -> str:
+    return "/" + "/".join(str(part).replace("~", "~0").replace("/", "~1") for part in parts)
+
+
+def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
+    issues: list[ValidationIssue] = []
+
+    def add(code: str, path: str, message: str, identity: str | None = None) -> None:
+        issues.append(ValidationIssue(code=code, path=path, object_id=identity, message=message))
+
+    if not isinstance(document, dict):
+        raise RegistryValidationError(
+            [
+                ValidationIssue(
+                    code="document_object_required",
+                    path="/",
+                    message="configuration object required",
+                )
+            ]
+        )
+    try:
+        safe_document(document)
+        if len(canonical(document).encode()) > 2_000_000:
+            raise ValueError("document too large")
+    except ValueError, TypeError, AttributeError:
+        raise RegistryValidationError(
+            [
+                ValidationIssue(
+                    code="unsafe_document",
+                    path="/",
+                    message="unsafe or oversized configuration document",
+                )
+            ]
+        ) from None
+    try:
+        config = RegistryConfig.model_validate(document)
+    except ValidationError as error:
+        for finding in error.errors(include_url=False, include_input=False):
+            parts = finding["loc"]
+            obj: Any = document
+            identity = None
+            for part in parts:
+                try:
+                    obj = obj[part]
+                except KeyError, IndexError, TypeError:
+                    break
+                if isinstance(obj, dict):
+                    identity = next(
+                        (
+                            obj[k]
+                            for k in (
+                                "contract_id",
+                                "source_id",
+                                "binding_id",
+                                "dependency_id",
+                                "catalog_id",
+                                "type_id",
+                            )
+                            if isinstance(obj.get(k), str)
+                        ),
+                        identity,
+                    )
+            # Pydantic messages/ctx can contain submitted values. Return only codes.
+            add(
+                "schema." + finding["type"], pointer(parts), "invalid configuration field", identity
+            )
+        raise RegistryValidationError(issues) from None
+
+    types = TypeRegistry()
+    types.types.update(base.types)
+    for index, definition in enumerate(config.definitions):
+        try:
+            types.register(_compile_definition(canonical(definition)))
+        except DefinitionValidationErrors as error:
+            for issue in error.issues:
+                add(
+                    "definition." + str(issue),
+                    f"/definitions/{index}" + issue.path,
+                    str(issue),
+                    definition.type_id,
+                )
+        except RuleValidationError as error:
+            add(
+                "definition." + str(error),
+                f"/definitions/{index}" + error.path,
+                str(error),
+                definition.type_id,
+            )
+        except ValueError as error:
+            add("definition_invalid", f"/definitions/{index}", str(error), definition.type_id)
+
+    for name, attribute in (
+        ("sources", "source_id"),
+        ("bindings", "binding_id"),
+        ("contracts", "contract_id"),
+        ("catalogs", "catalog_id"),
+        ("dependencies", "dependency_id"),
+    ):
+        seen: set[str] = set()
+        for index, item in enumerate(getattr(config, name)):
+            key = getattr(item, attribute)
+            if key in seen:
+                add(
+                    "duplicate_identity",
+                    f"/{name}/{index}/{attribute}",
+                    "duplicate identity / producer",
+                    key,
+                )
+            seen.add(key)
+    sources = {s.source_id: s for s in config.sources}
+    dependencies = {d.dependency_id: d for d in config.dependencies}
+    contracts = {c.contract_id: c for c in config.contracts}
+    catalogs = {c.catalog_id for c in config.catalogs}
+    for index, source in enumerate(config.sources):
+        path, key = f"/sources/{index}", source.source_id
+        if key in contracts:
+            add("ambiguous_identity", path + "/source_id", "ambiguous identity", key)
+        if source.dependency_id not in dependencies or source.source_origin != "local":
+            add(
+                "source_dependency",
+                path + "/dependency_id",
+                "invalid source dependency/origin",
+                key,
+            )
+        if source.freshness.liveness_source and source.freshness.liveness_source not in sources:
+            add(
+                "liveness_reference",
+                path + "/freshness/liveness_source",
+                "unknown liveness source",
+                key,
+            )
+    for index, dependency in enumerate(config.dependencies):
+        path, key = f"/dependencies/{index}", dependency.dependency_id
+        if dependency.monitor == "source":
+            if dependency.source_id not in sources:
+                add(
+                    "monitor_required",
+                    path + "/source_id",
+                    "dependency monitor source required",
+                    key,
+                )
+        elif dependency.kind == "other" or dependency.source_id is not None:
+            add(
+                "monitor_unsupported",
+                path + "/monitor",
+                "unsupported internal dependency monitor",
+                key,
+            )
+        visited: set[str] = set()
+        current = dependency
+        while current.source_id in sources:
+            if current.dependency_id in visited:
+                add("dependency_cycle", path + "/source_id", "dependency monitor cycle", key)
+                break
+            visited.add(current.dependency_id)
+            next_dependency = dependencies.get(sources[current.source_id].dependency_id)
+            if next_dependency is None:
+                break
+            current = next_dependency
+    bound: set[str] = set()
+    physical: set[str] = set()
+    addresses: set[tuple[str | None, ...]] = set()
+    for index, binding in enumerate(config.bindings):
+        path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
+        if adapter.kind == "scheduler":
+            add(
+                "adapter_unsupported",
+                path + "/adapter/kind",
+                "scheduler source adapter not implemented",
+                key,
+            )
+        address = (
+            (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
+            if adapter.kind.startswith("ha_")
+            else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
+        )
+        if address in addresses:
+            add("duplicate_adapter", path + "/adapter", "duplicate adapter evidence path", key)
+        addresses.add(address)
+        if binding.source_id not in sources or binding.source_id in bound:
+            add("binding_source", path + "/source_id", "source binding missing or duplicate", key)
+        else:
+            physical_key = sources[binding.source_id].physical_source_key
+            if physical_key in physical:
+                add(
+                    "duplicate_evidence",
+                    path + "/source_id",
+                    "duplicate physical evidence path",
+                    key,
+                )
+            physical.add(physical_key)
+        bound.add(binding.source_id)
+        if (
+            binding.transform
+            and binding.transform.kind == "map_ref"
+            and binding.transform.catalog_id not in catalogs
+        ):
+            add("catalog_reference", path + "/transform/catalog_id", "unknown catalog", key)
+        declared_source = sources.get(binding.source_id)
+        declared_schema = declared_source.value_schema if declared_source else None
+        if declared_schema and binding.transform:
+            transform = binding.transform
+            output_kind = "number" if transform.kind == "unit_scale" else transform.target
+            if (
+                transform.kind in {"type_cast", "unit_scale"}
+                and output_kind != declared_schema.type
+            ):
+                add(
+                    "binding_type_mismatch",
+                    path + "/transform",
+                    "binding output type mismatch",
+                    key,
+                )
+            if transform.kind == "map_ref":
+                catalog = next(
+                    (c for c in config.catalogs if c.catalog_id == transform.catalog_id), None
+                )
+                if catalog and any(
+                    not declared_schema.accepts(value) for value in catalog.entries.values()
+                ):
+                    add(
+                        "catalog_type_mismatch",
+                        path + "/transform/catalog_id",
+                        "catalog output type mismatch",
+                        key,
+                    )
+    for index, dependency in enumerate(config.dependencies):
+        if dependency.source_id and dependency.source_id not in bound:
+            add(
+                "monitor_unbound",
+                f"/dependencies/{index}/source_id",
+                "unbound dependency monitor",
+                dependency.dependency_id,
+            )
+    for index, contract in enumerate(config.contracts):
+        path, key = f"/contracts/{index}", contract.contract_id
+        try:
+            declaration = types.get(contract.type_id, contract.type_version)
+        except KeyError:
+            add("type_reference", path + "/type_id", "config_incomplete: type or parameters", key)
+            continue
+        try:
+            declaration.parameters.model_validate(contract.parameters)
+        except ValidationError as error:
+            for finding in error.errors(include_input=False, include_url=False):
+                add(
+                    "parameter." + finding["type"],
+                    path + "/parameters" + (pointer(finding["loc"]) if finding["loc"] else ""),
+                    "config_incomplete: type or parameters",
+                    key,
+                )
+        if declaration.schema.grace_capable:
+            duration = contract.parameters.get(declaration.schema.grace_parameter or "")
+            if (
+                not isinstance(duration, (int, float))
+                or isinstance(duration, bool)
+                or duration <= 0
+            ):
+                add(
+                    "grace_duration",
+                    path + "/parameters/" + (declaration.schema.grace_parameter or ""),
+                    "positive grace parameter required",
+                    key,
+                )
+        names = [i.name for i in contract.inputs]
+        allowed = {i.name for i in declaration.inputs}
+        required = {i.name for i in declaration.inputs if i.required}
+        if len(set(names)) != len(names) or not required.issubset(names) or set(names) - allowed:
+            add("contract_inputs", path + "/inputs", "config_incomplete: inputs", key)
+        for position, item in enumerate(contract.inputs):
+            location = path + f"/inputs/{position}/ref"
+            try:
+                ref, field = resolve_ref(item.ref, config)
+            except ValueError:
+                add("input_reference", location, "unknown reference", key)
+                continue
+            if item.name in declaration.refresh_inputs and (
+                field is not None
+                or not any(
+                    b.source_id == ref and b.adapter.kind.startswith("ha_") for b in config.bindings
+                )
+            ):
+                add("refresh_binding", location, "refresh requires HA source binding", key)
+            actual: FieldSchema | None = None
+            if field is None:
+                if ref not in bound:
+                    add("source_unbound", location, "unbound source", key)
+                actual = sources[ref].value_schema
+                if actual is None:
+                    kind = {"boolean": "bool", "numeric": "number", "text": "text"}.get(
+                        sources[ref].source_type
+                    )
+                    if kind:
+                        actual = FieldSchema.model_validate(
+                            {"type": kind, "required": True, "physical_state": False}
+                        )
+            else:
+                target = contracts[ref]
+                try:
+                    actual = types.get(target.type_id, target.type_version).schema.fields.get(field)
+                    if actual is None:
+                        add("field_reference", location, "unknown contract field", key)
+                except KeyError:
+                    pass
+                if contract.enabled and not target.enabled and item.name in required:
+                    add("disabled_dependency", location, "disabled required dependency", key)
+            declared = next(
+                (
+                    d
+                    for d in config.definitions
+                    if (d.type_id, d.type_version) == (contract.type_id, contract.type_version)
+                ),
+                None,
+            )
+            expected = (
+                next((i.field_schema for i in declared.inputs if i.name == item.name), None)
+                if declared
+                else None
+            )
+            if expected and (actual is None or not compatible(actual, expected)):
+                add("input_type_mismatch", location, "input_type_mismatch", key)
+    # Missing references have already been reported. A graph walk must not mask them.
+    try:
+        topological(config)
+    except ValueError as error:
+        if str(error) == "cycle":
+            add("contract_cycle", "/contracts", "cycle")
+    if issues:
+        raise RegistryValidationError(issues)
+    return config

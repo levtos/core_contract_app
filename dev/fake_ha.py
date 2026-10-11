@@ -30,6 +30,10 @@ class FakeHA:
                 self.requests.append(data)
                 kind = data["type"]
                 result = {}
+                if kind == "get_states":
+                    result = [
+                        {"entity_id": key, **value} for key, value in self.states.items() if value
+                    ]
                 if kind == "core_contracts_bridge/info":
                     if self.missing:
                         await socket.send_json(

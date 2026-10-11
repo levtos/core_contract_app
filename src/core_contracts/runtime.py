@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -22,6 +23,7 @@ from .registry import (
     affected_sources,
     diff,
     fingerprints,
+    registry_types,
     required_sources,
     resolve_ref,
     topological,
@@ -104,6 +106,7 @@ class Runtime:
         self.refresh_requests: asyncio.Queue[tuple[int, str]] = asyncio.Queue(256)
         self.pending_refresh: set[str] = set()
         self.refresh_overflow = 0
+        self.entity_discovery: Callable[[], Awaitable[list[dict[str, Any]]]] | None = None
 
     @property
     def config(self) -> RegistryConfig | None:
@@ -123,7 +126,52 @@ class Runtime:
             "ha": self.ha,
             "bridge": self.bridge,
             "mqtt": self.mqtt,
+            "reasons": self.readiness_reasons,
         }
+
+    @property
+    def readiness_reasons(self) -> list[str]:
+        reasons = []
+        if not self.persistence:
+            reasons.append("persistence_unavailable")
+        if self.state.active_revision == 0:
+            reasons.append("no_active_registry")
+        if self.requires_ha_snapshot and not self.first_snapshot:
+            reasons.append("first_bridge_snapshot_pending")
+        return reasons
+
+    def _audit(self, state: State, operation: str, payload: dict[str, Any], **details: Any) -> None:
+        state.tables["diagnostic_event"][str(uuid4())] = {
+            "kind": "administrative",
+            "operation": operation,
+            "at": self.clock.now_utc().isoformat(),
+            "epoch_id": state.epoch_id,
+            "registry_revision": state.active_revision,
+            "actor": payload.get("_actor", {"kind": "internal", "role": "system"}),
+            **details,
+        }
+
+    async def _definition_versions(self, config: RegistryConfig) -> None:
+        from .validation import RegistryValidationError, ValidationIssue
+
+        issues = []
+        for index, definition in enumerate(config.definitions):
+            previous = await self.store.definition(definition.type_id, definition.type_version)
+            if previous and checksum(
+                {k: v for k, v in previous.items() if k not in {"display_name", "description"}}
+            ) != checksum(
+                definition.model_dump(mode="json", exclude={"display_name", "description"})
+            ):
+                issues.append(
+                    ValidationIssue(
+                        code="immutable_definition_version",
+                        path=f"/definitions/{index}/type_version",
+                        object_id=definition.type_id,
+                        message="immutable definition version",
+                    )
+                )
+        if issues:
+            raise RegistryValidationError(issues)
 
     @property
     def live(self) -> bool:
@@ -177,12 +225,15 @@ class Runtime:
             "started_at": self.clock.now_utc().isoformat(),
             "ended_at": None,
         }
+        for observation_data in state.tables["source_observation_current"].values():
+            await self._record_observation(state, Observation.model_validate(observation_data))
         if reason == "process_restart":
             for observation in state.tables["source_observation_current"].values():
                 observation["observation_kind"] = "restore"
         for node in state.tables["node_state"].values():
-            if "temporal" in node:
-                node["restore_pending"] = copy.deepcopy(node["temporal"])
+            for context in self._temporal_contexts(node):
+                if "temporal" in context:
+                    context["restore_pending"] = copy.deepcopy(context["temporal"])
         config = self._config(state)
         if config:
             self._evaluate(state, config, origin="restore", initial_latches={})
@@ -392,11 +443,17 @@ class Runtime:
             # Drafts can be incomplete, but cannot carry credentials or invalid JSON.
             from .registry import safe_document
 
+            if not isinstance(document, dict):
+                raise ValueError("configuration object required")
             safe_document(document)
             if len(canonical(document).encode()) > 2_000_000:
                 raise ValueError("document too large")
             key = payload.get("draft_id", str(uuid4()))
             old = state.tables["registry_draft"].get(key)
+            if operation == "draft_create" and (
+                old is not None or len(state.tables["registry_draft"]) >= 100
+            ):
+                raise ValueError("draft_limit_or_identity_conflict")
             if operation == "draft_update" and (
                 old is None or payload["draft_version"] != old["draft_version"]
             ):
@@ -406,13 +463,39 @@ class Runtime:
                 "draft_version": old["draft_version"] + 1 if old else 1,
                 "config": document,
                 "updated_at": now.isoformat(),
+                "created_at": old.get("created_at", old["updated_at"]) if old else now.isoformat(),
+                "base_revision": old.get("base_revision", state.active_revision)
+                if old
+                else state.active_revision,
+                "display_name": payload.get(
+                    "display_name", old.get("display_name", "") if old else ""
+                ),
             }
+            if not isinstance(result["display_name"], str) or len(result["display_name"]) > 256:
+                raise ValueError("invalid_draft_display_name")
             state.tables["registry_draft"][key] = result
+            self._audit(
+                state, operation, payload, draft_id=key, draft_version=result["draft_version"]
+            )
             await self._commit(state)
             return result
+        if operation == "draft_delete":
+            key = payload["draft_id"]
+            old = state.tables["registry_draft"].get(key)
+            if old is None or payload["draft_version"] != old["draft_version"]:
+                raise ValueError("draft_version_conflict")
+            del state.tables["registry_draft"][key]
+            self._audit(state, operation, payload, draft_id=key, draft_version=old["draft_version"])
+            await self._commit(state)
+            return {"deleted": True, "draft_id": key}
+        if operation == "audit":
+            self._audit(state, payload["operation"], payload, **payload.get("details", {}))
+            await self._commit(state)
+            return None
         if operation == "validate":
             candidate = validate(payload, self.types)
-            return {"valid": True, "diff": diff(config, candidate)}
+            await self._definition_versions(candidate)
+            return {"valid": True, "issues": [], "diff": diff(config, candidate, self.types)}
         if operation in {"activate", "rollback"}:
             if payload["expected_active_revision"] != state.active_revision:
                 raise ValueError("active_revision_conflict")
@@ -427,6 +510,7 @@ class Runtime:
                     raise ValueError("revision_not_found")
                 document = historical["config"]
             new_config = validate(document, self.types)
+            await self._definition_versions(new_config)
             revision = max((int(r) for r in state.tables["registry_revision"]), default=0) + 1
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {
@@ -440,6 +524,7 @@ class Runtime:
                 "at": now.isoformat(),
                 "operation": operation,
             }
+            self._audit(state, operation, payload, revision=revision)
             next_latches = self.latches
             if config:
                 old_fp, new_fp = (
@@ -499,6 +584,7 @@ class Runtime:
                     state.tables["source_observation_current"][obs.binding_id] = obs.model_dump(
                         mode="json"
                     )
+                    await self._record_observation(state, obs)
         elif operation == "observation":
             obs = payload
             if config is None or obs.binding_id not in {b.binding_id for b in config.bindings}:
@@ -544,13 +630,7 @@ class Runtime:
             ):
                 return None
             state.tables["source_observation_current"][obs.binding_id] = obs.model_dump(mode="json")
-            if previous is None or (previous.value, previous.availability) != (
-                obs.value,
-                obs.availability,
-            ):
-                state.tables["source_observation_history"][str(uuid4())] = obs.model_dump(
-                    mode="json"
-                )
+            await self._record_observation(state, obs)
         elif operation != "tick":
             raise ValueError("unknown runtime operation")
         if config:
@@ -587,6 +667,14 @@ class Runtime:
         stored = state.tables["source_observation_current"].get(observation.binding_id)
         return is_older(observation, Observation.model_validate(stored) if stored else None)
 
+    async def _record_observation(self, state: State, observation: Observation) -> None:
+        if observation.reference not in state.tables["source_observation_history"] and (
+            await self.store.get("source_observation_history", observation.reference) is None
+        ):
+            state.tables["source_observation_history"][observation.reference] = (
+                observation.model_dump(mode="json")
+            )
+
     def _invalidate(self, state: State, config: RegistryConfig, bindings: set[str]) -> None:
         affected = {b.source_id for b in config.bindings if b.binding_id in bindings}
         affected = affected_sources(config, affected)
@@ -595,14 +683,22 @@ class Runtime:
                 continue
             affected.add(contract.contract_id)
             node = state.tables["node_state"].get(contract.contract_id, {})
-            if "temporal" in node:
-                node["restore_pending"] = copy.deepcopy(node["temporal"])
-                node["restore_pending"]["grace_armed"] = False
-                node["temporal"].update(
-                    since_at=None,
-                    grace_armed=False,
-                    gap_at=self.clock.now_utc().isoformat(),
-                )
+            for context in self._temporal_contexts(node):
+                if "temporal" in context:
+                    context["restore_pending"] = copy.deepcopy(context["temporal"])
+                    context["restore_pending"]["grace_armed"] = False
+                    context["temporal"].update(
+                        since_at=None,
+                        grace_armed=False,
+                        gap_at=self.clock.now_utc().isoformat(),
+                    )
+
+    @staticmethod
+    def _temporal_contexts(node: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            node,
+            *(context for context in node.get("rules", {}).values() if isinstance(context, dict)),
+        ]
 
     async def _drain_overflow(self) -> None:
         serial = self.overflow_serial
@@ -625,6 +721,9 @@ class Runtime:
             state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                 update={"observation_kind": "snapshot"}
             ).model_dump(mode="json")
+            await self._record_observation(
+                state, obs.model_copy(update={"observation_kind": "snapshot"})
+            )
         if config:
             self._evaluate(state, config, origin="revision")
         await self._commit(state, publication=True)
@@ -715,6 +814,7 @@ class Runtime:
                     or old_node.get("fingerprint") != fps.get(old.contract_id)
                 ):
                     self._dispose(old, old_node, state)
+                    old_node.pop("trace", None)
         affected = affected_sources(config, {trigger_source}) if trigger_source else set()
         previous_contracts = state.tables["contract_state_current"]
         state.tables["contract_state_current"] = {}
@@ -744,14 +844,14 @@ class Runtime:
             if node is None or node.get("fingerprint") != fps[key] or case == "stale":
                 node = {"fingerprint": fps[key]}
             machine_state: MachineState | None = None
-            declaration = self.types.get(contract.type_id, contract.type_version)
+            declaration = registry_types(config, self.types).get(
+                contract.type_id, contract.type_version
+            )
             original_node = copy.deepcopy(node)
             original_latches = copy.deepcopy(self.pending_latches)
             refresh: set[str] = set()
             try:
-                result, node, machine_state = self.types.get(
-                    contract.type_id, contract.type_version
-                ).evaluate(
+                result, node, machine_state = declaration.evaluate(
                     self.clock,
                     self.pending_latches,
                     contract,
@@ -762,7 +862,6 @@ class Runtime:
                     case,
                     (machine_override or {}).get(key),
                 )
-                declaration = self.types.get(contract.type_id, contract.type_version)
                 for input_name in node.pop("refresh_requests", []):
                     if input_name not in declaration.refresh_inputs:
                         raise ValueError("undeclared refresh capability")
@@ -776,6 +875,7 @@ class Runtime:
                     {"value": result} if isinstance(result, FieldValue) else result,
                     now,
                     inputs,
+                    declaration.grace_outputs,
                 )
                 self.pending_refresh.update(refresh)
             except Exception as error:
@@ -848,12 +948,16 @@ class Runtime:
                 data = machine_state.model_dump(mode="json")
                 state.tables["sm_instance"][key] = data
                 if previous_sm != data:
-                    state.tables["sm_episode"][machine_state.episode_id] = data
+                    state.tables["sm_episode"][machine_state.episode_id] = {
+                        "contract_id": key,
+                        **data,
+                    }
                     state.tables["sm_transition"][str(uuid4())] = {"contract_id": key, **data}
                 if machine_state.deadline and previous_sm != data:
-                    state.tables["deadline"][machine_state.deadline.deadline_id] = (
-                        machine_state.deadline.model_dump(mode="json")
-                    )
+                    state.tables["deadline"][machine_state.deadline.deadline_id] = {
+                        "contract_id": key,
+                        **machine_state.deadline.model_dump(mode="json"),
+                    }
         if (
             state.tables["contract_state_history"]
             or previous_contracts.keys() != state.tables["contract_state_current"].keys()
@@ -869,7 +973,9 @@ class Runtime:
         return evaluation_errors
 
     def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:
-        producer = self.types.get(contract.type_id, contract.type_version).evaluate
+        config = self.config
+        types = registry_types(config, self.types) if config else self.types
+        producer = types.get(contract.type_id, contract.type_version).evaluate
         if isinstance(producer, Producer) and node.get("producer_epoch") == state.epoch_id:
             try:
                 producer.dispose(
@@ -918,15 +1024,18 @@ class Runtime:
             contract
             and contract.enabled
             and config
-            and self.types.get(contract.type_id, contract.type_version).machine_factory
+            and registry_types(config, self.types)
+            .get(contract.type_id, contract.type_version)
+            .machine_factory
         ):
-            factory = self.types.get(contract.type_id, contract.type_version).machine_factory
+            declaration = registry_types(config, self.types).get(
+                contract.type_id, contract.type_version
+            )
+            factory = declaration.machine_factory
             assert factory is not None
             machine = factory(contract.parameters)
             data = state.tables["node_state"].get(contract.contract_id, {}).get("machine")
-            args_model = self.types.get(contract.type_id, contract.type_version).commands.get(
-                command.command
-            )
+            args_model = declaration.commands.get(command.command)
             args = command.args
             invalid_args = bool(args) and args_model is None
             if args_model:
@@ -1066,7 +1175,11 @@ class Runtime:
                                     + timedelta(seconds=source.freshness.interval_s, microseconds=1)
                                 )
             for contract in config.contracts:
-                callback = self.types.get(contract.type_id, contract.type_version).next_due
+                callback = (
+                    registry_types(config, self.types)
+                    .get(contract.type_id, contract.type_version)
+                    .next_due
+                )
                 if callback and contract.enabled:
                     try:
                         at = callback(
