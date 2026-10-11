@@ -80,17 +80,26 @@ class BridgeAdapter:
                         raise ValueError("discovery_resource_limit")
             result = []
             for state in states:
+                if not isinstance(state, dict):
+                    continue
                 entity = state.get("entity_id")
                 if not isinstance(entity, str) or len(entity) > 256:
                     continue
                 attributes = state.get("attributes", {})
+                if not isinstance(attributes, dict):
+                    attributes = {}
+
+                def metadata(name: str) -> str | None:
+                    value = attributes.get(name)
+                    return value[:256] if isinstance(value, str) else None
+
                 result.append(
                     {
                         "entity_id": entity,
-                        "display_name": str(attributes.get("friendly_name", entity))[:256],
-                        "unit": attributes.get("unit_of_measurement"),
-                        "device_class": attributes.get("device_class"),
-                        "state_class": attributes.get("state_class"),
+                        "display_name": metadata("friendly_name") or entity,
+                        "unit": metadata("unit_of_measurement"),
+                        "device_class": metadata("device_class"),
+                        "state_class": metadata("state_class"),
                         "attributes": sorted(
                             key
                             for key in attributes
@@ -179,6 +188,7 @@ class BridgeAdapter:
                 "assumed_state": bool(attributes.get("assumed_state", False)),
                 "epoch_id": self.runtime.state.epoch_id,
                 "ingest_seq": self.sequence,
+                "reference_version": config.fingerprint_version,
                 "registry_revision": self.runtime.state.active_revision
                 if revision is None
                 else revision,

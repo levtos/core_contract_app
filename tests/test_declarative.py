@@ -14,7 +14,17 @@ from core_contracts.testing.contract_types import type_registry
 
 from .conftest import activate
 from .test_core import NOW
-from .test_phase1a import field, observation
+from .test_phase1a import field
+from .test_phase1a import observation as legacy_observation
+
+
+def observation(runtime, value, name="a", **kwargs):
+    item = legacy_observation(runtime, value, name, **kwargs)
+    if runtime.config and runtime.config.fingerprint_version == 2:
+        return item.model_copy(
+            update={"reference_version": 2, "registry_revision": runtime.state.active_revision}
+        )
+    return item
 
 
 def schema(kind="bool", **kwargs):
@@ -36,6 +46,7 @@ def definition(rule=None):
 
 
 def registry(config, data):
+    config["fingerprint_version"] = 2
     config["definitions"] = [data]
     config["sources"][0]["value_schema"] = schema()
     config["contracts"][0].update(type_id=data["type_id"], type_version=data["type_version"])
@@ -44,6 +55,92 @@ def registry(config, data):
 
 def value(item):
     return FieldValue(status="valid", value=item, quality="healthy", since_at=NOW)
+
+
+def test_registry_evaluation_and_graph_budgets(config):
+    from core_contracts.validation import RegistryValidationError
+
+    document = registry(config, definition(dict(op="and", args=[literal(True)] * 60)))
+    prototype = copy.deepcopy(document["contracts"][0])
+    document["contracts"] = [{**prototype, "contract_id": f"fixture.c{i}"} for i in range(70)]
+    with pytest.raises(RegistryValidationError) as error:
+        validate(document, type_registry())
+    assert any(issue.code == "registry_evaluation_limit" for issue in error.value.issues)
+    document["definitions"] = [definition()]
+    document["contracts"] = [
+        {
+            **prototype,
+            "contract_id": f"fixture.c{i}",
+            "inputs": [{"name": "a", "ref": f"fixture.c{i - 1}.value" if i else "source.a"}],
+        }
+        for i in range(65)
+    ]
+    with pytest.raises(RegistryValidationError) as error:
+        validate(document, type_registry())
+    assert any(issue.code == "contract_graph_depth" for issue in error.value.issues)
+
+
+def test_liveness_fingerprint_propagation_and_cycle_rejection(config):
+    from core_contracts.validation import RegistryValidationError
+
+    config["fingerprint_version"] = 2
+    monitor = copy.deepcopy(config["sources"][0])
+    monitor.update(source_id="source.monitor", physical_source_key="physical.monitor")
+    config["sources"].append(monitor)
+    config["bindings"].append(
+        {
+            "binding_id": "binding.monitor",
+            "source_id": "source.monitor",
+            "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.monitor"},
+        }
+    )
+    config["sources"][0]["freshness"] = {
+        "mode": "liveness_source",
+        "liveness_source": "source.monitor",
+        "interval_s": 10,
+        "future_tolerance_s": 1,
+    }
+    before = fingerprints(validate(config, type_registry()), type_registry())
+    monitor["freshness"]["future_tolerance_s"] = 2
+    after = fingerprints(validate(config, type_registry()), type_registry())
+    assert before["source.a"] != after["source.a"]
+    monitor["freshness"] = {
+        "mode": "liveness_source",
+        "liveness_source": "source.a",
+        "interval_s": 10,
+        "future_tolerance_s": 1,
+    }
+    with pytest.raises(RegistryValidationError):
+        validate(config, type_registry())
+
+
+def test_documented_registry_example_is_valid():
+    import json
+    from pathlib import Path
+
+    example = Path(__file__).resolve().parents[1] / "docs/alpha4/example-registry.json"
+    document = json.loads(example.read_text(encoding="utf-8"))
+    validated = validate(document, type_registry())
+    assert validated.definitions and validated.fingerprint_version == 2
+
+
+def test_trace_identifies_inputs_and_fusion_selection_without_raw_values():
+    data = definition(
+        dict(
+            op="fusion",
+            strategy="first_healthy",
+            args=[
+                dict(op="input", name="a"),
+                literal(False),
+            ],
+        )
+    )
+    evaluation = Evaluation(DeclarativeDefinition.model_validate(data), {"a": value(True)}, NOW)
+    assert evaluation.evaluate(evaluation.definition.outputs["value"]).value is True
+    assert any(step.get("name") == "a" for step in evaluation.trace)
+    selection = next(step for step in evaluation.trace if step["op"] == "fusion_selection")
+    assert selection["selected_indices"] == [0]
+    assert all("value" not in step for step in evaluation.trace)
 
 
 @pytest.mark.parametrize(
@@ -103,6 +200,161 @@ def test_formula_and_internal_dag():
     evaluation = Evaluation(parsed, {}, NOW)
     assert evaluation.evaluate(parsed.outputs["value"]).value is True
     assert evaluation.memo["sum"].value == 5
+
+
+def test_new_code_registered_formula_discovered_without_editor_special_case(monkeypatch):
+    from core_contracts.capabilities import capabilities
+    from core_contracts.engines import FORMULA_SCHEMAS, FORMULAS, FormulaSchema
+    from core_contracts.schema import FieldSchema
+
+    number = FieldSchema.model_validate(schema("number"))
+    monkeypatch.setitem(FORMULAS._items, ("test.product", 1), lambda items: items[0] * items[1])
+    monkeypatch.setitem(FORMULA_SCHEMAS, ("test.product", 1), FormulaSchema(number, number))
+    data = definition(
+        dict(
+            op="compare",
+            comparison="eq",
+            left=dict(
+                op="formula",
+                name="test.product",
+                version=1,
+                args=[literal(2, "number"), literal(3, "number")],
+            ),
+            right=literal(6, "number"),
+        )
+    )
+    parsed = DeclarativeDefinition.model_validate(data)
+    check_definition(parsed)
+    assert Evaluation(parsed, {}, NOW).evaluate(parsed.outputs["value"]).value is True
+    discovered = capabilities(None, type_registry())
+    assert "test.product" in {item["name"] for item in discovered["formulas"]}
+    assert (
+        "test.product"
+        in discovered["schemas"]["registry"]["$defs"]["FormulaRule"]["properties"]["name"]["enum"]
+    )
+
+
+def test_typed_command_argument_schemas_all_types():
+    from core_contracts.declarative import command_model
+    from core_contracts.declarative_models import CommandDefinition
+
+    command = CommandDefinition(
+        arguments={
+            name: declaration
+            for name, declaration in {
+                "enabled": schema(),
+                "count": schema("number"),
+                "name": schema("text"),
+                "choice": schema("enum", value_catalog=["a", "b"]),
+                "at": schema("timestamp"),
+                "metadata": schema("object"),
+                "optional": {**schema("text"), "required": False},
+            }.items()
+        }
+    )
+    model = command_model("test", command)
+    valid = dict(
+        enabled=True,
+        count=2,
+        name="fixture",
+        choice="a",
+        at="2026-01-01T12:00:00Z",
+        metadata={"test": True},
+    )
+    assert model.model_validate(valid, strict=True).at.endswith("Z")
+    assert model.model_json_schema()["properties"]["at"]["format"] == "date-time"
+    for name, value in (
+        ("enabled", "true"),
+        ("count", float("nan")),
+        ("choice", "c"),
+        ("at", "2026-01-01T12:00:00"),
+        ("metadata", "text"),
+    ):
+        with pytest.raises(ValidationError):
+            model.model_validate({**valid, name: value}, strict=True)
+
+
+async def test_remaining_temporal_and_bucket_operations(runtime, config):
+    data = definition()
+    data["inputs"][0]["schema"] = schema("number")
+    data["schema"]["fields"] = {
+        "value": schema(),
+        "delta": schema("number"),
+        "age": schema("number"),
+    }
+    data["outputs"] = {
+        "value": dict(
+            op="bucket",
+            id="hysteresis",
+            initial=False,
+            lower=2,
+            upper=5,
+            arg=dict(op="input", name="a"),
+        ),
+        "delta": dict(
+            op="temporal",
+            id="difference",
+            operation="delta",
+            duration_s=1,
+            args=[dict(op="input", name="a"), literal(1, "number")],
+        ),
+        "age": dict(
+            op="temporal",
+            id="age",
+            operation="age",
+            duration_s=1,
+            args=[dict(op="input", name="a")],
+        ),
+    }
+    registry(config, data)["sources"][0]["value_schema"] = schema("number")
+    await activate(runtime, config)
+    await runtime.submit("observation", observation(runtime, 6))
+    assert field(runtime)["value"] is True
+    assert field(runtime, key="delta")["value"] == 5
+    assert field(runtime, key="age")["value"] == 0
+    runtime.clock.advance(1)
+    await runtime.submit(
+        "observation", observation(runtime, 3).model_copy(update={"ingest_seq": 2})
+    )
+    assert field(runtime)["value"] is True
+    assert (
+        runtime.state.tables["node_state"]["fixture.echo"]["rules"]["hysteresis"]["latch"] is True
+    )
+
+
+@pytest.mark.parametrize("operation", ["dwell", "edge"])
+async def test_declarative_dwell_and_edge(runtime, config, operation):
+    data = definition(
+        dict(
+            op="temporal",
+            id="timer",
+            operation=operation,
+            duration_s=2,
+            args=[dict(op="input", name="a")],
+        )
+    )
+    await activate(runtime, registry(config, data))
+    await runtime.submit("observation", observation(runtime, False))
+    runtime.clock.advance(1)
+    await runtime.submit(
+        "observation", observation(runtime, True).model_copy(update={"ingest_seq": 2})
+    )
+    assert field(runtime)["value"] is (operation == "edge")
+    runtime.clock.advance(2)
+    await runtime.submit("tick")
+    assert field(runtime)["value"] is (operation == "dwell")
+
+
+def test_definition_errors_are_field_addressable(config):
+    from core_contracts.validation import RegistryValidationError
+
+    data = definition(dict(op="input", name="missing"))
+    data["rules"] = {"bad": dict(op="not", args=[literal(1, "number")])}
+    with pytest.raises(RegistryValidationError) as error:
+        validate(registry(config, data), type_registry())
+    paths = {item.path for item in error.value.issues}
+    assert "/definitions/0/rules/bad" in paths
+    assert "/definitions/0/outputs/value" in paths
 
 
 @pytest.mark.parametrize(
@@ -327,3 +579,45 @@ async def test_declarative_machine_commands_restore(runtime, config):
         assert field(restarted)["value"] == "done"
     finally:
         await restarted.stop()
+
+
+async def test_declarative_command_failure_rolls_back_nested_state_and_replays(
+    runtime, config, monkeypatch
+):
+    from datetime import timedelta
+
+    from core_contracts.engines import FORMULAS
+
+    data = machine_definition()
+    data["schema"]["fields"]["number"] = schema("number")
+    data["outputs"]["number"] = dict(
+        op="formula", name="test.sum", version=1, args=[literal(2, "number"), literal(3, "number")]
+    )
+    await activate(runtime, registry(config, data))
+    await runtime.submit("observation", observation(runtime, True))
+    original = copy.deepcopy(runtime.state.tables["node_state"]["fixture.echo"])
+
+    def fail(_):
+        raise ArithmeticError("injected engine failure")
+
+    with monkeypatch.context() as patch:
+        patch.setitem(FORMULAS._items, ("test.sum", 1), fail)
+        command = dict(
+            command_id="failed-declarative",
+            contract_id="fixture.echo",
+            command="start",
+            args={"confirm": True},
+            origin=dict(kind="test", actor="test", client_name="test"),
+            issued_at=runtime.clock.now_utc(),
+            valid_until=runtime.clock.now_utc() + timedelta(seconds=30),
+        )
+        result = await runtime.submit("command", command)
+    assert result["status"] == "rejected" and result["reason"] == "evaluation_error"
+    assert runtime.state.tables["node_state"]["fixture.echo"] == original
+    assert runtime.state.tables["sm_instance"]["fixture.echo"]["state"] == "idle"
+    sequence = runtime.state.publication_seq
+    assert await runtime.submit("command", command) == result
+    assert runtime.state.publication_seq == sequence
+    assert (await runtime.submit("command", {**command, "command_id": "successful-declarative"}))[
+        "status"
+    ] == "accepted"

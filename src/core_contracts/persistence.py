@@ -305,9 +305,19 @@ class PostgresStore:
         if table not in HISTORY_TABLES.values() or self.pool is None:
             raise ValueError("invalid_history_table")
         position = query.position(table)
+        contract_match = f"{CONTRACT_SQL}=$1"
+        if table in {"sm_episode", "deadline"}:
+            # Alpha-3 episode/deadline rows omitted contract_id. Their durable
+            # transition owns the episode; resolve it without rewriting history.
+            contract_match += (
+                " OR (payload->>'contract_id' IS NULL AND EXISTS "
+                "(SELECT 1 FROM sm_transition AS transition WHERE "
+                "transition.payload->>'contract_id'=$1 AND "
+                f"transition.payload->>'episode_id'={table}.payload->>'episode_id'))"
+            )
         records = await self.pool.fetch(
             f"SELECT key,payload FROM {table} WHERE "
-            f"($1::text IS NULL OR {CONTRACT_SQL}=$1) "
+            f"($1::text IS NULL OR {contract_match}) "
             "AND ($2::text IS NULL OR payload->>'source_id'=$2) "
             f"AND ($3::text IS NULL OR {TIME_SQL}>=$3) "
             f"AND ($4::text IS NULL OR {TIME_SQL}<=$4) "
@@ -340,10 +350,12 @@ class PostgresStore:
             raise PersistenceUnavailable("persistence_unavailable")
         value = await self.pool.fetchval(
             "SELECT payload FROM source_observation_history WHERE key=$1 OR "
+            "(COALESCE(payload->>'reference_version','1')='1' AND "
             "(payload->>'epoch_id') || ':' || (payload->>'ingest_seq') || ':' || "
-            "(payload->>'binding_id')=$1 "
+            "(payload->>'binding_id')=$1) "
             "UNION ALL SELECT payload FROM source_observation_current "
-            "WHERE (payload->>'epoch_id') || ':' || (payload->>'ingest_seq') || ':' || "
+            "WHERE COALESCE(payload->>'reference_version','1')='1' AND "
+            "(payload->>'epoch_id') || ':' || (payload->>'ingest_seq') || ':' || "
             "(payload->>'binding_id')=$1 LIMIT 1",
             reference,
         )
@@ -430,6 +442,15 @@ class MemoryStore:
         if table not in HISTORY_TABLES.values():
             raise ValueError("invalid_history_table")
         position = query.position(table)
+        legacy_episodes = (
+            {
+                row.get("episode_id")
+                for row in self.state.tables["sm_transition"].values()
+                if row.get("contract_id") == query.contract_id
+            }
+            if query.contract_id and table in {"sm_episode", "deadline"}
+            else set()
+        )
         records = [
             (key, value)
             for key, value in self.state.tables[table].items()
@@ -437,6 +458,7 @@ class MemoryStore:
                 query.contract_id is None
                 or value.get("contract_id", value.get("command", {}).get("contract_id"))
                 == query.contract_id
+                or (value.get("contract_id") is None and value.get("episode_id") in legacy_episodes)
             )
             and (query.source_id is None or value.get("source_id") == query.source_id)
             and (query.since is None or timestamp(value) >= query.since.isoformat())
@@ -462,9 +484,9 @@ class MemoryStore:
         await self.probe()
         for table in ("source_observation_history", "source_observation_current"):
             for key, value in self.state.tables[table].items():
-                if (
-                    key == reference
-                    or f"{value['epoch_id']}:{value['ingest_seq']}:{value['binding_id']}"
+                if key == reference or (
+                    value.get("reference_version", 1) == 1
+                    and f"{value['epoch_id']}:{value['ingest_seq']}:{value['binding_id']}"
                     == reference
                 ):
                     return copy.deepcopy(value)

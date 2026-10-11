@@ -1,7 +1,9 @@
 """Stable identities, strict validation, graph ordering and semantic fingerprints."""
 
 import re
-from functools import lru_cache
+from collections.abc import Iterator
+from functools import cache, lru_cache
+from itertools import islice
 from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
@@ -82,6 +84,7 @@ class Catalog(Model):
 
 class RegistryConfig(Model):
     config_schema_version: Literal[1]
+    fingerprint_version: Literal[1, 2] = 1
     dependencies: tuple[Dependency, ...]
     sources: tuple[Source, ...]
     bindings: tuple[Binding, ...]
@@ -246,8 +249,22 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     dependencies = {d.dependency_id: d for d in config.dependencies}
     sources = {s.source_id: s for s in config.sources}
 
+    @cache
     def monitored_fingerprint(key: str) -> str:
         dependency = dependencies[sources[key].dependency_id]
+        if config.fingerprint_version == 2:
+            liveness = sources[key].freshness.liveness_source
+            return semantic_fingerprint(
+                {
+                    "fingerprint_version": 2,
+                    "source": base_sources[key],
+                    "dependency": dependency.model_dump(),
+                    "monitor_source": monitored_fingerprint(dependency.source_id)
+                    if dependency.source_id
+                    else None,
+                    "liveness_source": monitored_fingerprint(liveness) if liveness else None,
+                }
+            )
         if dependency.source_id:
             return semantic_fingerprint(
                 {
@@ -263,12 +280,33 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     for contract in topological(config):
         result[contract.contract_id] = semantic_fingerprint(
             {
+                **({"fingerprint_version": 2} if config.fingerprint_version == 2 else {}),
                 "definition": types.get(contract.type_id, contract.type_version).description(),
                 "contract": contract.model_dump(mode="json", exclude={"enabled"}),
                 "inputs": [result[resolve_ref(i.ref, config)[0]] for i in contract.inputs],
             }
         )
     return result
+
+
+def changed_paths(before: Any, after: Any, path: str = "") -> Iterator[str]:
+    if before == after:
+        return
+    if isinstance(before, dict) and isinstance(after, dict):
+        for key in sorted(before.keys() | after.keys()):
+            child = path + "/" + key.replace("~", "~0").replace("/", "~1")
+            if key not in before or key not in after:
+                yield child
+            else:
+                yield from changed_paths(before[key], after[key], child)
+    elif isinstance(before, (list, tuple)) and isinstance(after, (list, tuple)):
+        for index in range(max(len(before), len(after))):
+            if index >= len(before) or index >= len(after):
+                yield path + f"/{index}"
+            else:
+                yield from changed_paths(before[index], after[index], path + f"/{index}")
+    else:
+        yield path or "/"
 
 
 def diff(
@@ -321,6 +359,13 @@ def diff(
                 for key in changed
             },
         }
+        paths = {
+            key: list(islice(changed_paths(previous[key], current[key]), 1025)) for key in changed
+        }
+        objects[group]["field_paths"] = {key: values[:1024] for key, values in paths.items()}
+        objects[group]["field_paths_truncated"] = sorted(
+            key for key, values in paths.items() if len(values) > 1024
+        )
         if group == "sources":
             changed_sources.update(objects[group]["added"] + objects[group]["removed"] + changed)
         if group == "bindings":
@@ -333,6 +378,10 @@ def diff(
     fingerprint_changed = sorted(
         k for k in old_fp.keys() | new_fp.keys() if old_fp.get(k) != new_fp.get(k)
     )
+    source_ids = {s.source_id for s in after.sources} | (
+        {s.source_id for s in before.sources} if before else set()
+    )
+    changed_sources.update(key for key in fingerprint_changed if key in source_ids)
     direct = set(result["added"] + result["changed"] + result["removed"])
     for config in (before, after):
         if not config:
@@ -369,13 +418,66 @@ def diff(
             if c.contract_id in fingerprint_changed
             and after_types.get(c.type_id, c.type_version).restore
         )
+    previous_sources = {s.source_id: s for s in before.sources} if before else {}
+    current_sources = {s.source_id: s for s in after.sources}
+    identity_changes = set(previous_sources.keys() ^ current_sources.keys())
+    identity_changes.update(
+        key
+        for key in previous_sources.keys() & current_sources.keys()
+        if (previous_sources[key].physical_source_key, previous_sources[key].source_origin)
+        != (current_sources[key].physical_source_key, current_sources[key].source_origin)
+    )
+    previous_bindings = {b.binding_id: b for b in before.bindings} if before else {}
+    current_bindings = {b.binding_id: b for b in after.bindings}
+    binding_identities = sorted(
+        key
+        for key in previous_bindings.keys() | current_bindings.keys()
+        if key not in previous_bindings
+        or key not in current_bindings
+        or (previous_bindings[key].source_id, previous_bindings[key].adapter)
+        != (current_bindings[key].source_id, current_bindings[key].adapter)
+    )
+    for key in binding_identities:
+        identity_changes.update(
+            bindings[key].source_id
+            for bindings in (previous_bindings, current_bindings)
+            if key in bindings
+        )
     result.update(
         objects=objects,
         directly_affected_contracts=sorted(direct),
         transitively_affected_contracts=sorted(affected - direct),
         affected_contracts=sorted(affected),
+        affected_fields={
+            key: sorted(
+                set(
+                    registry_types(after, types)
+                    .get(new[key].type_id, new[key].type_version)
+                    .schema.fields
+                    if types and key in new
+                    else ()
+                )
+                | set(
+                    registry_types(before, types)
+                    .get(old[key].type_id, old[key].type_version)
+                    .schema.fields
+                    if types and before and key in old
+                    else ()
+                )
+            )
+            for key in sorted(affected)
+        },
+        fingerprint_version={
+            "before": before.fingerprint_version if before else None,
+            "after": after.fingerprint_version,
+            "context_migration": bool(
+                before and before.fingerprint_version != after.fingerprint_version
+            ),
+        },
         fingerprint_changes=fingerprint_changed,
-        source_identity_changes=sorted(changed_sources),
+        source_identity_changes=sorted(identity_changes),
+        binding_identity_changes=binding_identities,
+        changed_source_fingerprints=sorted(key for key in fingerprint_changed if key in source_ids),
         possibly_invalidated_contexts=stateful,
         restore={
             "reinitialize_contracts": stateful,

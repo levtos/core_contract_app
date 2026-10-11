@@ -157,6 +157,51 @@ async def test_semantic_diff_and_definition_immutability(runtime, config):
         await runtime.submit("validate", changed)
 
 
+async def test_explicit_fingerprint_upgrade_and_dependency_impact(runtime, config):
+    await activate(runtime, config)
+    old = runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"]
+    upgraded = copy.deepcopy(config)
+    upgraded["fingerprint_version"] = 2
+    report = await runtime.submit("validate", upgraded)
+    assert report["diff"]["fingerprint_version"]["context_migration"] is True
+    await activate(runtime, upgraded)
+    assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] != old
+    assert (
+        runtime.state.tables["contract_lifecycle"]["fixture.echo"]["start_case"] == "incompatible"
+    )
+    changed = copy.deepcopy(upgraded)
+    changed["dependencies"][0]["kind"] = "mqtt"
+    report = await runtime.submit("validate", changed)
+    assert report["diff"]["directly_affected_contracts"] == ["fixture.echo"]
+    assert report["diff"]["changed_source_fingerprints"] == ["source.a"]
+    assert report["diff"]["source_identity_changes"] == []
+    assert report["diff"]["affected_fields"] == {"fixture.echo": ["value"]}
+    assert report["diff"]["objects"]["dependencies"]["field_paths"]["dep.test"] == ["/kind"]
+    await runtime.submit("rollback", {"revision": 1, "expected_active_revision": 2})
+    assert runtime.config.fingerprint_version == 1
+    assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] == old
+
+
+def test_declarative_requires_explicit_fingerprint_upgrade(config, runtime):
+    document = registry(config, definition())
+    document.pop("fingerprint_version")
+    with pytest.raises(RegistryValidationError) as error:
+        validate(document, runtime.types)
+    assert any(issue.code == "fingerprint_upgrade_required" for issue in error.value.issues)
+
+
+def test_validation_collects_structural_and_independent_semantic_errors(config, runtime):
+    config["sources"][0]["freshness"] = {}
+    config["contracts"][0]["inputs"][0]["ref"] = "source.missing"
+    with pytest.raises(RegistryValidationError) as error:
+        validate(config, runtime.types)
+    assert any(issue.code.startswith("schema.") for issue in error.value.issues)
+    assert any(
+        issue.code == "input_reference" and issue.path == "/contracts/0/inputs/0/ref"
+        for issue in error.value.issues
+    )
+
+
 async def test_history_cursor_evidence_filters_and_roles(runtime, config, aiohttp_client, tmp_path):
     api, client, headers = await api_client(runtime, aiohttp_client, tmp_path)
     await activate(runtime, config)
@@ -230,6 +275,45 @@ async def test_machine_and_temporal_diagnostics_read_only(
         )
     ).json()
     assert deadlines["items"]
+    # Old persisted rows lacked contract_id; transition ownership still makes
+    # them queryable without a migration or an in-place historical rewrite.
+    for table in ("sm_episode", "deadline"):
+        for row in runtime.store.state.tables[table].values():
+            row.pop("contract_id", None)
+        page = await runtime.store.history(table, HistoryQuery(contract_id="fixture.echo"))
+        assert page["items"]
+        assert not (await runtime.store.history(table, HistoryQuery(contract_id="fixture.other")))[
+            "items"
+        ]
+
+
+async def test_versioned_evidence_is_unique_and_legacy_references_remain_resolvable(
+    runtime, config
+):
+    from core_contracts.evidence import Observation
+
+    await activate(runtime, config)
+    legacy = observation(runtime, False)
+    await runtime.submit("observation", legacy)
+    # Simulate Alpha-3 archived rows keyed by UUID, without new optional fields.
+    record = legacy.model_dump(mode="json", exclude={"reference_version"})
+    runtime.store.state.tables["source_observation_history"] = {"old-uuid": record}
+    assert (await runtime.store.evidence(legacy.reference))["value_raw"] is False
+    references = {legacy.reference}
+    for revision, adapter in ((1, "ha_state"), (1, "mqtt"), (2, "ha_state")):
+        item = Observation.model_validate(
+            {**record, "reference_version": 2, "registry_revision": revision, "adapter": adapter}
+        )
+        assert item.reference not in references
+        references.add(item.reference)
+        runtime.store.state.tables["source_observation_history"][item.reference] = item.model_dump(
+            mode="json"
+        )
+        resolved = await runtime.store.evidence(item.reference)
+        assert resolved["registry_revision"] == revision and resolved["adapter"] == adapter
+    assert len(references) == 4
+    with pytest.raises(ValueError, match="versioned_evidence_requires_revision"):
+        Observation.model_validate({**record, "reference_version": 2, "registry_revision": None})
 
 
 async def test_no_active_export_time_readiness_and_rotation_audit(
@@ -290,6 +374,7 @@ async def test_read_only_ha_discovery_is_role_limited_cached_and_redacted(
                     "unit_of_measurement": "W",
                     "password": "never-disclose",
                     "measurement": 12,
+                    "device_class": {"password": "nested-secret"},
                 },
             }
         }
@@ -302,6 +387,8 @@ async def test_read_only_ha_discovery_is_role_limited_cached_and_redacted(
         assert result["items"][0]["entity_id"] == "sensor.test"
         assert "measurement" in result["items"][0]["attributes"]
         assert "secret-value" not in str(result) and "never-disclose" not in str(result)
+        assert "nested-secret" not in str(result)
+        assert result["items"][0]["device_class"] is None
         assert (await client.get("/api/v1/ha/entities", headers=headers)).status == 200
         assert [request["type"] for request in fixture.requests] == ["get_states"]
         consumer = {"Authorization": "Bearer " + api.tokens.values["consumer"]}

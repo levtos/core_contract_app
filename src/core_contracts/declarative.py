@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
+from math import isfinite
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model, model_validator
@@ -305,6 +306,12 @@ class Evaluation:
         if self.cost > dm.MAX_NODES * 2:
             raise ValueError("evaluation_resource_limit")
         result = self._evaluate(rule)
+        if (
+            result.usable(self.now)
+            and type(result.value) in {int, float}
+            and not isfinite(result.value)
+        ):
+            raise ValueError("declarative_nonfinite_result")
         if any(reason.code == ReasonCode.EVALUATION_ERROR for reason in result.reasons):
             raise ValueError("declarative_evaluation_failed")
         # No raw values, attributes, parameters or command arguments in traces.
@@ -317,6 +324,11 @@ class Evaluation:
                 "reasons": [reason.code.value for reason in result.reasons],
                 "evidence": list(result.evidence[:64]),
                 "decision": result.value if type(result.value) is bool else None,
+                **(
+                    {"name": rule.name}
+                    if isinstance(rule, (dm.InputRule, dm.ReferenceRule, dm.FormulaRule))
+                    else {}
+                ),
                 **({"strategy": rule.strategy} if isinstance(rule, dm.FusionRule) else {}),
             }
         )
@@ -385,7 +397,42 @@ class Evaluation:
         if isinstance(rule, dm.FormulaRule):
             return FORMULAS.evaluate(rule.name, rule.version, args, now)
         if isinstance(rule, dm.FusionRule):
-            return FUSION.evaluate(rule.strategy, args, now)
+            result = FUSION.evaluate(rule.strategy, args, now)
+            usable = [index for index, arg in enumerate(args) if arg.usable(now)]
+            selected: list[int] | None = None
+            if rule.strategy == "first_healthy":
+                selected = (
+                    [next((i for i in usable if args[i].quality == "healthy"), usable[0])]
+                    if usable
+                    else []
+                )
+            elif rule.strategy == "latest":
+                timed = [i for i in usable if args[i].measured_at is not None]
+                stamp = max(
+                    (
+                        arg.measured_at
+                        for arg in args
+                        if arg.usable(now) and arg.measured_at is not None
+                    ),
+                    default=None,
+                )
+                selected = [i for i in timed if args[i].measured_at == stamp]
+            elif rule.strategy in {"any_true", "all_true"}:
+                decisive = rule.strategy == "any_true"
+                selected = [i for i in usable if args[i].value is decisive] or list(
+                    range(len(args))
+                )
+            self.trace.append(
+                {
+                    "op": "fusion_selection",
+                    "strategy": rule.strategy,
+                    "selected_indices": selected,
+                    "candidate_statuses": [arg.status for arg in args],
+                    "selection": "engine" if selected is not None else "registered_strategy",
+                    "evidence": list(result.evidence[:64]),
+                }
+            )
+            return result
         assert self.context is not None
         if isinstance(rule, dm.BucketRule):
             key = f"{self.context.contract.contract_id}:{rule.id}"
@@ -483,6 +530,7 @@ def command_model(name: str, command: dm.CommandDefinition) -> type[BaseModel]:
             Field(
                 default=... if schema.required else None,
                 description=f"Unit: {schema.unit or 'none'}",
+                json_schema_extra={"format": "date-time"} if schema.type == "timestamp" else None,
             ),
         )
     return create_model(name, __base__=Arguments, **fields)
@@ -502,12 +550,18 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
                 requested[name] = True
         evaluation = Evaluation(definition, ctx.inputs, ctx.now, ctx)
         values = {name: evaluation.evaluate(rule) for name, rule in definition.outputs.items()}
+        if any(
+            value.usable(ctx.now) and not definition.output_schema.fields[name].accepts(value.value)
+            for name, value in values.items()
+        ):
+            raise ValueError("declarative_output_type_mismatch")
         ctx.node["trace"] = {
             "at": ctx.now.isoformat(),
             "registry_revision": ctx.state.active_revision,
             "epoch_id": ctx.state.epoch_id,
             "origin": ctx.origin,
-            "steps": evaluation.trace,
+            "steps": evaluation.trace[:1024],
+            "truncated": len(evaluation.trace) > 1024,
             "cost": evaluation.cost,
         }
         return values

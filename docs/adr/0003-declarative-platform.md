@@ -13,6 +13,13 @@ and optionally one state machine. Contract instances retain their existing
 type/version, enabled flag and input bindings. Declarative instance parameters
 are empty: rule parameters belong to the immutable definition version.
 
+Declarative registries explicitly select `fingerprint_version: 2`. The omitted
+default is 1, preserving Alpha-3 fingerprints on load, restart and ordinary
+legacy edits. Version 2 includes complete dependency and transitive liveness
+semantics. The explicit 1-to-2 change invalidates affected contexts and is
+reported as a context migration by validation/diff. A rollback to an old
+revision restores its original fingerprint algorithm as a new revision.
+
 Definitions compile into revision-local ContractTypes with the existing
 Producer lifecycle. A draft does not register global types or run producers.
 Activation validates the entire candidate and the historical immutability of
@@ -62,7 +69,7 @@ added.
 ## Compatibility and persistence
 
 Old type descriptions and source fingerprints are preserved when the additive
-fields are absent. Declarative definitions add a hash of the complete semantic
+fields are absent and fingerprint_version remains 1. Declarative definitions add a hash of the complete semantic
 definition, excluding only top-level editorial metadata. This prevents a field
 named description or display_name from disappearing from semantic identity.
 
@@ -72,6 +79,11 @@ current explain data in node_state. No new table or migration is required.
 Installation identity, epoch and publication sequence semantics remain intact.
 Old historical rows remain readable; historical evidence never recorded by an
 older runtime cannot be reconstructed and resolves explicitly as not found.
+Version-2 evidence references include the registry revision and adapter, in
+addition to epoch, sequence and binding. Version-1 references remain resolvable;
+clients continue to treat evidence references as opaque strings. Historical
+episode/deadline ownership is resolved through transitions when Alpha-3 records
+lack a contract ID. None of these reads rewrites stored history.
 
 ## Public administration and safety
 
@@ -102,11 +114,15 @@ is changed by this implementation.
 Documents: 2 MB and depth 32. Definitions: 128 per registry, 256 physical rule
 nodes, nested rule depth 16, 64 inputs, 32 outputs. Evaluation has an explicit
 512-step budget. Drafts: at most 100, names at most 256 characters.
+The enabled declarative registry has an 8,192-step aggregate budget. Version-2
+source and contract graphs have a maximum dependency depth of 64. Diff field
+paths are capped at 1,024 per changed object with an explicit truncation marker.
 
 Explain retains only the latest committed evaluation for each contract. It
 contains operator/status/reason/evidence metadata and boolean decisions, never
 raw input values, command arguments, tokens or arbitrary attributes. Evidence
-lists in a trace step are capped at 64. Failed evaluation does not advance the
+lists in a trace step are capped at 64; persisted traces have at most 1,024
+records and report truncation explicitly. Failed evaluation does not advance the
 trace. There is no unbounded explain history.
 
 History endpoints return at most 200 rows with deterministic time/key ordering,

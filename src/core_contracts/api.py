@@ -13,7 +13,7 @@ from aiohttp import WSMsgType, web
 from pydantic import ValidationError
 
 from . import __version__
-from .capabilities import capabilities, configuration_schema, reasons
+from .capabilities import capabilities, configuration_schema, describe_types, reasons
 from .history import HISTORY_TABLES, HistoryQuery
 from .model import canonical
 from .registry import fingerprints, registry_types
@@ -43,6 +43,7 @@ class API:
         )
         self.limiter = RateLimiter(runtime.clock)
         self.setup = setup
+        runtime.configuration_error = bool(setup and setup.configuration_error)
         self.auth_limiter = RateLimiter(runtime.clock)
         self.sockets: set[web.WebSocketResponse] = set()
 
@@ -233,18 +234,7 @@ class API:
         runtime = self.runtime
         if request.path.endswith("live"):
             return web.json_response({"live": runtime.live}, status=200 if runtime.live else 503)
-        reasons = []
-        if self.setup and self.setup.configuration_error:
-            reasons.append("invalid_supervisor_options")
-        if not runtime.persistence:
-            reasons.append("persistence_unavailable")
-        if runtime.state.active_revision == 0:
-            reasons.append("no_active_registry")
-        if runtime.requires_ha_snapshot and not runtime.first_snapshot:
-            reasons.append("first_bridge_snapshot_pending")
-        return web.json_response(
-            {**runtime.service_state(), "reasons": reasons}, status=200 if runtime.ready else 503
-        )
+        return web.json_response(runtime.service_state(), status=200 if runtime.ready else 503)
 
     def info(self) -> dict[str, Any]:
         return {
@@ -265,6 +255,13 @@ class API:
             },
         }
 
+    @staticmethod
+    async def object_body(request: web.Request) -> dict[str, Any]:
+        value = await request.json()
+        if not isinstance(value, dict):
+            raise ValueError("request object required")
+        return value
+
     async def dispatch(self, request: web.Request) -> web.Response:
         path, method = request.match_info["path"], request.method
         runtime, state, config = self.runtime, self.runtime.state, self.runtime.config
@@ -284,8 +281,7 @@ class API:
         if path == "info" and method == "GET":
             result = self.info()
         elif path == "types" and method == "GET":
-            types = registry_types(config, runtime.types) if config else runtime.types
-            result = [t.description() for t in types.types.values()]
+            result = describe_types(config, runtime.types)
         elif path == "capabilities" and method == "GET":
             result = capabilities(config, runtime.types)
         elif path == "reasons" and method == "GET":
@@ -496,12 +492,20 @@ class API:
             elif len(parts) == 3 and method == "PUT":
                 result = await runtime.submit(
                     "draft_update",
-                    {**await request.json(), "draft_id": key, "_actor": request["actor"]},
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
                 )
             elif len(parts) == 3 and method == "DELETE":
                 result = await runtime.submit(
                     "draft_delete",
-                    {**await request.json(), "draft_id": key, "_actor": request["actor"]},
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
                 )
             elif len(parts) == 4 and parts[3] == "validate" and method == "POST":
                 result = await runtime.submit(
@@ -510,18 +514,22 @@ class API:
             elif len(parts) == 4 and parts[3] == "activate" and method == "POST":
                 result = await runtime.submit(
                     "activate",
-                    {**await request.json(), "draft_id": key, "_actor": request["actor"]},
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
                 )
             else:
                 raise web.HTTPMethodNotAllowed(method, ["GET", "PUT", "POST"])
         elif path == "registry/rollback" and method == "POST":
             result = await runtime.submit(
-                "rollback", {**await request.json(), "_actor": request["actor"]}
+                "rollback", {**await self.object_body(request), "_actor": request["actor"]}
             )
         elif path == "tokens" and method == "GET":
             result = {"roles": ["consumer", "admin"], "tokens_visible": False}
         elif path == "tokens/rotate" and method == "POST":
-            role = (await request.json())["role"]
+            role = (await self.object_body(request))["role"]
             if role not in {"admin", "consumer"}:
                 raise ValueError("invalid token role")
             await runtime.submit(

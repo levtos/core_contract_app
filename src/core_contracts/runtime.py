@@ -79,6 +79,7 @@ class Runtime:
         self.task: asyncio.Task[None] | None = None
         self.confirmed = False
         self.persistence = False
+        self.configuration_error = False
         self.first_snapshot = False
         self.bridge = "disconnected"
         self.bridge_version: str | None = None
@@ -132,6 +133,8 @@ class Runtime:
     @property
     def readiness_reasons(self) -> list[str]:
         reasons = []
+        if self.configuration_error:
+            reasons.append("invalid_supervisor_options")
         if not self.persistence:
             reasons.append("persistence_unavailable")
         if self.state.active_revision == 0:
@@ -184,7 +187,8 @@ class Runtime:
     @property
     def ready(self) -> bool:
         return (
-            self.persistence
+            not self.configuration_error
+            and self.persistence
             and self.state.active_revision > 0
             and (not self.requires_ha_snapshot or self.first_snapshot)
         )
@@ -240,6 +244,7 @@ class Runtime:
         else:
             self.pending_latches = {}
         await self._commit(state, publication=bool(config), resync=True)
+        self._broadcast(self.service_state())
 
     async def submit(self, operation: str, payload: Any = None) -> Any:
         if self.stopping:
@@ -449,6 +454,12 @@ class Runtime:
             if len(canonical(document).encode()) > 2_000_000:
                 raise ValueError("document too large")
             key = payload.get("draft_id", str(uuid4()))
+            if not isinstance(key, str) or not 1 <= len(key) <= 128:
+                raise ValueError("invalid_draft_id")
+            if operation == "draft_update" and (
+                type(payload.get("draft_version")) is not int or payload["draft_version"] < 1
+            ):
+                raise ValueError("invalid_draft_version")
             old = state.tables["registry_draft"].get(key)
             if operation == "draft_create" and (
                 old is not None or len(state.tables["registry_draft"]) >= 100
@@ -481,6 +492,8 @@ class Runtime:
             return result
         if operation == "draft_delete":
             key = payload["draft_id"]
+            if type(payload.get("draft_version")) is not int:
+                raise ValueError("invalid_draft_version")
             old = state.tables["registry_draft"].get(key)
             if old is None or payload["draft_version"] != old["draft_version"]:
                 raise ValueError("draft_version_conflict")
@@ -495,8 +508,25 @@ class Runtime:
         if operation == "validate":
             candidate = validate(payload, self.types)
             await self._definition_versions(candidate)
-            return {"valid": True, "issues": [], "diff": diff(config, candidate, self.types)}
+            from .capabilities import machine_description
+
+            types = registry_types(candidate, self.types)
+            machines = {}
+            for contract in candidate.contracts:
+                declaration = types.get(contract.type_id, contract.type_version)
+                if declaration.machine_factory:
+                    machines[contract.contract_id] = machine_description(
+                        declaration.machine_factory(contract.parameters)
+                    )
+            return {
+                "valid": True,
+                "issues": [],
+                "diff": diff(config, candidate, self.types),
+                "machine_definitions": machines,
+            }
         if operation in {"activate", "rollback"}:
+            if type(payload.get("expected_active_revision")) is not int:
+                raise ValueError("invalid_expected_revision")
             if payload["expected_active_revision"] != state.active_revision:
                 raise ValueError("active_revision_conflict")
             if operation == "activate":
@@ -551,6 +581,7 @@ class Runtime:
             }
             if new_ha - old_ha:
                 self.first_snapshot = False
+            self._broadcast(self.service_state())
             LOGGER.info(
                 "registry_rollback" if operation == "rollback" else "registry_activated",
                 extra={"revision": revision},
@@ -695,9 +726,14 @@ class Runtime:
 
     @staticmethod
     def _temporal_contexts(node: dict[str, Any]) -> list[dict[str, Any]]:
+        rules = node.get("rules", {})
         return [
             node,
-            *(context for context in node.get("rules", {}).values() if isinstance(context, dict)),
+            *(
+                context
+                for context in (rules.values() if isinstance(rules, dict) else ())
+                if isinstance(context, dict)
+            ),
         ]
 
     async def _drain_overflow(self) -> None:

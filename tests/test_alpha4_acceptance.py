@@ -4,6 +4,7 @@ import copy
 from datetime import timedelta
 from uuid import uuid4
 
+import aiohttp
 from core_contracts_client import CoreContractsClient
 
 from core_contracts.api import API
@@ -13,11 +14,12 @@ from core_contracts.security import Tokens
 from core_contracts.testing.contract_types import type_registry
 
 from .conftest import activate
-from .test_declarative import definition, literal, machine_definition, schema
-from .test_phase1a import add_source, contract, field, observation
+from .test_declarative import definition, literal, machine_definition, observation, schema
+from .test_phase1a import add_source, contract, field
 
 
 def cascade(config):
+    config["fingerprint_version"] = 2
     add_source(config, "b")
     truth = definition()
     truth["type_id"] = "test.truth"
@@ -102,12 +104,15 @@ def cascade(config):
     return config
 
 
-async def exercise_cascade(runtime, config):
+async def exercise_cascade(runtime, config, author=None):
     report = await runtime.submit("validate", cascade(config))
     assert report["valid"]
     assert set(report["diff"]["added"]) == {c["contract_id"] for c in config["contracts"]}
     assert report["diff"]["analysis"] == "static"
-    await activate(runtime, config)
+    if author is None:
+        await activate(runtime, config)
+    else:
+        await author(config)
     assert field(runtime, "either")["status"] == "unknown"
     await runtime.submit(
         "observation", observation(runtime, True, "b").model_copy(update={"ingest_seq": 1})
@@ -155,9 +160,36 @@ async def exercise_cascade(runtime, config):
 async def test_data_only_cascade_full_manual_first_acceptance(
     runtime, config, aiohttp_server, tmp_path
 ):
-    grace, deadline = await exercise_cascade(runtime, config)
     tokens, identity = Tokens(tmp_path), str(uuid4())
     server = await aiohttp_server(API(runtime, tokens, identity).application())
+    headers = {"Authorization": "Bearer " + tokens.values["admin"]}
+
+    async def request(server, method, path, **kwargs):
+        async with aiohttp.ClientSession(headers=headers) as http:
+            async with http.request(
+                method, server.make_url("/api/v1/" + path), **kwargs
+            ) as response:
+                assert response.status == 200, await response.text()
+                return await response.json()
+
+    async def author(document, target=server, revision=0):
+        report = await request(target, "POST", "registry/validate", json=document)
+        assert report["valid"] and report["diff"]["analysis"] == "static"
+        draft = await request(target, "POST", "registry/drafts", json={"config": {}})
+        path = "registry/drafts/" + draft["draft_id"]
+        await request(target, "PUT", path, json={"config": document, "draft_version": 1})
+        await request(target, "POST", path + "/validate", json={})
+        await request(
+            target,
+            "POST",
+            path + "/activate",
+            json={
+                "draft_version": 2,
+                "expected_active_revision": revision,
+            },
+        )
+
+    grace, deadline = await exercise_cascade(runtime, config, author)
     async with CoreContractsClient(
         str(server.make_url("")), tokens.values["consumer"], identity
     ) as client:
@@ -180,26 +212,35 @@ async def test_data_only_cascade_full_manual_first_acceptance(
     restarted = Runtime(runtime.store, runtime.clock, type_registry())
     await restarted.start()
     try:
+        restored_server = await aiohttp_server(API(restarted, tokens, identity).application())
         assert field(restarted, "timed")["held_until"] == grace
         assert restarted.state.tables["sm_instance"]["fixture.flow"]["deadline"] == deadline
-        exported = restarted.config.model_dump(mode="json")
-        assert (await restarted.submit("validate", exported))["valid"]
+        exported = await request(restored_server, "GET", "registry/active/export")
+        assert (await request(restored_server, "POST", "registry/validate", json=exported))["valid"]
         changed = copy.deepcopy(exported)
         timed = next(d for d in changed["definitions"] if d["type_id"] == "test.timed")
         timed["type_version"] = 2
         timed["rules"]["grace"]["duration_s"] = 4
         next(c for c in changed["contracts"] if c["type_id"] == "test.timed")["type_version"] = 2
-        report = await restarted.submit("validate", changed)
+        report = await request(restored_server, "POST", "registry/validate", json=changed)
         assert set(report["diff"]["affected_contracts"]) == {"fixture.timed", "fixture.flow"}
         assert report["diff"]["transitively_affected_contracts"] == ["fixture.flow"]
         original_fp = restarted.state.tables["node_state"]["fixture.timed"]["fingerprint"]
-        await activate(restarted, changed)
+        await author(changed, restored_server, 1)
         assert restarted.state.tables["node_state"]["fixture.timed"]["fingerprint"] != original_fp
         assert (
             restarted.state.tables["contract_lifecycle"]["fixture.timed"]["start_case"]
             == "incompatible"
         )
-        await restarted.submit("rollback", dict(revision=1, expected_active_revision=2))
+        await request(
+            restored_server,
+            "POST",
+            "registry/rollback",
+            json={
+                "revision": 1,
+                "expected_active_revision": 2,
+            },
+        )
         assert restarted.state.active_revision == 3
         assert restarted.config.definitions == runtime.config.definitions
         for table in (
@@ -214,5 +255,19 @@ async def test_data_only_cascade_full_manual_first_acceptance(
         assert (await restarted.submit("validate", restarted.config.model_dump(mode="json")))[
             "valid"
         ]
+        for kind in (
+            "contracts",
+            "observations",
+            "transitions",
+            "episodes",
+            "deadlines",
+            "commands",
+            "diagnostics",
+        ):
+            assert (
+                await request(restored_server, "GET", "history/query/" + kind, params={"limit": 2})
+            )["items"]
+        diagnosis = await request(restored_server, "GET", "diagnostics/contracts/fixture.flow")
+        assert diagnosis["trace"]["steps"] and diagnosis["fingerprint_compatible"]
     finally:
         await restarted.stop()

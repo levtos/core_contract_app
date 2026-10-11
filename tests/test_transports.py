@@ -77,6 +77,10 @@ async def test_real_client_snapshot_subscription_command(runtime, config, aiohtt
         delta = await anext(stream)
         assert delta["type"] == "delta" and delta["prev_seq"] == snapshot.publication_seq
         await runtime.submit("recover")
+        recovered = await anext(stream)
+        assert recovered["type"] == "service_state"
+        assert recovered["reasons"] == runtime.readiness_reasons
+        assert recovered["publication_confirmed"] is True
         assert (await anext(stream))["type"] == "snapshot"
         await stream.aclose()
     with pytest.raises(InstallationMismatch):

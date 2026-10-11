@@ -8,6 +8,7 @@ from .history import HistoryQuery
 from .quality import ReasonCode
 from .registry import RegistryConfig, registry_types
 from .schema import TypeRegistry
+from .statemachine import Machine
 
 REASONS = {
     ReasonCode.INPUT_UNAVAILABLE: "The source reports unavailable.",
@@ -44,8 +45,65 @@ def reasons() -> dict[str, Any]:
     }
 
 
+def machine_description(machine: Machine) -> dict[str, Any]:
+    return {
+        "states": machine.definition.states,
+        "initial": machine.definition.initial,
+        "commands": machine.definition.commands,
+        "deadline_seconds": machine.definition.deadline_seconds,
+        "sessions": machine.definition.sessions,
+        "transitions": [
+            {
+                "source": t.source,
+                "target": t.target,
+                "event": t.event,
+                "reason": t.reason,
+                "new_episode": t.new_episode,
+                "ends_episode": t.ends_episode,
+                "argument_guard": t.argument_guard is not None,
+            }
+            for t in machine.definition.transitions
+        ],
+    }
+
+
+def describe_types(config: RegistryConfig | None, base: TypeRegistry) -> list[dict[str, Any]]:
+    types = registry_types(config, base) if config else base
+    result = []
+    for declaration in types.types.values():
+        data = declaration.description()
+        if declaration.type_id == "test.boolean":
+            # Add editor conditions to API metadata only. The original package
+            # schema remains byte-compatible in historical fingerprints.
+            data["parameter_schema"]["allOf"] = [
+                {
+                    "if": {"properties": {"operator": {"const": operation}}},
+                    "then": {
+                        "required": fields,
+                        "properties": {field: {"not": {"type": "null"}} for field in fields},
+                    },
+                }
+                for operation, fields in (
+                    ("compare", ["comparison"]),
+                    ("map", ["mapping"]),
+                    ("bucket", ["initial", "lower", "upper"]),
+                )
+            ]
+        result.append(data)
+    return result
+
+
 def configuration_schema() -> dict[str, Any]:
     schema = RegistryConfig.model_json_schema()
+    schema["allOf"] = [
+        {
+            "if": {"required": ["definitions"], "properties": {"definitions": {"minItems": 1}}},
+            "then": {
+                "required": ["fingerprint_version"],
+                "properties": {"fingerprint_version": {"const": 2}},
+            },
+        }
+    ]
     definitions = schema["$defs"]
     conditions = {
         "Transform": [
@@ -77,11 +135,14 @@ def configuration_schema() -> dict[str, Any]:
                 }
                 for key, value, fields in rules
             ]
-    return schema
+    return enrich_definition_schema(schema)
 
 
 def definition_schema() -> dict[str, Any]:
-    schema = DeclarativeDefinition.model_json_schema()
+    return enrich_definition_schema(DeclarativeDefinition.model_json_schema())
+
+
+def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
     schema["$defs"]["FusionRule"]["properties"]["strategy"]["enum"] = sorted(FUSION_INPUTS)
     schema["$defs"]["FormulaRule"]["allOf"] = [
         {
@@ -97,23 +158,78 @@ def definition_schema() -> dict[str, Any]:
     schema["$defs"]["FormulaRule"]["properties"]["name"]["enum"] = sorted(
         {name for name, _ in FORMULA_SCHEMAS}
     )
+    definitions = schema["$defs"]
+    definitions["Schema"]["properties"]["grace_capable"]["const"] = False
+    definitions["Schema"]["properties"]["grace_parameter"]["const"] = None
+    definitions["FieldSchema"]["allOf"] = [
+        {
+            "if": {"properties": {"type": {"const": "enum"}}},
+            "then": {
+                "required": ["value_catalog"],
+                "properties": {"value_catalog": {"minItems": 1}},
+            },
+        }
+    ]
+    definitions["TemporalRule"]["allOf"] = [
+        {
+            "if": {"properties": {"operation": {"const": "delta"}}},
+            "then": {"properties": {"args": {"minItems": 2, "maxItems": 2}}},
+            "else": {"properties": {"args": {"minItems": 1, "maxItems": 1}}},
+        }
+    ]
+    definitions["BooleanRule"]["allOf"] = [
+        {
+            "if": {"properties": {"op": {"const": "not"}}},
+            "then": {"properties": {"args": {"minItems": 1, "maxItems": 1}}},
+        }
+    ]
+    schema["x-semantic-validation"] = {
+        "endpoint": "/api/v1/registry/validate",
+        "rules": [
+            {
+                "code": "rule_type_mismatch",
+                "constraint": "operator inputs and outputs must be compatible",
+            },
+            {"code": "internal_cycle", "constraint": "internal rule graph is acyclic"},
+            {"code": "contract_cycle", "constraint": "external contract graph is acyclic"},
+            {
+                "code": "duplicate_stateful_id",
+                "constraint": "stateful ids are unique within a definition",
+            },
+            {"code": "invalid_hysteresis_bounds", "constraint": "lower <= upper"},
+            {
+                "code": "output_schema_mismatch",
+                "constraint": "outputs and schema.fields have equal keys",
+            },
+            {
+                "code": "immutable_definition_version",
+                "constraint": "published semantic versions cannot change",
+            },
+            {
+                "code": "stateful_guard_requires_contract_input",
+                "constraint": "guards have no stateful nodes",
+            },
+        ],
+    }
     return schema
 
 
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
-    types = registry_types(config, base) if config else base
     return {
         "capability_version": 1,
         "language_versions": [1],
         "api_protocol": 1,
         "config_schema_version": 1,
+        "fingerprint_versions": [1, 2],
+        "evidence_reference_versions": [1, 2],
+        "declarative_fingerprint_version": 2,
         "compatibility": {
             "alpha3_documents": True,
             "alpha3_type_fingerprints": "unchanged",
             "definition_versions": "immutable_semantics",
             "activation": "explicit_atomic_occ",
         },
-        "types": [item.description() for item in types.types.values()],
+        "types": describe_types(config, base),
         "schemas": {
             "registry": configuration_schema(),
             "definition": definition_schema(),
@@ -189,12 +305,14 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
             "rule_depth": MAX_DEPTH,
             "definition_nodes": MAX_NODES,
             "evaluation_steps": MAX_NODES * 2,
+            "registry_evaluation_steps": 8192,
             "inputs": MAX_INPUTS,
             "outputs": MAX_FIELDS,
             "definitions": 128,
             "drafts": 100,
             "history_page": 200,
             "trace_retention": "latest_committed_per_contract",
+            "trace_steps": 1024,
             "trace_values": "boolean_decisions_only",
             "trace_evidence_per_step": 64,
         },

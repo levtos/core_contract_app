@@ -27,6 +27,12 @@ class TypedInput(DeclarativeModel):
     name: Identifier
     field_schema: FieldSchema = Field(alias="schema")
 
+    @model_validator(mode="after")
+    def complete(self) -> Self:
+        if self.field_schema.type == "enum" and not self.field_schema.value_catalog:
+            raise ValueError("enum_catalog_required")
+        return self
+
 
 class InputRule(Model):
     op: Literal["input"]
@@ -164,6 +170,12 @@ Rule = Annotated[
 class CommandDefinition(Model):
     arguments: dict[Identifier, FieldSchema] = Field(default_factory=dict, max_length=MAX_INPUTS)
 
+    @model_validator(mode="after")
+    def complete(self) -> Self:
+        if any(s.type == "enum" and not s.value_catalog for s in self.arguments.values()):
+            raise ValueError("enum_catalog_required")
+        return self
+
 
 class TransitionDefinition(Model):
     source: Identifier
@@ -193,11 +205,19 @@ class MachineDefinition(Model):
             raise ValueError("invalid_machine_states")
         if {"input", "deadline"} & self.commands.keys():
             raise ValueError("reserved_machine_event")
+        for declared_command in self.commands.values():
+            if any(
+                name.startswith("model_") or hasattr(Model, name)
+                for name in declared_command.arguments
+            ):
+                raise ValueError("reserved_command_argument")
         for transition in self.transitions:
             if transition.source not in self.states or transition.target not in self.states:
                 raise ValueError("invalid_transition_state")
             if transition.event not in {"input", "deadline", *self.commands}:
                 raise ValueError("unknown_transition_event")
+            if transition.event == "deadline" and self.deadline_s is None:
+                raise ValueError("transition_deadline_required")
             command = self.commands.get(transition.event)
             for name, value in transition.argument_equals.items():
                 if not command or name not in command.arguments:
@@ -230,6 +250,8 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("output_schema_mismatch")
         if not self.output_schema.fixture:
             raise ValueError("phase_one_requires_fixture")
+        if self.output_schema.grace_capable:
+            raise ValueError("declarative_grace_uses_rule_duration")
         return self
 
 

@@ -78,6 +78,10 @@ async def test_declarative_cascade_history_immutability_and_recovery(database, c
     assert await store.definition("test.timed", 1) is not None
     assert (await store.history("sm_episode", HistoryQuery(contract_id="fixture.flow")))["items"]
     assert (await store.history("deadline", HistoryQuery(contract_id="fixture.flow")))["items"]
+    for table in ("sm_episode", "deadline"):
+        await store.writer.execute(f"UPDATE {table} SET payload=payload-'contract_id'")
+        assert (await store.history(table, HistoryQuery(contract_id="fixture.flow")))["items"]
+        assert not (await store.history(table, HistoryQuery(contract_id="fixture.other")))["items"]
     committed = runtime.snapshot()
     trace = copy.deepcopy(runtime.state.tables["node_state"]["fixture.flow"]["trace"])
 
@@ -142,6 +146,43 @@ async def database():
         )
         await admin.execute(f'DROP DATABASE "{name}"')
         await admin.close()
+
+
+async def test_alpha3_fingerprint_upgrade_restart_and_rollback(database, config):
+    import copy
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    await activate(runtime, config)
+    original = runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"]
+    await runtime.stop()
+    await store.close()
+    for upgrade in (False, True):
+        store = PostgresStore(database, MIGRATIONS, tls=False)
+        await store.open()
+        runtime = Runtime(store, FakeClock(NOW), type_registry())
+        await runtime.start()
+        try:
+            if not upgrade:
+                assert runtime.config.fingerprint_version == 1
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] == original
+                changed = copy.deepcopy(config)
+                changed["fingerprint_version"] = 2
+                assert (await runtime.submit("validate", changed))["diff"]["fingerprint_version"][
+                    "context_migration"
+                ]
+                await activate(runtime, changed)
+            else:
+                assert runtime.config.fingerprint_version == 2
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] != original
+                await runtime.submit("rollback", {"revision": 1, "expected_active_revision": 2})
+                assert runtime.config.fingerprint_version == 1
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] == original
+        finally:
+            await runtime.stop()
+            await store.close()
 
 
 async def test_postgres_restart_commit_failure_and_writer_lock(database, config):

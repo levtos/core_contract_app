@@ -21,6 +21,12 @@ class FieldSchema(Model):
     unit: str | None = None
 
     def accepts(self, value: Any) -> bool:
+        if type(value) in {int, float}:
+            try:
+                if not isfinite(value):
+                    return False
+            except OverflowError:
+                return False
         if self.type == "timestamp" and isinstance(value, str):
             try:
                 value = datetime.fromisoformat(value)
@@ -99,6 +105,7 @@ class ContractType:
                 else {}
             ),
             **({"refresh_inputs": self.refresh_inputs} if self.refresh_inputs else {}),
+            **({"grace_outputs": self.grace_outputs} if self.grace_outputs else {}),
             **(
                 {
                     "definition": self.definition,

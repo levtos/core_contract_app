@@ -4,9 +4,21 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from .declarative import DefinitionValidationErrors, RuleValidationError, compatible
+from .declarative import DefinitionValidationErrors, RuleValidationError, all_rules, compatible
+from .declarative_models import DeclarativeDefinition
 from .model import Model, canonical
-from .registry import RegistryConfig, _compile_definition, resolve_ref, safe_document, topological
+from .registry import (
+    Binding,
+    Catalog,
+    Contract,
+    Dependency,
+    RegistryConfig,
+    Source,
+    _compile_definition,
+    resolve_ref,
+    safe_document,
+    topological,
+)
 from .schema import FieldSchema, TypeRegistry
 
 
@@ -27,7 +39,9 @@ def pointer(parts: tuple[str | int, ...]) -> str:
     return "/" + "/".join(str(part).replace("~", "~0").replace("/", "~1") for part in parts)
 
 
-def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
+def validate_document(
+    document: Any, base: TypeRegistry, *, partial: bool = False
+) -> RegistryConfig:
     issues: list[ValidationIssue] = []
 
     def add(code: str, path: str, message: str, identity: str | None = None) -> None:
@@ -89,19 +103,62 @@ def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
             add(
                 "schema." + finding["type"], pointer(parts), "invalid configuration field", identity
             )
+        # Also inspect independent, structurally valid objects. The temporary
+        # subset is never saved or activated, and findings retain original indices.
+        if not partial and document.get("config_schema_version") == 1:
+            subset: dict[str, Any] = {
+                "config_schema_version": 1,
+                "fingerprint_version": document.get("fingerprint_version", 1)
+                if document.get("fingerprint_version", 1) in (1, 2)
+                else 1,
+            }
+            indices: dict[str, list[int]] = {}
+            for group, model in (
+                ("dependencies", Dependency),
+                ("sources", Source),
+                ("bindings", Binding),
+                ("catalogs", Catalog),
+                ("contracts", Contract),
+                ("definitions", DeclarativeDefinition),
+            ):
+                subset[group], indices[group] = [], []
+                raw = document.get(group, [])
+                if not isinstance(raw, (list, tuple)):
+                    continue
+                for index, item in enumerate(raw):
+                    try:
+                        model.model_validate(item)
+                    except ValidationError:
+                        continue
+                    subset[group].append(item)
+                    indices[group].append(index)
+            try:
+                validate_document(subset, base, partial=True)
+            except RegistryValidationError as independent:
+                for issue in independent.issues:
+                    segments = issue.path.split("/")
+                    if len(segments) > 2 and segments[1] in indices and segments[2].isdigit():
+                        segments[2] = str(indices[segments[1]][int(segments[2])])
+                    issues.append(issue.model_copy(update={"path": "/".join(segments)}))
         raise RegistryValidationError(issues) from None
 
     types = TypeRegistry()
     types.types.update(base.types)
+    if config.definitions and config.fingerprint_version != 2:
+        add(
+            "fingerprint_upgrade_required",
+            "/fingerprint_version",
+            "declarative definitions require fingerprint_version 2",
+        )
     for index, definition in enumerate(config.definitions):
         try:
             types.register(_compile_definition(canonical(definition)))
         except DefinitionValidationErrors as error:
-            for issue in error.issues:
+            for rule_issue in error.issues:
                 add(
-                    "definition." + str(issue),
-                    f"/definitions/{index}" + issue.path,
-                    str(issue),
+                    "definition." + str(rule_issue),
+                    f"/definitions/{index}" + rule_issue.path,
+                    str(rule_issue),
                     definition.type_id,
                 )
         except RuleValidationError as error:
@@ -136,6 +193,45 @@ def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
     dependencies = {d.dependency_id: d for d in config.dependencies}
     contracts = {c.contract_id: c for c in config.contracts}
     catalogs = {c.catalog_id for c in config.catalogs}
+    if config.fingerprint_version == 2:
+        visited_sources: set[str] = set()
+        active_sources: set[str] = set()
+        source_depths: dict[str, int] = {}
+
+        def visit_source(key: str, depth: int = 0) -> None:
+            if key in active_sources or depth > 64:
+                raise ValueError("source dependency cycle or depth limit")
+            if key in visited_sources or key not in sources:
+                return
+            active_sources.add(key)
+            source = sources[key]
+            dependency = dependencies.get(source.dependency_id)
+            references = (
+                source.freshness.liveness_source,
+                dependency.source_id if dependency else None,
+            )
+            for reference in references:
+                if reference:
+                    visit_source(reference, depth + 1)
+            source_depths[key] = 1 + max(
+                (source_depths.get(ref, 0) for ref in references if ref), default=0
+            )
+            if source_depths[key] > 64:
+                raise ValueError("source dependency depth limit")
+            active_sources.remove(key)
+            visited_sources.add(key)
+
+        for index, source in enumerate(config.sources):
+            try:
+                visit_source(source.source_id)
+            except ValueError:
+                add(
+                    "source_dependency_cycle",
+                    f"/sources/{index}/freshness",
+                    "source dependency cycle or depth limit",
+                    source.source_id,
+                )
+                active_sources.clear()
     for index, source in enumerate(config.sources):
         path, key = f"/sources/{index}", source.source_id
         if key in contracts:
@@ -257,6 +353,7 @@ def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
                 "unbound dependency monitor",
                 dependency.dependency_id,
             )
+    evaluation_cost = 0
     for index, contract in enumerate(config.contracts):
         path, key = f"/contracts/{index}", contract.contract_id
         try:
@@ -264,6 +361,16 @@ def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
         except KeyError:
             add("type_reference", path + "/type_id", "config_incomplete: type or parameters", key)
             continue
+        declared_definition = next(
+            (
+                d
+                for d in config.definitions
+                if (d.type_id, d.type_version) == (contract.type_id, contract.type_version)
+            ),
+            None,
+        )
+        if declared_definition and contract.enabled and declaration.definition is not None:
+            evaluation_cost += 2 * len(all_rules(declared_definition))
         try:
             declaration.parameters.model_validate(contract.parameters)
         except ValidationError as error:
@@ -344,9 +451,25 @@ def validate_document(document: Any, base: TypeRegistry) -> RegistryConfig:
             )
             if expected and (actual is None or not compatible(actual, expected)):
                 add("input_type_mismatch", location, "input_type_mismatch", key)
+    if evaluation_cost > 8192:
+        add(
+            "registry_evaluation_limit",
+            "/contracts",
+            "declarative registry evaluation budget exceeded",
+        )
     # Missing references have already been reported. A graph walk must not mask them.
     try:
-        topological(config)
+        ordered = topological(config)
+        depths: dict[str, int] = {}
+        for contract in ordered:
+            depths[contract.contract_id] = 1 + max(
+                (depths.get(resolve_ref(item.ref, config)[0], 0) for item in contract.inputs),
+                default=0,
+            )
+        if config.fingerprint_version == 2 and max(depths.values(), default=0) > 64:
+            add("contract_graph_depth", "/contracts", "contract graph depth limit")
+    except RecursionError:
+        add("contract_graph_depth", "/contracts", "contract graph depth limit")
     except ValueError as error:
         if str(error) == "cycle":
             add("contract_cycle", "/contracts", "cycle")
