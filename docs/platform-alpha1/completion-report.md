@@ -1,5 +1,10 @@
 # Platform Alpha 1 — Abschlussbericht nach Pre-Install-Remediation
 
+> Historischer Bericht vom 08.10.2026. Die Aussagen zu Ein-Feld-Produzenten,
+> Fixture-Orchestrierung, Versions-/Live-Stand und G1–G15 werden für Issue #10 durch
+> [Phase-1A-Fertigstellung](phase1a-completion.md) ersetzt. Die folgenden historischen
+> Prüfergebnisse bleiben als Provenienz erhalten und gelten nicht als aktuelle CI.
+
 Tracking: [Issue #1](https://github.com/Levtos/core_contract_app/issues/1),
 [PR #2](https://github.com/Levtos/core_contract_app/pull/2), Branch `agent/platform-alpha1`.
 Status höchstens **Testing / Tests Pass**. Release, Tag und Installation sind nicht freigegeben.

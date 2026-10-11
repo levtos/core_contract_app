@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from .model import Model
@@ -22,6 +22,7 @@ class Transition:
     reason: str
     new_episode: bool = False
     ends_episode: bool = False
+    argument_guard: Callable[[dict[str, Any]], bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -99,12 +100,15 @@ class Machine:
         revision: int,
         *,
         manual: bool = False,
+        args: dict[str, Any] | None = None,
     ) -> tuple[MachineState, str]:
         if manual and event not in self.definition.commands:
             return state, "not_supported"
         for rule in self.definition.transitions:
             if rule.source != state.state or rule.event != event:
                 continue
+            if rule.argument_guard is not None and not rule.argument_guard(args or {}):
+                return state, "guard_rejected"
             allowed = rule.guard(inputs, now)
             if allowed is None:
                 return state, "guard_unknown"

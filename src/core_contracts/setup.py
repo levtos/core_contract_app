@@ -234,7 +234,9 @@ async def bridge_status(token: str) -> dict[str, Any]:
 
 
 class Setup:
-    def __init__(self, data: Path, legacy: Connection | None) -> None:
+    def __init__(
+        self, data: Path, legacy: Connection | None, *, configuration_error: str = ""
+    ) -> None:
         self.data = data
         self.directory = data / "setup"
         self.path = self.directory / "connection.json"
@@ -245,14 +247,18 @@ class Setup:
         self.completed = False
         self.restart_required = False
         self.pending: dict[str, Any] = {}
+        self.configuration_error = configuration_error
+        if configuration_error:
+            self.error = configuration_error
+            self.connection: Connection | None = None
+            self.authority = "supervisor"
+            return
         if self.directory.exists():
             os.chmod(self.directory, 0o700)
         if self.path.exists():
             os.chmod(self.path, 0o600)
             self.pending = json.loads(self.path.read_text(encoding="utf-8"))
-            self.connection: Connection | None = Connection.model_validate(
-                self.pending["connection"]
-            )
+            self.connection = Connection.model_validate(self.pending["connection"])
             self.authority = "wizard"
         else:
             self.connection = legacy
@@ -266,7 +272,9 @@ class Setup:
             else self.authority == "supervisor"
         )
         return {
-            "phase": "completed"
+            "phase": "configuration_error"
+            if self.configuration_error
+            else "completed"
             if self.completed
             else "connecting"
             if self.connection
@@ -286,6 +294,8 @@ class Setup:
     async def dispatch(self, path: str, method: str, body: Any) -> Any:
         if path == "status" and method == "GET":
             return self.status()
+        if self.configuration_error:
+            raise ValueError("invalid_supervisor_options")
         if path == "finish" and method == "POST":
             if not ConfirmRequest.model_validate(body).confirm:
                 raise ValueError("confirmation_required")

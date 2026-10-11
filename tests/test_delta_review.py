@@ -315,7 +315,7 @@ async def test_mqtt_disconnect_commit_failure_keeps_taskgroup_live_and_recovers(
             assert runtime.persistence and runtime.confirmed and runtime.live
             assert runtime.state.epoch_id != before["epoch_id"]
             assert any(g["reason"] == "db_outage" for g in await runtime.store.rows("history_gap"))
-            assert not runtime.ready  # Recovery still requires a fresh snapshot.
+            assert runtime.ready  # E4: MQTT-only recovery does not require an HA snapshot.
             await runtime.submit(
                 "snapshot",
                 [

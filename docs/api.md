@@ -1,5 +1,17 @@
 # HTTP/WS API, protocol 1
 
+Phase-1A-Ergänzung: Das Envelope-Feld `fields` enthält mehrere unabhängig validierte
+Felder. `contract_health` aggregiert nur Pflichtfelder, `available` nur die deklarierten
+Projektionsfelder. `/types` beschreibt bei neuen Typversionen optionale `commands`
+(JSON-Schema je Command) und `refresh_inputs`; v1-Typen bleiben kompatibel.
+Command-Argumente werden strikt validiert: Fehler → `rejected/invalid_value`, falsche
+erwartete Registry-Revision → `rejected/active_revision_conflict`. Wiederholungen gleicher
+ID/gleichen Originalinhalts liefern unverändert die persistierte Antwort.
+Diagnostics ergänzen `bridge_version`, `bridge_subscriptions`, `ingest_overflow_count`
+und `refresh_overflow_count` (Zähler seit Prozessstart).
+Readiness benötigt einen initialen Bridge-Snapshot ausschließlich für tatsächlich
+benötigte HA-Quellen. Siehe [ADR 0002](adr/0002-phase1a-producer-and-ownership.md).
+
 ## Ingress-only setup (before installation identity)
 
 `/api/v1/setup/status` and `/api/v1/setup/bridge` are read-only Ingress routes.

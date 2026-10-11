@@ -19,6 +19,7 @@ from core_contracts.persistence import MemoryStore
     "phase",
     [
         "fresh",
+        "invalid_options",
         "connect",
         "metadata",
         "ready",
@@ -134,13 +135,15 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
     options = application.Options.model_validate(
         yaml.safe_load((root / "core_contracts/config.yaml").read_text())["options"]
     )
-    if phase != "fresh" and not wizard:
+    if phase not in {"fresh", "invalid_options"} and not wizard:
         options = options.model_copy(
             update={
                 "postgres_host": "fake-postgres",
                 "postgres_password": application.SecretStr("ephemeral-test-only"),
             }
         )
+    if phase == "invalid_options":
+        options = None
     task = asyncio.create_task(
         application.run(options, tmp_path, root / "migrations", root / "frontend")
     )

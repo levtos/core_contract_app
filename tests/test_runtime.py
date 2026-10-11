@@ -141,6 +141,7 @@ def test_no_domain_contract_types():
     types = type_registry().types
     assert {name for name, _ in types} == {
         "test.echo",
+        "test.multi",
         "test.boolean",
         "test.fusion",
         "test.temporal",

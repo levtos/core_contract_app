@@ -3,7 +3,7 @@ export interface Connection {
   sslmode: 'verify-full' | 'require' | 'disable'; ca: string;
 }
 export interface SetupStatus {
-  phase: 'welcome' | 'connecting' | 'completed'; authority: string;
+  phase: 'welcome' | 'connecting' | 'completed' | 'configuration_error'; authority: string;
   database_configured: boolean; database: Connection | null; csrf_token: string;
   onboarding_complete: boolean;
   installation_id: string | null; error: string; restart_required: boolean;

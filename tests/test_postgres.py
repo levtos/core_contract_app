@@ -15,10 +15,43 @@ from core_contracts.testing.contract_types import type_registry
 
 from .conftest import activate
 from .test_core import NOW
+from .test_phase1a import exercise_chain, field, observation
 from .test_runtime import obs
 
 pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+
+
+async def test_multistage_chain_postgres_restart_restore(database, config):
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    end = await exercise_chain(runtime, config)
+    sequence = runtime.state.publication_seq
+    await runtime.stop()
+    await store.close()
+    restored_store = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored_store.open()
+    restarted = Runtime(restored_store, runtime.clock, type_registry())
+    await restarted.start()
+    try:
+        assert restarted.state.publication_seq > sequence
+        assert field(restarted, "grace")["held_until"] == end
+        assert field(restarted, "not")["status"] == "held"
+        restarted.clock.advance(11)
+        await restarted.submit("tick")
+        assert field(restarted, "stable")["status"] == "unknown"
+        await restarted.submit("observation", observation(restarted, True, "b"))
+        restarted.clock.advance(2)
+        await restarted.submit("tick")
+        assert field(restarted, "stable")["quality"] == "degraded"
+        await restarted.submit("rollback", dict(revision=1, expected_active_revision=1))
+        assert restarted.state.active_revision == 2
+        assert len((await restored_store.load()).tables["contract_state_current"]) == 4
+    finally:
+        await restarted.stop()
+        await restored_store.close()
 
 
 @pytest_asyncio.fixture

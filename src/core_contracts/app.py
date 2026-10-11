@@ -11,7 +11,7 @@ from typing import Literal
 import aiohttp
 import asyncpg
 from aiohttp import web
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, ValidationError
 
 from .adapters.ha import BridgeAdapter
 from .adapters.mqtt import MQTTAdapter
@@ -107,26 +107,59 @@ async def connect_with_health(store: PostgresStore, clock: SystemClock) -> None:
             delay = min(delay * 2, 30)
 
 
-async def run(options: Options, data: Path, migrations: Path, frontend: Path) -> None:
+def prepare_setup(options: Options | None, data: Path) -> Setup:
+    try:
+        if options is None:
+            raise ValueError("invalid_supervisor_options")
+        legacy = (
+            Connection(
+                host=options.postgres_host,
+                port=options.postgres_port,
+                database=options.postgres_database,
+                user=options.postgres_user,
+                password=options.postgres_password,
+                sslmode=options.postgres_sslmode,
+                ca=options.postgres_ca,
+            )
+            if options.postgres_host
+            else None
+        )
+    except ValueError:
+        return Setup(data, None, configuration_error="invalid_supervisor_options")
+    return Setup(data, legacy)
+
+
+def diagnostic_options() -> Options:
+    """Only used for the blocked diagnostic server; never opens a database/adapter."""
+    return Options(
+        postgres_host="",
+        postgres_port=5432,
+        postgres_database="",
+        postgres_user="",
+        postgres_password=SecretStr(""),
+        postgres_sslmode="disable",
+        postgres_ca="",
+        installation_label="",
+        initialize_empty_database=False,
+        adopt_installation_id="",
+        mqtt_mode="disabled",
+        mqtt_host="",
+        mqtt_port=1883,
+        mqtt_username="",
+        mqtt_password=SecretStr(""),
+        log_level="INFO",
+        log_format="text",
+    )
+
+
+async def run(options: Options | None, data: Path, migrations: Path, frontend: Path) -> None:
+    setup = prepare_setup(options, data)
+    options = options or diagnostic_options()
     clock = SystemClock()
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter() if options.log_format == "json" else TextFormatter())
     logging.basicConfig(level=options.log_level, handlers=[handler], force=True)
     logging.getLogger("aiohttp.access").disabled = True
-    legacy = (
-        Connection(
-            host=options.postgres_host,
-            port=options.postgres_port,
-            database=options.postgres_database,
-            user=options.postgres_user,
-            password=options.postgres_password,
-            sslmode=options.postgres_sslmode,
-            ca=options.postgres_ca,
-        )
-        if options.postgres_host
-        else None
-    )
-    setup = Setup(data, legacy)
     connection = setup.connection
     store = PostgresStore(
         connection.dsn() if connection else "",
@@ -306,6 +339,7 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
                 async with asyncio.TaskGroup() as group:
                     tasks = [
                         group.create_task(bridge.run(), name="ha_adapter"),
+                        group.create_task(bridge.refresh_worker(), name="ha_refresh"),
                         group.create_task(mqtt.run(), name="mqtt_adapter"),
                         group.create_task(clock.run(), name="clock"),
                         group.create_task(health(), name="health"),
@@ -346,7 +380,12 @@ async def run(options: Options, data: Path, migrations: Path, frontend: Path) ->
 def main() -> None:
     data = Path(os.environ.get("CORE_CONTRACTS_DATA", "/data"))
     try:
-        options = Options.model_validate_json((data / "options.json").read_text(encoding="utf-8"))
+        try:
+            options: Options | None = Options.model_validate_json(
+                (data / "options.json").read_text(encoding="utf-8")
+            )
+        except ValidationError:
+            options = None
         asyncio.run(run(options, data, Path("/app/migrations"), Path("/app/frontend")))
     except Exception as error:
         LOGGER.error("startup_failed", extra={"error_type": type(error).__name__})

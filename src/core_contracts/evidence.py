@@ -45,8 +45,10 @@ class Observation(Model):
     ha_restored: bool = False
     assumed_state: bool = False
     invalid_timestamp: bool = False
+    transform_error: Literal["unmapped_value", "invalid_value"] | None = None
     epoch_id: str
     ingest_seq: int = Field(ge=0)
+    registry_revision: int | None = None
     availability: Literal["available", "unavailable", "unknown", "absent"] = "available"
 
     @field_validator(
@@ -132,7 +134,9 @@ def assess(
     if observation is None:
         return unknown(ReasonCode.INPUT_ABSENT, source_id, now)
     code: ReasonCode | None = None
-    if observation.invalid_timestamp:
+    if observation.transform_error:
+        code = ReasonCode(observation.transform_error)
+    elif observation.invalid_timestamp:
         code = ReasonCode.INVALID_VALUE
     elif observation.availability != "available":
         code = {

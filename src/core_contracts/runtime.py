@@ -8,18 +8,21 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationError, field_validator
 
 from .clock import Clock
 from .evidence import Observation, assess, is_new, is_older
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
+from .producer import Context, Producer
 from .quality import FieldValue, ReasonCode, unknown
 from .registry import (
     Contract,
     RegistryConfig,
+    affected_sources,
     diff,
     fingerprints,
+    required_sources,
     resolve_ref,
     topological,
     validate,
@@ -58,6 +61,12 @@ class Work:
     future: asyncio.Future[Any] | None = None
 
 
+@dataclass
+class SnapshotBatch:
+    observations: list[Observation]
+    registry_revision: int
+
+
 class Runtime:
     def __init__(
         self, store: Store, clock: Clock, types: TypeRegistry, *, queue_size: int = 256
@@ -70,11 +79,15 @@ class Runtime:
         self.persistence = False
         self.first_snapshot = False
         self.bridge = "disconnected"
+        self.bridge_version: str | None = None
+        self.bridge_subscriptions = 0
+        self.dependency_connections: dict[str, bool] = {}
         self.ha = "disconnected"
         self.mqtt = "disabled"
         self.latest: dict[str, Observation] = {}
         self.overflow = False
         self.snapshot_pending = False
+        self.snapshot_revision: int | None = None
         self.overflow_bindings: set[str] = set()
         self.overflow_serial = 0
         self.next_evaluation: datetime | None = None
@@ -88,6 +101,9 @@ class Runtime:
         self.stopping = False
         self.commit_duration = 0.0
         self.last_heartbeat = clock.monotonic()
+        self.refresh_requests: asyncio.Queue[tuple[int, str]] = asyncio.Queue(256)
+        self.pending_refresh: set[str] = set()
+        self.refresh_overflow = 0
 
     @property
     def config(self) -> RegistryConfig | None:
@@ -119,7 +135,21 @@ class Runtime:
 
     @property
     def ready(self) -> bool:
-        return self.persistence and self.state.active_revision > 0 and self.first_snapshot
+        return (
+            self.persistence
+            and self.state.active_revision > 0
+            and (not self.requires_ha_snapshot or self.first_snapshot)
+        )
+
+    @property
+    def requires_ha_snapshot(self) -> bool:
+        config = self.config
+        if config is None:
+            return False
+        needed = required_sources(config)
+        return any(
+            b.source_id in needed and b.adapter.kind.startswith("ha_") for b in config.bindings
+        )
 
     async def start(self) -> None:
         self.state = await self.store.load()
@@ -170,6 +200,8 @@ class Runtime:
     def ingest(self, observation: Observation) -> None:
         if self.stopping:
             return
+        if observation.registry_revision not in {None, self.state.active_revision}:
+            return
         if not self.persistence:
             self.latest[observation.binding_id] = observation
             return
@@ -186,16 +218,26 @@ class Runtime:
         if not self.queue.full() and not self.stopping:
             self.queue.put_nowait(Work("tick", None))
 
-    def ingest_snapshot(self, observations: list[Observation]) -> None:
+    def ingest_snapshot(self, observations: list[Observation], revision: int | None = None) -> None:
         if self.stopping:
             return
+        if revision is not None and revision != self.state.active_revision:
+            return
         try:
-            self.queue.put_nowait(Work("snapshot", observations))
+            self.queue.put_nowait(
+                Work(
+                    "snapshot",
+                    SnapshotBatch(
+                        observations, self.state.active_revision if revision is None else revision
+                    ),
+                )
+            )
         except asyncio.QueueFull:
             self.latest.update({o.binding_id: o for o in observations})
             self.overflow = True
             self.overflow_serial += 1
             self.snapshot_pending = True
+            self.snapshot_revision = self.state.active_revision if revision is None else revision
 
     async def run(self) -> None:
         while True:
@@ -215,6 +257,15 @@ class Runtime:
                 self.queue.task_done()
 
     async def process(self, operation: str, payload: Any) -> Any:
+        if operation == "snapshot" and isinstance(payload, SnapshotBatch):
+            if payload.registry_revision != self.state.active_revision:
+                return None
+            payload = payload.observations
+        if operation == "observation" and payload.registry_revision not in {
+            None,
+            self.state.active_revision,
+        }:
+            return None
         if operation == "recover":
             last_sequence = self.state.publication_seq
             self.state = await self.store.load()
@@ -227,6 +278,8 @@ class Runtime:
             # Coalesced outage input is snapshot evidence, never replayed as events.
             buffered = dict(self.latest)
             for obs in buffered.values():
+                if obs.registry_revision not in {None, self.state.active_revision}:
+                    continue
                 if self._older_than_stored(self.state, obs):
                     continue
                 self.state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
@@ -243,6 +296,7 @@ class Runtime:
         if operation == "bridge_state":
             previous_bridge = self.bridge
             self.bridge, self.ha = payload
+            self.dependency_connections["ha"] = self.bridge == "connected"
             self._broadcast(self.service_state())
             if (
                 self.bridge == "unavailable"
@@ -274,6 +328,7 @@ class Runtime:
         if operation == "mqtt_state":
             previous_mqtt = self.mqtt
             self.mqtt = str(payload)
+            self.dependency_connections["mqtt"] = self.mqtt == "connected"
             self._broadcast(self.service_state())
             if (
                 self.mqtt == "disconnected"
@@ -311,6 +366,7 @@ class Runtime:
             if operation == "snapshot":
                 self.latest.update({o.binding_id: o for o in payload})
                 self.snapshot_pending = True
+                self.snapshot_revision = self.state.active_revision
                 return None
             raise RuntimeError("persistence_unavailable")
         # Overflow recovery is its own transaction. A following validation, OCC
@@ -394,10 +450,22 @@ class Runtime:
                     if old_fp.get(binding.source_id) != new_fp[binding.source_id]:
                         state.tables["source_observation_current"].pop(binding.binding_id, None)
                 next_latches = {
-                    k: v for k, v in self.latches.items() if old_fp.get(k) == new_fp.get(k)
+                    k: v
+                    for k, v in self.latches.items()
+                    if old_fp.get(k.partition(":")[0]) == new_fp.get(k.partition(":")[0])
                 }
             self._evaluate(state, new_config, origin="revision", initial_latches=next_latches)
             await self._commit(state, publication=True)
+            old_ha = (
+                {b.model_dump_json() for b in config.bindings if b.adapter.kind.startswith("ha_")}
+                if config
+                else set()
+            )
+            new_ha = {
+                b.model_dump_json() for b in new_config.bindings if b.adapter.kind.startswith("ha_")
+            }
+            if new_ha - old_ha:
+                self.first_snapshot = False
             LOGGER.info(
                 "registry_rollback" if operation == "rollback" else "registry_activated",
                 extra={"revision": revision},
@@ -454,6 +522,7 @@ class Runtime:
                         or obs.mqtt_retained
                         or obs.assumed_state
                         or obs.invalid_timestamp
+                        or obs.transform_error
                     )
                     and (
                         obs.availability,
@@ -461,6 +530,7 @@ class Runtime:
                         obs.mqtt_retained,
                         obs.assumed_state,
                         obs.invalid_timestamp,
+                        obs.transform_error,
                     )
                     != (
                         previous.availability,
@@ -468,6 +538,7 @@ class Runtime:
                         previous.mqtt_retained,
                         previous.assumed_state,
                         previous.invalid_timestamp,
+                        previous.transform_error,
                     )
                 )
             ):
@@ -518,9 +589,7 @@ class Runtime:
 
     def _invalidate(self, state: State, config: RegistryConfig, bindings: set[str]) -> None:
         affected = {b.source_id for b in config.bindings if b.binding_id in bindings}
-        affected.update(
-            s.source_id for s in config.sources if s.freshness.liveness_source in affected
-        )
+        affected = affected_sources(config, affected)
         for contract in topological(config):
             if not any(resolve_ref(i.ref, config)[0] in affected for i in contract.inputs):
                 continue
@@ -549,6 +618,8 @@ class Runtime:
                         "unavailable"
                     )
         for obs in buffered.values():
+            if obs.registry_revision not in {None, state.active_revision}:
+                continue
             if self._older_than_stored(state, obs):
                 continue
             state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
@@ -565,7 +636,8 @@ class Runtime:
         if not newer_overflow:
             self.overflow_bindings.clear()
         if self.snapshot_pending and not self.overflow:
-            self.first_snapshot = True
+            if self.snapshot_revision in {None, state.active_revision}:
+                self.first_snapshot = True
             self.snapshot_pending = False
             self._broadcast(self.service_state())
 
@@ -579,6 +651,26 @@ class Runtime:
             k: Observation.model_validate(v)
             for k, v in state.tables["source_observation_current"].items()
         }
+        dependencies = {d.dependency_id: d for d in config.dependencies}
+
+        def source_value(ref: str, visited: set[str]) -> FieldValue:
+            if ref in visited:
+                return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
+            source = sources[ref]
+            dependency = dependencies[source.dependency_id]
+            available = self.dependency_connections.get(dependency.kind, True)
+            if dependency.monitor == "source":
+                monitor = source_value(dependency.source_id or "", visited | {ref})
+                available = (
+                    monitor.usable(now) and monitor.quality == "healthy" and monitor.value is True
+                )
+            if not available:
+                return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, source.dependency_id, now)
+            liveness = observations.get(by_source.get(source.freshness.liveness_source or "", ""))
+            return assess(
+                observations.get(by_source.get(ref, "")), source.freshness, now, ref, liveness
+            )
+
         result: dict[str, FieldValue] = {}
         for item in contract.inputs:
             ref, field = resolve_ref(item.ref, config)
@@ -590,13 +682,7 @@ class Runtime:
                     else unknown(ReasonCode.INPUT_ABSENT, ref, now)
                 )
             else:
-                source = sources[ref]
-                liveness = observations.get(
-                    by_source.get(source.freshness.liveness_source or "", "")
-                )
-                result[item.name] = assess(
-                    observations.get(by_source[ref]), source.freshness, now, ref, liveness
-                )
+                result[item.name] = source_value(ref, set())
         return result
 
     def _evaluate(
@@ -614,7 +700,20 @@ class Runtime:
             self.latches if initial_latches is None else initial_latches
         )
         fps = fingerprints(config, self.types)
-        affected = {trigger_source} if trigger_source else set()
+        self.pending_refresh = set()
+        previous_config = self.config
+        if previous_config:
+            new_contracts = {c.contract_id: c for c in config.contracts}
+            for old in previous_config.contracts:
+                replacement = new_contracts.get(old.contract_id)
+                old_node = state.tables["node_state"].get(old.contract_id, {})
+                if old.enabled and (
+                    replacement is None
+                    or not replacement.enabled
+                    or old_node.get("fingerprint") != fps.get(old.contract_id)
+                ):
+                    self._dispose(old, old_node, state)
+        affected = affected_sources(config, {trigger_source}) if trigger_source else set()
         previous_contracts = state.tables["contract_state_current"]
         state.tables["contract_state_current"] = {}
         for contract in topological(config):
@@ -643,6 +742,10 @@ class Runtime:
             if node is None or node.get("fingerprint") != fps[key] or case == "stale":
                 node = {"fingerprint": fps[key]}
             machine_state: MachineState | None = None
+            declaration = self.types.get(contract.type_id, contract.type_version)
+            original_node = copy.deepcopy(node)
+            original_latches = copy.deepcopy(self.pending_latches)
+            refresh: set[str] = set()
             try:
                 result, node, machine_state = self.types.get(
                     contract.type_id, contract.type_version
@@ -657,14 +760,32 @@ class Runtime:
                     case,
                     (machine_override or {}).get(key),
                 )
+                declaration = self.types.get(contract.type_id, contract.type_version)
+                for input_name in node.pop("refresh_requests", []):
+                    if input_name not in declaration.refresh_inputs:
+                        raise ValueError("undeclared refresh capability")
+                    ref = next(i.ref for i in contract.inputs if i.name == input_name)
+                    source_id, field = resolve_ref(ref, config)
+                    if field is not None:
+                        raise ValueError("refresh requires source binding")
+                    refresh.add(source_id)
+                fields = validate_fields(
+                    declaration.schema,
+                    {"value": result} if isinstance(result, FieldValue) else result,
+                    now,
+                    inputs,
+                )
+                self.pending_refresh.update(refresh)
             except Exception as error:
                 LOGGER.error(
                     "evaluation_error",
                     extra={"contract_id": key, "error_type": type(error).__name__},
                 )
-                result = unknown(ReasonCode.EVALUATION_ERROR, key, now)
-            declaration = self.types.get(contract.type_id, contract.type_version)
-            fields = validate_fields(declaration.schema, {"value": result}, now)
+                node, self.pending_latches, machine_state = original_node, original_latches, None
+                fields = {
+                    name: unknown(ReasonCode.EVALUATION_ERROR, key, now)
+                    for name in declaration.schema.fields
+                }
             required = [fields[k] for k, v in declaration.schema.fields.items() if v.required]
             healthy = all(v.quality == "healthy" for v in required)
             available = all(
@@ -682,6 +803,7 @@ class Runtime:
                 publication_seq=seq,
                 registry_revision=state.active_revision,
                 epoch_id=state.epoch_id,
+                fixture=declaration.schema.fixture,
             )
             state.tables["node_state"][key] = node
             state.tables["contract_lifecycle"][key] = {
@@ -694,7 +816,7 @@ class Runtime:
             # Reasons describe an interval; an unchanged reason retains its onset.
             if previous_envelope:
                 for name, field in data_envelope["fields"].items():
-                    old_reasons = previous_envelope["fields"][name]["reasons"]
+                    old_reasons = previous_envelope["fields"].get(name, {}).get("reasons", [])
                     for reason in field["reasons"]:
                         old_reason = next(
                             (
@@ -742,6 +864,30 @@ class Runtime:
                 "registry_revision": state.active_revision,
             }
 
+    def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:
+        producer = self.types.get(contract.type_id, contract.type_version).evaluate
+        if isinstance(producer, Producer) and node.get("producer_epoch") == state.epoch_id:
+            try:
+                producer.dispose(
+                    Context(
+                        self.clock,
+                        self.pending_latches or {},
+                        contract,
+                        {},
+                        node,
+                        state,
+                        "dispose",
+                        "valid",
+                        None,
+                    )
+                )
+            except Exception as error:
+                LOGGER.error(
+                    "producer_dispose_failed",
+                    extra={"contract_id": contract.contract_id, "error_type": type(error).__name__},
+                )
+            node.pop("producer_epoch", None)
+
     async def _command(self, state: State, command: Command) -> dict[str, Any]:
         digest, now = checksum(command), self.clock.now_utc()
         old = await self.store.get("command_log", command.command_id)
@@ -763,7 +909,7 @@ class Runtime:
             command.expected_registry_revision is not None
             and command.expected_registry_revision != state.active_revision
         ):
-            result.update(status="rejected", reason="config_incomplete")
+            result.update(status="rejected", reason="active_revision_conflict")
         elif (
             contract
             and contract.enabled
@@ -774,7 +920,21 @@ class Runtime:
             assert factory is not None
             machine = factory(contract.parameters)
             data = state.tables["node_state"].get(contract.contract_id, {}).get("machine")
-            if command.args or not data:
+            args_model = self.types.get(contract.type_id, contract.type_version).commands.get(
+                command.command
+            )
+            args = command.args
+            invalid_args = bool(args) and args_model is None
+            if args_model:
+                try:
+                    args = args_model.model_validate(args, strict=True).model_dump()
+                except ValidationError:
+                    invalid_args = True
+            if command.command not in machine.definition.commands:
+                result["status"] = "not_supported"
+            elif invalid_args:
+                result.update(status="rejected", reason="invalid_value")
+            elif not data:
                 result.update(status="rejected", reason="guard_rejected")
             else:
                 updated, status = machine.step(
@@ -784,6 +944,7 @@ class Runtime:
                     now,
                     state.active_revision,
                     manual=True,
+                    args=args,
                 )
                 result["status"] = (
                     "rejected" if status in {"guard_rejected", "guard_unknown"} else status
@@ -796,6 +957,7 @@ class Runtime:
             "digest": digest,
             "result": result,
             "at": now.isoformat(),
+            "command": command.model_dump(mode="json"),
         }
         if override and config:
             self._evaluate(state, config, origin="command", machine_override=override)
@@ -823,6 +985,7 @@ class Runtime:
             await self.store.commit(state)
         except Exception:
             self.pending_latches = None
+            self.pending_refresh.clear()
             self._unavailable()
             raise
         previous_seq = self.state.publication_seq
@@ -833,6 +996,13 @@ class Runtime:
             self.pending_latches = None
         self.persistence = True
         self.confirmed = True
+        for source_id in self.pending_refresh:
+            try:
+                self.refresh_requests.put_nowait((state.active_revision, source_id))
+            except asyncio.QueueFull:
+                self.refresh_overflow += 1
+                LOGGER.warning("refresh_queue_overflow")
+        self.pending_refresh.clear()
         self.commit_duration = self.clock.monotonic() - started
         self._plan_evaluation()
         for key, envelope in state.tables["contract_state_current"].items():
@@ -937,6 +1107,11 @@ class Runtime:
         self._broadcast({"type": "going_away"})
         if self.persistence and self.state.epoch_id in self.state.tables["runtime_epoch"]:
             state = self.state.clone()
+            if self.config:
+                for contract in self.config.contracts:
+                    self._dispose(
+                        contract, state.tables["node_state"].get(contract.contract_id, {}), state
+                    )
             state.tables["runtime_epoch"][state.epoch_id]["ended_at"] = (
                 self.clock.now_utc().isoformat()
             )

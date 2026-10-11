@@ -15,6 +15,7 @@ class Dependency(Model):
     dependency_id: str
     kind: Literal["ha", "mqtt", "other"]
     monitor: Literal["internal", "source"]
+    source_id: str | None = None
 
 
 class Source(Model):
@@ -146,6 +147,25 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
     if sources.keys() & contracts.keys():
         raise ValueError("ambiguous identity")
     dependencies = {d.dependency_id for d in config.dependencies}
+    if any(s.dependency_id not in dependencies for s in config.sources):
+        raise ValueError("invalid source dependency/origin")
+    for dependency in config.dependencies:
+        if dependency.monitor == "source":
+            if dependency.source_id not in sources:
+                raise ValueError("dependency monitor source required")
+            if sources[dependency.source_id].dependency_id == dependency.dependency_id:
+                raise ValueError("dependency monitor cycle")
+        elif dependency.kind == "other" or dependency.source_id is not None:
+            raise ValueError("unsupported internal dependency monitor")
+    monitors = {d.dependency_id: d for d in config.dependencies}
+    for dependency in config.dependencies:
+        visited: set[str] = set()
+        current = dependency
+        while current.source_id:
+            if current.dependency_id in visited:
+                raise ValueError("dependency monitor cycle")
+            visited.add(current.dependency_id)
+            current = monitors[sources[current.source_id].dependency_id]
     catalogs = {c.catalog_id for c in config.catalogs}
     bound: set[str] = set()
     physical: set[str] = set()
@@ -157,12 +177,14 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
             raise ValueError("unknown liveness source")
     for binding in config.bindings:
         adapter = binding.adapter
+        if adapter.kind == "scheduler":
+            raise ValueError("scheduler source adapter not implemented")
         address = (
             (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
             if adapter.kind.startswith("ha_")
             else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
         )
-        if adapter.kind != "scheduler" and address in addresses:
+        if address in addresses:
             raise ValueError("duplicate adapter evidence path")
         addresses.add(address)
         if binding.source_id not in sources or binding.source_id in bound:
@@ -178,12 +200,23 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
             and binding.transform.catalog_id not in catalogs
         ):
             raise ValueError("unknown catalog")
+    for dependency in config.dependencies:
+        if dependency.source_id and dependency.source_id not in bound:
+            raise ValueError("unbound dependency monitor")
     for contract in config.contracts:
         try:
             declaration = types.get(contract.type_id, contract.type_version)
         except KeyError as error:
             raise ValueError("config_incomplete: type or parameters") from error
         declaration.parameters.model_validate(contract.parameters)
+        if declaration.schema.grace_capable:
+            duration = contract.parameters.get(declaration.schema.grace_parameter or "")
+            if (
+                not isinstance(duration, (int, float))
+                or isinstance(duration, bool)
+                or duration <= 0
+            ):
+                raise ValueError("positive grace parameter required")
         names = [i.name for i in contract.inputs]
         allowed = {i.name for i in declaration.inputs}
         required = {i.name for i in declaration.inputs if i.required}
@@ -191,6 +224,11 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
             raise ValueError("config_incomplete: inputs")
         for item in contract.inputs:
             ref, field = resolve_ref(item.ref, config)
+            if item.name in declaration.refresh_inputs:
+                if field is not None or not any(
+                    b.source_id == ref and b.adapter.kind.startswith("ha_") for b in config.bindings
+                ):
+                    raise ValueError("refresh requires HA source binding")
             if field is None:
                 if ref not in bound:
                     raise ValueError("unbound source")
@@ -202,6 +240,42 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
                     raise ValueError("disabled required dependency")
     topological(config)
     return config
+
+
+def required_sources(config: RegistryConfig) -> set[str]:
+    """Sources reachable from enabled producers, including source monitors/liveness."""
+    needed = {
+        resolve_ref(i.ref, config)[0]
+        for c in config.contracts
+        if c.enabled
+        for i in c.inputs
+        if resolve_ref(i.ref, config)[1] is None
+    }
+    sources = {s.source_id: s for s in config.sources}
+    dependencies = {d.dependency_id: d for d in config.dependencies}
+    pending = list(needed)
+    while pending:
+        source = sources[pending.pop()]
+        for ref in (source.freshness.liveness_source, dependencies[source.dependency_id].source_id):
+            if ref and ref not in needed:
+                needed.add(ref)
+                pending.append(ref)
+    return needed
+
+
+def affected_sources(config: RegistryConfig, changed: set[str]) -> set[str]:
+    dependencies = {d.dependency_id: d for d in config.dependencies}
+    result = set(changed)
+    while True:
+        expanded = result | {
+            s.source_id
+            for s in config.sources
+            if s.freshness.liveness_source in result
+            or dependencies[s.dependency_id].source_id in result
+        }
+        if expanded == result:
+            return result
+        result = expanded
 
 
 def topological(config: RegistryConfig) -> list[Contract]:
@@ -250,6 +324,24 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
                 ],
             }
         )
+    base_sources = dict(result)
+    dependencies = {d.dependency_id: d for d in config.dependencies}
+    sources = {s.source_id: s for s in config.sources}
+
+    def monitored_fingerprint(key: str) -> str:
+        dependency = dependencies[sources[key].dependency_id]
+        if dependency.source_id:
+            return semantic_fingerprint(
+                {
+                    "source": base_sources[key],
+                    "monitor": dependency.model_dump(),
+                    "monitor_source": monitored_fingerprint(dependency.source_id),
+                }
+            )
+        return base_sources[key]
+
+    for key in sources:
+        result[key] = monitored_fingerprint(key)
     for contract in topological(config):
         result[contract.contract_id] = semantic_fingerprint(
             {
