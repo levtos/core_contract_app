@@ -130,7 +130,13 @@ class FormulaCatalog:
         self._items[name, version] = formula
 
     def evaluate(
-        self, name: str, version: int, inputs: list[FieldValue], now: datetime
+        self,
+        name: str,
+        version: int,
+        inputs: list[FieldValue],
+        now: datetime,
+        *,
+        raise_errors: bool = False,
     ) -> FieldValue:
         if any(not i.usable(now) for i in inputs):
             return derive(None, inputs, now)
@@ -138,4 +144,6 @@ class FormulaCatalog:
             value = self._items[name, version]([i.value for i in inputs])
             return derive(value, inputs, now)
         except KeyError, TypeError, ValueError, ArithmeticError:
+            if raise_errors:
+                raise
             return unknown(ReasonCode.EVALUATION_ERROR, "formula", now)

@@ -173,8 +173,8 @@ async def test_queuefull_older_negative_cannot_replace_newer_positive(
         assert other.latest["binding.a"] is newer
         await other.queue.join()
         stored = other.state.tables["source_observation_current"]["binding.a"]
-        assert stored == newer.model_copy(update={"observation_kind": "snapshot"}).model_dump(
-            mode="json"
+        assert (
+            stored == newer.model_copy(update={"observation_kind": "snapshot"}).storage_document()
         )
         assert field(other)["status"] == "valid"
         assert not other.latest and not other.overflow
@@ -219,8 +219,9 @@ async def test_negative_evidence_is_still_accepted_without_an_older_measurement(
         negative = negative.model_copy(update={"ha_time_fired": None})
     await runtime.submit("observation", negative)
     assert field(runtime)["status"] == "unknown"
-    assert runtime.state.tables["source_observation_current"]["binding.a"] == negative.model_dump(
-        mode="json"
+    assert (
+        runtime.state.tables["source_observation_current"]["binding.a"]
+        == negative.storage_document()
     )
     runtime.clock.advance(1)
     await runtime.submit("observation", obs(runtime))
@@ -240,9 +241,10 @@ async def test_queuefull_newer_negative_is_not_replaced_by_older_positive(runtim
         assert other.overflow
         await other.queue.join()
         assert field(other)["status"] == "unknown"
-        assert other.state.tables["source_observation_current"]["binding.a"] == newer.model_copy(
-            update={"observation_kind": "snapshot"}
-        ).model_dump(mode="json")
+        assert (
+            other.state.tables["source_observation_current"]["binding.a"]
+            == newer.model_copy(update={"observation_kind": "snapshot"}).storage_document()
+        )
     finally:
         await other.stop()
 

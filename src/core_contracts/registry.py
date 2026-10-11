@@ -93,6 +93,22 @@ class RegistryConfig(Model):
     definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
 
 
+def storage_document(config: RegistryConfig) -> dict[str, Any]:
+    """Keep released Alpha-3 v1 documents byte-semantically compatible.
+
+    Actual Alpha-4 extensions remain explicit; never silently downgrade them.
+    """
+    document = config.model_dump(mode="json")
+    if config.fingerprint_version == 1:
+        document.pop("fingerprint_version")
+    if not config.definitions:
+        document.pop("definitions")
+    for source in document["sources"]:
+        if source["value_schema"] is None:
+            source.pop("value_schema")
+    return document
+
+
 @lru_cache(maxsize=128)
 def _compile_definition(document: str) -> ContractType:
     from .declarative import compile_definition
@@ -410,8 +426,10 @@ def diff(
             break
         affected = expanded
     stateful = []
+    after_types = registry_types(after, types) if types else None
+    before_types = registry_types(before, types) if types and before else None
     if types:
-        after_types = registry_types(after, types)
+        assert after_types is not None
         stateful = sorted(
             c.contract_id
             for c in after.contracts
@@ -451,17 +469,13 @@ def diff(
         affected_fields={
             key: sorted(
                 set(
-                    registry_types(after, types)
-                    .get(new[key].type_id, new[key].type_version)
-                    .schema.fields
-                    if types and key in new
+                    after_types.get(new[key].type_id, new[key].type_version).schema.fields
+                    if after_types and key in new
                     else ()
                 )
                 | set(
-                    registry_types(before, types)
-                    .get(old[key].type_id, old[key].type_version)
-                    .schema.fields
-                    if types and before and key in old
+                    before_types.get(old[key].type_id, old[key].type_version).schema.fields
+                    if before_types and key in old
                     else ()
                 )
             )

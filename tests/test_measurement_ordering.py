@@ -52,7 +52,7 @@ async def test_later_ha_unavailable_replaces_device_measurement(
     assert field(runtime)["value"] is None
     assert {reason["code"] for reason in field(runtime)["reasons"]} == {"input_unavailable"}
     assert runtime.state.tables["source_observation_current"]["binding.a"] == (
-        unavailable.model_dump(mode="json")
+        unavailable.storage_document()
     )
 
 
@@ -78,7 +78,7 @@ async def test_new_device_observation_after_ha_unavailable_is_accepted(runtime, 
     assert field(runtime)["value"] == "on"
     assert field(runtime)["measured_at"] == fresh.model_dump(mode="json")["device_time"]
     assert runtime.state.tables["source_observation_current"]["binding.a"] == (
-        fresh.model_dump(mode="json")
+        fresh.storage_document()
     )
 
 
@@ -127,7 +127,7 @@ async def test_older_same_clock_evidence_is_still_rejected(runtime, config, cloc
     )
     await runtime.submit("observation", older)
     assert runtime.state.tables["source_observation_current"]["binding.a"] == (
-        newer.model_dump(mode="json")
+        newer.storage_document()
     )
     assert field(runtime)["status"] == "valid"
     assert runtime.state.publication_seq == sequence
@@ -196,6 +196,6 @@ async def test_no_shared_measurement_clock_keeps_conservative_path(
     await runtime.submit("observation", current)
     expected = previous if change == "none" else current
     assert runtime.state.tables["source_observation_current"]["binding.a"] == (
-        expected.model_dump(mode="json")
+        expected.storage_document()
     )
     assert field(runtime)["status"] == ("unknown" if change == "unavailable" else "valid")

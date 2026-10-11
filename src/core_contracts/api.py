@@ -1,11 +1,13 @@
 """Two listeners with independent ingress and bearer trust boundaries."""
 
 import asyncio
+import logging
 import re
 import secrets
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import aiohttp
 import asyncpg
@@ -301,7 +303,7 @@ class API:
                 raise ValueError("invalid discovery page")
             try:
                 entities = await runtime.entity_discovery()
-            except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError:
+            except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError, TypeError:
                 return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
             selected_entities = [e for e in entities if e["entity_id"] > after]
             result = {
@@ -532,23 +534,38 @@ class API:
             role = (await self.object_body(request))["role"]
             if role not in {"admin", "consumer"}:
                 raise ValueError("invalid token role")
+            rotation_id = str(uuid4())
             await runtime.submit(
                 "audit",
                 {
                     "operation": "token_rotation_requested",
                     "_actor": request["actor"],
-                    "details": {"role": role},
+                    "details": {"role": role, "rotation_id": rotation_id},
                 },
             )
-            result = {"role": role, "token": self.tokens.rotate(role)}
-            await runtime.submit(
-                "audit",
-                {
-                    "operation": "token_rotated",
-                    "_actor": request["actor"],
-                    "details": {"role": role},
-                },
-            )
+            result = {
+                "role": role,
+                "token": self.tokens.rotate(role),
+                "status": "rotated",
+                "rotation_id": rotation_id,
+                "audit_status": "complete",
+            }
+            try:
+                await runtime.submit(
+                    "audit",
+                    {
+                        "operation": "token_rotated",
+                        "_actor": request["actor"],
+                        "details": {"role": role, "rotation_id": rotation_id},
+                    },
+                )
+            except Exception:
+                # The private token file has already committed. Never hide the
+                # new credential behind an audit error or invite a blind retry.
+                result["audit_status"] = "completion_unconfirmed"
+                logging.getLogger(__name__).warning(
+                    "token_rotation_audit_unconfirmed", extra={"rotation_id": rotation_id}
+                )
         else:
             raise web.HTTPNotFound()
         return web.Response(text=canonical(result), content_type="application/json")

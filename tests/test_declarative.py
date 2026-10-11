@@ -155,7 +155,7 @@ def test_trace_identifies_inputs_and_fusion_selection_without_raw_values():
             ),
             True,
         ),
-        (dict(op="map", arg=literal("on", "text"), schema=schema(), entries={"on": True}), True),
+        (dict(op="map", arg=literal("on", "text"), schema=schema(), entries={'"on"': True}), True),
         (
             dict(
                 op="first_match",
@@ -317,9 +317,8 @@ async def test_remaining_temporal_and_bucket_operations(runtime, config):
         "observation", observation(runtime, 3).model_copy(update={"ingest_seq": 2})
     )
     assert field(runtime)["value"] is True
-    assert (
-        runtime.state.tables["node_state"]["fixture.echo"]["rules"]["hysteresis"]["latch"] is True
-    )
+    assert runtime.latches["fixture.echo:hysteresis"].latch is True
+    assert "hysteresis" not in runtime.state.tables["node_state"]["fixture.echo"]["rules"]
 
 
 @pytest.mark.parametrize("operation", ["dwell", "edge"])
@@ -467,7 +466,7 @@ async def test_data_only_multifield_and_safe_trace(runtime, config):
         op="map",
         arg=dict(op="input", name="a"),
         schema=schema("enum", value_catalog=["on", "off"]),
-        entries={"True": "on", "False": "off"},
+        entries={"true": "on", "false": "off"},
     )
     await activate(runtime, registry(config, data))
     await runtime.submit("observation", observation(runtime, True))

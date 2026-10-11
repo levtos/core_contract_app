@@ -43,6 +43,28 @@ async def test_schema_capabilities_and_reason_catalog(runtime, aiohttp_client, t
     }
     assert {item["code"] for item in data["reasons"]["codes"]} == {r.value for r in ReasonCode}
     assert data["limits"]["history_page"] == 200
+    assert set(data["history"]["kinds"]) == {
+        "contracts",
+        "observations",
+        "transitions",
+        "episodes",
+        "deadlines",
+        "commands",
+        "gaps",
+        "diagnostics",
+        "revisions",
+        "activations",
+    }
+    rules = {item["code"] for item in data["schemas"]["registry"]["x-semantic-validation"]["rules"]}
+    assert rules >= {
+        "definition.duplicate_transition_event",
+        "definition.unreachable_machine",
+        "definition.invalid_map_key",
+        "binding_type_mismatch",
+        "source_dependency_cycle",
+        "immutable_definition_version",
+        "monitor_unbound",
+    }
     consumer = {"Authorization": "Bearer " + api.tokens.values["consumer"]}
     assert (await client.get("/api/v1/capabilities", headers=consumer)).status == 200
     assert (await client.get("/api/v1/registry/schema", headers=consumer)).status == 403
@@ -334,6 +356,7 @@ async def test_no_active_export_time_readiness_and_rotation_audit(
         "token_rotated",
     }
     assert rotated["token"] not in str(audit)
+    assert rotated["status"] == "rotated" and rotated["audit_status"] == "complete"
 
 
 async def test_versioned_static_cache_only(runtime, aiohttp_client, tmp_path):

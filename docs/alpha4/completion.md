@@ -11,6 +11,13 @@ acceptance. The version remains 1.0.0a3 until separately approved release work.
 The exact reviewed head and final CI run belong to the PR/issue evidence, avoiding
 a self-referential commit hash in this tracked document.
 
+The consolidated corrections to **OPUS-A4-01 through OPUS-A4-17** are recorded
+in the [delta disposition and measurement matrix](opus-review-corrections.md).
+It supersedes pre-review claims about persisted hysteresis, generic boolean
+trace values and unconditional downgrade compatibility. The
+[downgrade runbook](downgrade.md) and updated ADR/API contract are part of this
+same PR. Exact final CI measurements accompany the PR/Issue evidence.
+
 ## Implementation contract and changes
 
 [ADR 0003](../adr/0003-declarative-platform.md) records the concrete decisions.
@@ -128,6 +135,14 @@ and exact evidence compatibility. Existing security and acceptance tests remain.
 - Token files and PostgreSQL cannot share one transaction: durable rotation
   intent precedes the file operation and completion follows it. An unmatched
   intent is explicitly indeterminate.
+  A successful file rotation still returns the new token if the completion
+  audit fails, with explicit `completion_unconfirmed` status and correlation ID.
+- Hysteresis latches are volatile and reset to initial on restart/DB recovery;
+  they are not part of declarative node restore. Grace/deadline restore remains.
+- Unchanged foreign-source evaluations do not rewrite explain nodes. Trace
+  contains no generic raw boolean values; only deliberate machine guard and
+  fusion selection outcomes remain. Actual write counts and 100k-row PG plans
+  are captured by the isolated review probe in the existing CI.
 
 ## Validation and acceptance gates
 

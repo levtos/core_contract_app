@@ -2,7 +2,7 @@
 
 import base64
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
@@ -22,7 +22,11 @@ HISTORY_TABLES = {
     "activations": "registry_activation",
 }
 TIME_KEYS = ("at", "published_at", "received_at", "since_at", "created_at", "updated_at")
-TIME_SQL = "COALESCE(" + ",".join(f"payload->>'{key}'" for key in TIME_KEYS) + ",'')"
+TIME_SQL = (
+    "COALESCE("
+    + ",".join(f"NULLIF(payload->>'{key}','')::timestamptz" for key in TIME_KEYS)
+    + ",'0001-01-01T00:00:00Z'::timestamptz)"
+)
 CONTRACT_SQL = "COALESCE(payload->>'contract_id',payload->'command'->>'contract_id')"
 
 
@@ -50,7 +54,7 @@ class HistoryQuery(Model):
             {"table": table, **self.model_dump(mode="json", exclude={"limit", "cursor"})}
         )
 
-    def position(self, table: str) -> tuple[str, str] | None:
+    def position(self, table: str) -> tuple[datetime, str] | None:
         if self.cursor is None:
             return None
         try:
@@ -63,13 +67,17 @@ class HistoryQuery(Model):
                 or not isinstance(value.get("key"), str)
             ):
                 raise ValueError("invalid_history_cursor")
-            return value["time"], value["key"]
+            return parse_time(value["time"]), value["key"]
         except ValueError, TypeError, KeyError, UnicodeError:
             raise ValueError("invalid_history_cursor") from None
 
 
-def timestamp(payload: dict[str, Any]) -> str:
-    return next((payload[key] for key in TIME_KEYS if payload.get(key) is not None), "")
+def parse_time(value: str) -> datetime:
+    return utc(datetime.fromisoformat(value)) if value else datetime.min.replace(tzinfo=UTC)
+
+
+def timestamp(payload: dict[str, Any]) -> datetime:
+    return parse_time(next((payload[key] for key in TIME_KEYS if payload.get(key)), ""))
 
 
 def page(
@@ -81,7 +89,12 @@ def page(
         key, payload = items[-1]
         cursor = base64.urlsafe_b64encode(
             canonical(
-                {"version": 1, "scope": query.scope(table), "key": key, "time": timestamp(payload)}
+                {
+                    "version": 1,
+                    "scope": query.scope(table),
+                    "key": key,
+                    "time": timestamp(payload).isoformat(),
+                }
             ).encode()
         ).decode()
     return {

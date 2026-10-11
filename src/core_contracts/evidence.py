@@ -76,6 +76,12 @@ class Observation(Model):
             return self.device_time
         return self.ha_measurement
 
+    def storage_document(self) -> dict[str, Any]:
+        """Omit the additive default for documents still using Alpha-3 identities."""
+        return self.model_dump(
+            mode="json", exclude={"reference_version"} if self.reference_version == 1 else set()
+        )
+
     @property
     def ha_measurement(self) -> datetime | None:
         if self.observation_kind == "report":

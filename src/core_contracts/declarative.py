@@ -1,8 +1,10 @@
 """Type-check and adapt declarative data to the existing Producer lifecycle."""
 
+import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
+from decimal import Decimal
 from math import isfinite
 from typing import Any, Literal
 
@@ -14,8 +16,8 @@ from .model import Model
 from .producer import Context, Producer, TemporalParameters, next_machine_due, next_temporal_due
 from .producer import state_machine as evaluate_machine
 from .producer import temporal as evaluate_temporal
-from .quality import FieldValue, ReasonCode, unknown
-from .resolver import Bucket, boolean, compare, first_match, map_value
+from .quality import FieldValue, ReasonCode, derive, unknown
+from .resolver import Bucket, boolean, compare, first_match
 from .schema import ContractType, FieldSchema, InputDeclaration
 from .statemachine import Definition, Guard, Machine, Transition
 
@@ -34,6 +36,16 @@ class DefinitionValidationErrors(ValueError):
     def __init__(self, issues: list[RuleValidationError]) -> None:
         self.issues = issues
         super().__init__(str(issues[0]))
+
+
+def map_key(value: Any) -> str:
+    """Canonical JSON scalar keys; numeric equality includes 42 == 42.0."""
+    if type(value) in {int, float} and isfinite(value):
+        number = format(Decimal(str(value)), "f")
+        return (number.rstrip("0").rstrip(".") if "." in number else number) if value else "0"
+    if type(value) in {str, bool}:
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    raise ValueError("invalid_map_key")
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
@@ -209,6 +221,16 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.MapRule):
             if args[0].type == "object":
                 raise ValueError("map_requires_scalar")
+            for entry_key in rule.entries:
+                try:
+                    value = json.loads(entry_key)
+                    if not args[0].accepts(value) or map_key(value) != entry_key:
+                        raise ValueError("invalid_map_key")
+                except ValueError, TypeError, OverflowError:
+                    escaped = entry_key.replace("~", "~0").replace("/", "~1")
+                    raise RuleValidationError(
+                        "invalid_map_key", paths[id(rule)] + "/entries/" + escaped
+                    ) from None
             return rule.field_schema
         if isinstance(rule, dm.FirstMatchRule):
             for arg in args[::2]:
@@ -271,6 +293,26 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
     for name, rule in definition.outputs.items():
         check(rule, definition.output_schema.fields[name])
     if definition.machine:
+        seen: set[tuple[str, str]] = set()
+        for index, transition in enumerate(definition.machine.transitions):
+            pair = (transition.source, transition.event)
+            if pair in seen:
+                issues.append(
+                    RuleValidationError(
+                        "duplicate_transition_event", f"/machine/transitions/{index}/event"
+                    )
+                )
+            seen.add(pair)
+
+        def reaches_machine(rule: dm.Rule) -> bool:
+            if isinstance(rule, dm.MachineRule):
+                return True
+            if isinstance(rule, dm.ReferenceRule):
+                return reaches_machine(definition.rules[rule.name])
+            return any(reaches_machine(child) for child in children(rule))
+
+        if not any(reaches_machine(rule) for rule in definition.outputs.values()):
+            issues.append(RuleValidationError("unreachable_machine", "/machine"))
         for rule in [definition.machine.reinitialize_when] + [
             t.guard for t in definition.machine.transitions
         ]:
@@ -312,8 +354,6 @@ class Evaluation:
             and not isfinite(result.value)
         ):
             raise ValueError("declarative_nonfinite_result")
-        if any(reason.code == ReasonCode.EVALUATION_ERROR for reason in result.reasons):
-            raise ValueError("declarative_evaluation_failed")
         # No raw values, attributes, parameters or command arguments in traces.
         self.trace.append(
             {
@@ -323,7 +363,6 @@ class Evaluation:
                 "quality": result.quality,
                 "reasons": [reason.code.value for reason in result.reasons],
                 "evidence": list(result.evidence[:64]),
-                "decision": result.value if type(result.value) is bool else None,
                 **(
                     {"name": rule.name}
                     if isinstance(rule, (dm.InputRule, dm.ReferenceRule, dm.FormulaRule))
@@ -391,11 +430,17 @@ class Evaluation:
         if isinstance(rule, dm.CompareRule):
             return compare(args[0], args[1], rule.comparison, now)
         if isinstance(rule, dm.MapRule):
-            return map_value(args[0], rule.entries, now)
+            value = args[0]
+            if not value.usable(now):
+                return value
+            key = map_key(value.value)
+            if key not in rule.entries:
+                return unknown(ReasonCode.UNMAPPED_VALUE, "map", now)
+            return derive(rule.entries[key], [value], now)
         if isinstance(rule, dm.FirstMatchRule):
             return first_match(list(zip(args[::2], args[1::2], strict=True)), now)
         if isinstance(rule, dm.FormulaRule):
-            return FORMULAS.evaluate(rule.name, rule.version, args, now)
+            return FORMULAS.evaluate(rule.name, rule.version, args, now, raise_errors=True)
         if isinstance(rule, dm.FusionRule):
             result = FUSION.evaluate(rule.strategy, args, now)
             usable = [index for index, arg in enumerate(args) if arg.usable(now)]
@@ -436,13 +481,13 @@ class Evaluation:
         assert self.context is not None
         if isinstance(rule, dm.BucketRule):
             key = f"{self.context.contract.contract_id}:{rule.id}"
-            node = self.context.node.setdefault("rules", {}).setdefault(rule.id, {})
+            # G6: hysteresis is volatile, including after database recovery. Remove
+            # pre-review Alpha-4 context without touching other temporal nodes.
+            self.context.node.get("rules", {}).pop(rule.id, None)
             bucket = self.context.latches.setdefault(
-                key, Bucket(rule.initial, rule.lower, rule.upper, node.get("latch"))
+                key, Bucket(rule.initial, rule.lower, rule.upper)
             )
-            result = bucket.evaluate(args[0], now)
-            node["latch"] = bucket.latch
-            return result
+            return bucket.evaluate(args[0], now)
         assert isinstance(rule, dm.TemporalRule)
         node = self.context.node.setdefault("rules", {}).setdefault(
             rule.id, {"fingerprint": self.context.node["fingerprint"]}
@@ -555,15 +600,18 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
             for name, value in values.items()
         ):
             raise ValueError("declarative_output_type_mismatch")
-        ctx.node["trace"] = {
-            "at": ctx.now.isoformat(),
+        trace = {
             "registry_revision": ctx.state.active_revision,
             "epoch_id": ctx.state.epoch_id,
-            "origin": ctx.origin,
             "steps": evaluation.trace[:1024],
             "truncated": len(evaluation.trace) > 1024,
             "cost": evaluation.cost,
         }
+        previous = ctx.node.get("trace", {})
+        if ctx.origin != "revision" or trace != {
+            key: value for key, value in previous.items() if key not in {"at", "origin"}
+        }:
+            ctx.node["trace"] = {"at": ctx.now.isoformat(), "origin": ctx.origin, **trace}
         return values
 
     def next_due(

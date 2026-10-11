@@ -119,8 +119,12 @@ aktiven Edge bleiben echte, einmalig publizierte Zustandswechsel.
 Neue Heartbeat-Reports sind neue Evidence und erzeugen weiterhin Publications.
 Audit-Zeilen echter Änderungen bleiben in
 PostgreSQL; Retention/Partitionierung ist gemäß Spezifikation §29 vertagt und
-DB-Speicher muss beobachtet werden. API-Historie ist auf die neuesten 100 Einträge
-sortiert begrenzt. SQL-Writes pro geänderter Zeile bleiben seriell; hohe WAN-Latenz
+DB-Speicher muss beobachtet werden. Die alte API-Historie bleibt auf 100 Einträge
+begrenzt; Alpha 4 ergänzt UTC-sortierte Cursor-Seiten mit maximal 200 Einträgen.
+Das begrenzt weder die dauerhafte Historie noch den SQL-Suchaufwand. Der
+[Alpha-4-Messnachweis und Folgeauftrag F1](alpha4/opus-review-corrections.md)
+beschreibt Speicherwachstum, Zugriffspläne und das offene Produktionsgrößen-Gate.
+SQL-Writes pro geänderter Zeile bleiben seriell; hohe WAN-Latenz
 kann den Durchsatz begrenzen.
 
 HA-Gerätezeit ist nur über ausdrücklich konfiguriertes `adapter.ha_time_attribute`
@@ -133,6 +137,11 @@ oder eine neuere unbekannte DB-Version blockieren den Start. Kein automatischer
 Contract-/Registry-Semantik-Upgrade. App-Updates aktivieren keine Revision.
 
 ## Konsistentes Backup und Restore
+
+Für einen Software-Downgrade gilt zusätzlich das
+[Alpha-4-/Alpha-3-Runbook](alpha4/downgrade.md). Nach gespeicherten
+Alpha-4-Erweiterungen genügt ein Registry-Rollback nicht: Er benötigt ein
+nachweislich kompatibles Paar aus `/data` und PostgreSQL-Backup.
 
 Ein Supervisor-Backup enthält `/data`, aber **nicht** die externe PostgreSQL-DB.
 

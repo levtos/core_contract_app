@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -26,6 +27,7 @@ from .registry import (
     registry_types,
     required_sources,
     resolve_ref,
+    storage_document,
     topological,
     validate,
 )
@@ -340,7 +342,7 @@ class Runtime:
                     continue
                 self.state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                     update={"observation_kind": "snapshot"}
-                ).model_dump(mode="json")
+                ).storage_document()
             await self._restore("database_rollback" if rollback else "db_outage")
             for key, value in buffered.items():
                 if self.latest.get(key) is value:
@@ -454,7 +456,9 @@ class Runtime:
             if len(canonical(document).encode()) > 2_000_000:
                 raise ValueError("document too large")
             key = payload.get("draft_id", str(uuid4()))
-            if not isinstance(key, str) or not 1 <= len(key) <= 128:
+            if not isinstance(key, str) or not re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", key
+            ):
                 raise ValueError("invalid_draft_id")
             if operation == "draft_update" and (
                 type(payload.get("draft_version")) is not int or payload["draft_version"] < 1
@@ -545,8 +549,8 @@ class Runtime:
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {
                 "revision": revision,
-                "config": new_config.model_dump(mode="json"),
-                "checksum": checksum(new_config),
+                "config": storage_document(new_config),
+                "checksum": checksum(storage_document(new_config)),
                 "created_at": now.isoformat(),
             }
             state.tables["registry_activation"][str(revision)] = {
@@ -612,8 +616,8 @@ class Runtime:
                     and obs.binding_id in {b.binding_id for b in config.bindings}
                     and not self._older_than_stored(state, obs)
                 ):
-                    state.tables["source_observation_current"][obs.binding_id] = obs.model_dump(
-                        mode="json"
+                    state.tables["source_observation_current"][obs.binding_id] = (
+                        obs.storage_document()
                     )
                     await self._record_observation(state, obs)
         elif operation == "observation":
@@ -660,7 +664,7 @@ class Runtime:
                 )
             ):
                 return None
-            state.tables["source_observation_current"][obs.binding_id] = obs.model_dump(mode="json")
+            state.tables["source_observation_current"][obs.binding_id] = obs.storage_document()
             await self._record_observation(state, obs)
         elif operation != "tick":
             raise ValueError("unknown runtime operation")
@@ -703,7 +707,7 @@ class Runtime:
             await self.store.get("source_observation_history", observation.reference) is None
         ):
             state.tables["source_observation_history"][observation.reference] = (
-                observation.model_dump(mode="json")
+                observation.storage_document()
             )
 
     def _invalidate(self, state: State, config: RegistryConfig, bindings: set[str]) -> None:
@@ -756,7 +760,7 @@ class Runtime:
                 continue
             state.tables["source_observation_current"][obs.binding_id] = obs.model_copy(
                 update={"observation_kind": "snapshot"}
-            ).model_dump(mode="json")
+            ).storage_document()
             await self._record_observation(
                 state, obs.model_copy(update={"observation_kind": "snapshot"})
             )
@@ -837,6 +841,7 @@ class Runtime:
             self.latches if initial_latches is None else initial_latches
         )
         fps = fingerprints(config, self.types)
+        types = registry_types(config, self.types)
         self.pending_refresh = set()
         previous_config = self.config
         if previous_config:
@@ -880,9 +885,7 @@ class Runtime:
             if node is None or node.get("fingerprint") != fps[key] or case == "stale":
                 node = {"fingerprint": fps[key]}
             machine_state: MachineState | None = None
-            declaration = registry_types(config, self.types).get(
-                contract.type_id, contract.type_version
-            )
+            declaration = types.get(contract.type_id, contract.type_version)
             original_node = copy.deepcopy(node)
             original_latches = copy.deepcopy(self.pending_latches)
             refresh: set[str] = set()
@@ -1046,6 +1049,11 @@ class Runtime:
             else None
         )
         result: dict[str, Any] = {"command_id": command.command_id, "status": "not_supported"}
+        declaration = (
+            registry_types(config, self.types).get(contract.type_id, contract.type_version)
+            if config and contract
+            else None
+        )
         override: dict[str, MachineState] = {}
         if command.valid_until <= now:
             result["status"] = "expired"
@@ -1057,16 +1065,8 @@ class Runtime:
         ):
             result.update(status="rejected", reason="active_revision_conflict")
         elif (
-            contract
-            and contract.enabled
-            and config
-            and registry_types(config, self.types)
-            .get(contract.type_id, contract.type_version)
-            .machine_factory
+            contract and contract.enabled and config and declaration and declaration.machine_factory
         ):
-            declaration = registry_types(config, self.types).get(
-                contract.type_id, contract.type_version
-            )
             factory = declaration.machine_factory
             assert factory is not None
             machine = factory(contract.parameters)
@@ -1191,6 +1191,7 @@ class Runtime:
         due: list[datetime] = []
         config = self.config
         if config:
+            types = registry_types(config, self.types)
             bindings = {b.source_id: b.binding_id for b in config.bindings}
             observations = self.state.tables["source_observation_current"]
             for source in config.sources:
@@ -1211,11 +1212,7 @@ class Runtime:
                                     + timedelta(seconds=source.freshness.interval_s, microseconds=1)
                                 )
             for contract in config.contracts:
-                callback = (
-                    registry_types(config, self.types)
-                    .get(contract.type_id, contract.type_version)
-                    .next_due
-                )
+                callback = types.get(contract.type_id, contract.type_version).next_due
                 if callback and contract.enabled:
                     try:
                         at = callback(

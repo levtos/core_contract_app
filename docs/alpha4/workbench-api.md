@@ -30,6 +30,9 @@ Listing and reading retain their existing routes. Drafts now include
 `draft_version`. `DELETE /registry/drafts/{id}` requires a JSON body containing
 the current `draft_version`. Duplication requires only create with a copied
 configuration; it has no privileged execution path. At most 100 drafts exist.
+Explicit draft IDs match `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`; omitted IDs are
+UUIDv4. Every accepted ID is addressable through the same read/update/delete
+routes. Slash, dot-only paths, whitespace, escapes and non-ASCII IDs are rejected.
 
 Null, scalar and array imports are rejected. Without an active registry,
 the export route returns HTTP 409 `no_active_registry`. The existing active
@@ -46,6 +49,9 @@ This is forward compatibility for existing Alpha-3 data. An old Alpha-3 binary
 does not understand declarative definitions or version-2 fields and must not be
 used to run an activated Alpha-4 configuration. Returning to old software needs
 an explicitly compatible registry/backup; it is not a silent downgrade path.
+Pure v1 writes retain the released stored document shape, verified against
+actual Alpha-3 artifacts. See the [downgrade runbook](downgrade.md) before any
+binary change; rolling back a registry is not sufficient to downgrade all data.
 
 `definitions[]` contains:
 
@@ -87,6 +93,13 @@ memoized, so shared stateful rules advance once per producer evaluation.
 
 Bool operations require booleans. Ordered comparisons require compatible
 number/text/timestamp operands. Map entries must match their result schema.
+Declarative map keys are canonical JSON scalars encoded as object keys:
+`{"true":"on","false":"off"}` for boolean input, `{"42":"answer"}` for
+numeric input (42 and 42.0 agree), and `{"\"on\"":true}` for text/enum input.
+Numbers have no exponent or redundant fraction zeros. String keys are quoted
+JSON with exact content, including timestamp strings. Keys are checked against
+the input schema/catalog. Legacy binding catalogs and registered maps retain
+their existing key format; do not convert them to this declarative format.
 First-match results and fusion candidates have compatible types; enum catalogs
 can join, and units must agree. Bucket accepts a number and emits a boolean.
 Registered formula metadata supplies input/output types; sum preserves a common
@@ -104,6 +117,11 @@ schemas, episode boundaries, sessions and one deadline are data. Guards can
 reference stateless internal rules. Temporal truths enter guards through typed
 contract inputs. `argument_equals` adds typed argument checks. A command asks
 for a named transition; it cannot write arbitrary runtime state.
+There is at most one transition per `(source,event)` pair. Duplicate pairs are
+rejected at the offending transition's event path. A machine must be reachable
+from an output (including through named rules); unused machines are rejected.
+Bucket latches reset to initial on process restart and DB recovery. Other
+temporal nodes follow their existing individual restore contracts.
 
 ## Validation and static impact
 
@@ -129,6 +147,10 @@ JSON Schema expresses structural conditions. The returned
 `x-semantic-validation` metadata identifies cross-reference, type, graph and
 immutability rules requiring the shared validation endpoint. A generic editor
 does not need Python class knowledge.
+The metadata now lists source/binding/catalog, reference, dependency, graph,
+resource and declarative semantic rules, plus model-level conditional
+constraints. Use server validation as the authoritative result; structural
+Pydantic failures retain the `schema.*`/`parameter.*` code families.
 
 The diff retains added/removed/changed contract lists and adds:
 
@@ -151,6 +173,17 @@ fingerprints may require reinitialization. No diff activates or evaluates data.
 
 All routes below are admin-only except capabilities, types, reasons and info,
 which retain the authenticated consumer read boundary.
+Capabilities/types intentionally include registered and active declarative
+definition metadata and schemas for authenticated consumers, including literal
+configuration values. The separate definitions/configuration/history/diagnosis
+routes remain admin-only. Registry data must contain no secrets; the metadata
+catalog is not a private configuration vault. This preserves the existing
+consumer boundary rather than silently changing role behavior.
+
+`capabilities.history.kinds` enumerates every paged history option, including
+gaps, diagnostics, revisions and activations. The same object describes the
+admin role, page bound, UTC instant ordering and scope-bound cursor. Draft-ID
+and declarative map-key conventions are also machine-readable.
 
 | Route | Result |
 |---|---|
@@ -184,12 +217,15 @@ Old Alpha-3 observations omitted from its history cannot be reconstructed and
 return an explicit 404. Legacy episode/deadline rows without contract_id resolve
 their ownership through recorded transitions, without rewriting old records.
 
-Trace retains the latest committed evaluation only. It records operator
-decisions, named inputs/references, reasons, bounded evidence references, fusion
+Trace retains the latest relevant committed evaluation only. Unchanged
+unrelated-source evaluations preserve `at`/`origin`; they are not a processor
+heartbeat. It records operator status, named inputs/references, reasons, bounded evidence references, fusion
 strategy/candidate selection and guard decisions. Built-in selection reports
 candidate indices; registered strategies expose their resulting evidence and
 are identified as strategy-defined. Each trace has at most 1,024 records with an
-explicit truncation flag. It omits raw values and command arguments. Diagnostics omit temporal
+explicit truncation flag. Input/literal/ref/operator steps omit raw values,
+including booleans. Only explicit machine guard outcomes and fusion selections
+disclose control-flow decisions. Command arguments are omitted. Diagnostics omit temporal
 last-value payloads. Reads do not advance state, refresh inputs or fire deadlines.
 
 Discovery uses the existing configured HA authentication and only get_states.
@@ -197,6 +233,10 @@ It returns entity identifiers, display metadata and attribute names; arbitrary
 attribute/state values are excluded. Cache: 15 seconds; response cap: 4 MB and
 10,000 entities; page cap: 200. `after` accepts the previous `next_cursor`
 entity ID. No HA service call, helper or device mutation is available.
+An oversized response is rejected completely with HTTP 503
+`ha_discovery_unavailable`; no partial cache or incomplete successful page is
+returned. Page size does not reduce the upstream get_states response. Actual
+HA size, latency, Ingress trust and client handling require separate Live acceptance.
 
 ## Security, time, caching and audit
 
@@ -208,6 +248,12 @@ revision/object IDs and time. Tokens and arguments are excluded.
 Token rotation first commits intent, then changes the token file, then commits
 completion. An unmatched intent means the outcome needs reconciliation; it does
 not claim completion. Failure of the initial audit commit prevents rotation.
+After the token file succeeds, the response remains HTTP 200 with `role`,
+`token`, `status:"rotated"`, `rotation_id` and `audit_status:"complete"` or
+`"completion_unconfirmed"`. Save the new token even in the latter case; a
+completion write or acknowledgement may have failed. Do not retry rotation
+automatically. A lost HTTP response remains a network recovery case, not proof
+that the old token is valid. Tokens never appear in audit rows or logs.
 
 Command clients use the server time from info/welcome and account for round-trip
 uncertainty. issued_at cannot be in the server's future; valid_until is exclusive.

@@ -22,6 +22,65 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_review_hysteresis_recovery_and_time_filters(database, config):
+    from .test_alpha4_review import exercise_history_times, exercise_latch_restore, observation
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        end = await exercise_latch_restore(runtime, config)
+
+        def fail():
+            raise OSError("injected transaction failure")
+
+        store.before_commit = fail
+        runtime.clock.advance(1)
+        with pytest.raises(OSError):
+            await runtime.submit("observation", observation(runtime, 3, ingest_seq=5))
+        assert runtime.latches["fixture.echo:latch"].latch is True
+        store.before_commit = None
+        await runtime.submit("recover")
+        await runtime.submit(
+            "snapshot",
+            [
+                observation(runtime, 3, ingest_seq=6).model_copy(
+                    update={"observation_kind": "snapshot"}
+                )
+            ],
+        )
+        assert field(runtime)["value"] is False
+        assert field(runtime, key="held")["held_until"] == end
+        await exercise_history_times(store)
+        runtime.clock.advance(1)
+        await runtime.submit("observation", observation(runtime, 6, ingest_seq=7))
+        runtime.clock.advance(1)
+        await runtime.submit("observation", observation(runtime, 3, ingest_seq=8))
+        assert field(runtime)["value"] is True
+    finally:
+        await runtime.stop()
+        await store.close()
+    restored = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored.open()
+    restarted = Runtime(restored, runtime.clock, type_registry())
+    await restarted.start()
+    try:
+        await restarted.submit(
+            "snapshot",
+            [
+                observation(restarted, 3, ingest_seq=9).model_copy(
+                    update={"observation_kind": "snapshot"}
+                )
+            ],
+        )
+        assert field(restarted)["value"] is False
+        assert field(restarted, key="held")["held_until"] == end
+    finally:
+        await restarted.stop()
+        await restored.close()
+
+
 async def test_multistage_chain_postgres_restart_restore(database, config):
     store = PostgresStore(database, MIGRATIONS, tls=False)
     await store.open()

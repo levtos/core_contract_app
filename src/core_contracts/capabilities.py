@@ -4,11 +4,69 @@ from typing import Any
 
 from .declarative_models import MAX_DEPTH, MAX_FIELDS, MAX_INPUTS, MAX_NODES, DeclarativeDefinition
 from .engines import FORMULA_SCHEMAS, FUSION_INPUTS
-from .history import HistoryQuery
+from .history import HISTORY_TABLES, HistoryQuery
 from .quality import ReasonCode
 from .registry import RegistryConfig, registry_types
 from .schema import TypeRegistry
 from .statemachine import Machine
+
+SEMANTIC_RULES = {
+    "document_object_required": "configuration is a JSON object",
+    "unsafe_document": "no secrets; finite JSON; document size and depth limits",
+    "fingerprint_upgrade_required": "declarative definitions require fingerprint version 2",
+    "immutable_definition_version": "published definition semantics are immutable",
+    "definition_invalid": "definition resource limits and reserved package identities",
+    "duplicate_identity": "identities are unique within each registry object kind",
+    "ambiguous_identity": "source and contract identities are disjoint",
+    "source_dependency": "sources have a known dependency and local origin",
+    "liveness_reference": "liveness sources exist",
+    "monitor_required": "source-monitored dependencies reference a source",
+    "monitor_unsupported": "internal monitors support only known adapter kinds",
+    "dependency_cycle": "dependency monitor graph is acyclic",
+    "source_dependency_cycle": "source and liveness graph is acyclic and at most depth 64 in v2",
+    "adapter_unsupported": "scheduler is not a source adapter",
+    "duplicate_adapter": "an adapter evidence path is bound once",
+    "binding_source": "bindings target distinct existing sources",
+    "duplicate_evidence": "physical evidence paths are not counted twice",
+    "catalog_reference": "map bindings reference an existing catalog",
+    "binding_type_mismatch": "binding transform output matches source value_schema",
+    "catalog_type_mismatch": "all map catalog values match source value_schema",
+    "monitor_unbound": "dependency monitor sources have a binding",
+    "type_reference": "contract type and version are registered",
+    "grace_duration": "grace duration is positive",
+    "contract_inputs": "inputs are distinct, declared and include every required input",
+    "input_reference": "input references resolve unambiguously",
+    "refresh_binding": "refresh inputs refer to an HA source binding",
+    "source_unbound": "referenced source has a binding",
+    "field_reference": "referenced contract field exists",
+    "disabled_dependency": "enabled contracts cannot require disabled contracts",
+    "input_type_mismatch": "input type, catalog and unit are compatible",
+    "registry_evaluation_limit": "enabled definitions total at most 8192 estimated steps",
+    "contract_cycle": "contract graph is acyclic",
+    "contract_graph_depth": "contract graph depth is at most 64 in v2",
+    **{
+        "definition." + code: constraint
+        for code, constraint in {
+            "rule_type_mismatch": "operator inputs and output schemas are compatible",
+            "unit_mismatch": "combined numeric inputs have equal units",
+            "internal_cycle": "internal rule references are acyclic",
+            "unknown_internal_reference": "internal references name a declared rule",
+            "unknown_rule_input": "input expressions name a declared input",
+            "duplicate_stateful_id": "stateful node ids are unique",
+            "definition_resource_limit": "expanded depth and physical node count obey limits",
+            "stateful_guard_requires_contract_input": "guards and reinitialization expressions are stateless",
+            "comparison_type_mismatch": "comparison operands have compatible types",
+            "unordered_comparison": "ordering applies to number, text and timestamp only",
+            "map_requires_scalar": "map inputs cannot have object type",
+            "invalid_map_key": "map keys are canonical JSON scalars matching the input type and catalog",
+            "unknown_formula_version": "formula name/version is registered",
+            "unknown_fusion_strategy": "fusion strategy is registered",
+            "machine_definition_required": "machine expressions require a definition",
+            "duplicate_transition_event": "each machine source/event pair occurs at most once",
+            "unreachable_machine": "a declared machine is reachable from an output through rules",
+        }.items()
+    },
+}
 
 REASONS = {
     ReasonCode.INPUT_UNAVAILABLE: "The source reports unavailable.",
@@ -186,30 +244,36 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
     schema["x-semantic-validation"] = {
         "endpoint": "/api/v1/registry/validate",
         "rules": [
-            {
-                "code": "rule_type_mismatch",
-                "constraint": "operator inputs and outputs must be compatible",
-            },
-            {"code": "internal_cycle", "constraint": "internal rule graph is acyclic"},
-            {"code": "contract_cycle", "constraint": "external contract graph is acyclic"},
-            {
-                "code": "duplicate_stateful_id",
-                "constraint": "stateful ids are unique within a definition",
-            },
-            {"code": "invalid_hysteresis_bounds", "constraint": "lower <= upper"},
-            {
-                "code": "output_schema_mismatch",
-                "constraint": "outputs and schema.fields have equal keys",
-            },
-            {
-                "code": "immutable_definition_version",
-                "constraint": "published semantic versions cannot change",
-            },
-            {
-                "code": "stateful_guard_requires_contract_input",
-                "constraint": "guards have no stateful nodes",
-            },
+            {"code": code, "constraint": constraint} for code, constraint in SEMANTIC_RULES.items()
         ],
+        "structural_code_families": ["schema.*", "parameter.*"],
+        "model_constraints": {
+            "BucketRule": ["lower <= upper"],
+            "DeclarativeDefinition": [
+                "distinct inputs",
+                "outputs equal schema.fields",
+                "fixture only",
+                "refresh inputs declared",
+                "grace uses temporal rule duration",
+            ],
+            "MachineDefinition": [
+                "distinct states",
+                "initial/source/target belong to states",
+                "declared events and commands",
+                "deadline event requires deadline_s",
+                "reserved input/deadline events",
+                "typed argument_equals",
+                "no model-reserved argument names",
+            ],
+            "LiteralRule": ["value matches schema"],
+            "MapRule": ["all entry values match result schema"],
+            "FieldSchema": ["enum requires a value catalog where used"],
+            "Schema": [
+                "nonempty fields",
+                "available_projection refers to fields",
+                "grace parameter matches capability",
+            ],
+        },
     }
     return schema
 
@@ -222,6 +286,23 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
         "config_schema_version": 1,
         "fingerprint_versions": [1, 2],
         "evidence_reference_versions": [1, 2],
+        "metadata_access": "authenticated_consumer_or_admin",
+        "history": {
+            "kinds": list(HISTORY_TABLES),
+            "endpoint": "/api/v1/history/query/{kind}",
+            "role": "admin",
+            "order": "time_desc_key_desc",
+            "time_comparison": "utc_instant",
+            "cursor": "scope_bound_keyset",
+            "limit": 200,
+        },
+        "draft_id": {"pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$", "generated": "uuid4"},
+        "map_keys": {
+            "format": "canonical_json_scalar",
+            "numbers": "decimal_without_exponent_or_trailing_fraction_zeros",
+            "strings": "json_quoted_exact",
+            "legacy_catalogs": "unchanged_python_str",
+        },
         "declarative_fingerprint_version": 2,
         "compatibility": {
             "alpha3_documents": True,
@@ -311,9 +392,9 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
             "definitions": 128,
             "drafts": 100,
             "history_page": 200,
-            "trace_retention": "latest_committed_per_contract",
+            "trace_retention": "latest_relevant_committed_per_contract",
             "trace_steps": 1024,
-            "trace_values": "boolean_decisions_only",
+            "trace_values": "no_raw_values; machine_guard_decisions_and_fusion_indices_only",
             "trace_evidence_per_step": 64,
         },
         "reasons": reasons(),
