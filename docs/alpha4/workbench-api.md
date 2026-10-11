@@ -42,6 +42,10 @@ An omitted value retains Alpha-3 fingerprint version 1. The registry schema
 remains version 1; the new field is additive. Validation reports the 1-to-2
 context migration before activation. Both modes survive restart; rollback can
 select the historical mode as a new revision. No database conversion is performed.
+This is forward compatibility for existing Alpha-3 data. An old Alpha-3 binary
+does not understand declarative definitions or version-2 fields and must not be
+used to run an activated Alpha-4 configuration. Returning to old software needs
+an explicitly compatible registry/backup; it is not a silent downgrade path.
 
 `definitions[]` contains:
 

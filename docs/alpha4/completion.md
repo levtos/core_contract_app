@@ -103,6 +103,11 @@ and exact evidence compatibility. Existing security and acceptance tests remain.
   Fingerprint migration is explicit registry data, not a silent DB rewrite.
   Version 1 survives restart unchanged; version 2 survives restart; rollback
   chooses the historical algorithm as a new revision.
+- All ten source/contract fingerprint vectors in the unchanged Phase-1A
+  acceptance registry were generated from the released Alpha-3 source tree and
+  matched byte-for-byte against this implementation. The fixed vectors are
+  preserved in `test_released_alpha3_acceptance_registry_fingerprint_vectors`.
+  This guards against accidentally testing only two paths through new code.
 - Definition semantics are immutable across all committed revisions. New tuning
   uses a new definition version; instance parameters remain an empty object.
 - Guards are pure. Temporal guard inputs come from typed contracts. One machine
