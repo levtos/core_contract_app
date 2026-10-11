@@ -679,7 +679,7 @@ class Runtime:
                 result[item.name] = (
                     FieldValue.model_validate(envelope["fields"][field])
                     if envelope
-                    else unknown(ReasonCode.INPUT_ABSENT, ref, now)
+                    else unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
                 )
             else:
                 result[item.name] = source_value(ref, set())

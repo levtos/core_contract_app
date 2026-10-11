@@ -55,6 +55,8 @@ explizite `source_id`: tragfähiges gesundes Bool `true` bedeutet verfügbar, al
 `dependency_unavailable`. Selbstreferenzen, Monitorzyklen, ungebundene Monitore und
 unimplementierte interne `other`-Monitore werden abgelehnt. Monitoring erzeugt keine
 fachlichen Connectivity-Contracts. Fingerprints berücksichtigen Source-Monitor-Abhängigkeiten.
+Deaktivierte erforderliche Contract-Inputs blockieren eine Aktivierung; optionale
+deaktivierte Inputs liefern `dependency_unavailable` und dürfen degradiert fusioniert werden.
 Der bislang nur deklarierte Source-Adapter `scheduler` wird abgelehnt; der interne
 Deadline-/Temporal-Scheduler bleibt unverändert nutzbar.
 

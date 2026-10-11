@@ -236,7 +236,7 @@ def validate(document: dict[str, Any], types: TypeRegistry) -> RegistryConfig:
                 target = contracts[ref]
                 if field not in types.get(target.type_id, target.type_version).schema.fields:
                     raise ValueError("unknown contract field")
-                if contract.enabled and not target.enabled:
+                if contract.enabled and not target.enabled and item.name in required:
                     raise ValueError("disabled required dependency")
     topological(config)
     return config

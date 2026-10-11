@@ -577,3 +577,51 @@ async def test_old_adapter_revision_cannot_restore_readiness_or_evidence(runtime
     await runtime.queue.join()
     assert runtime.snapshot() == before
     assert not runtime.ready and not runtime.first_snapshot
+
+
+async def test_disabled_optional_dependency_degrades_without_blocking_activation(runtime, config):
+    config["contracts"] = [
+        contract("disabled", "echo", ["source.a"]),
+        contract(
+            "fusion", "fusion", ["source.a", "fixture.disabled"], dict(strategy="first_healthy")
+        ),
+    ]
+    config["contracts"][0]["enabled"] = False
+    await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    assert field(runtime, "fusion")["value"] is True
+    assert field(runtime, "fusion")["quality"] == "degraded"
+    inputs = runtime._inputs(runtime.config.contracts[1], runtime.config, runtime.state)
+    assert inputs["b"].reasons[0].code == ReasonCode.DEPENDENCY_UNAVAILABLE
+
+
+def test_command_schema_cannot_ignore_extra_arguments():
+    from pydantic import BaseModel
+
+    class OpenArgs(BaseModel):
+        confirm: bool
+
+    with pytest.raises(ValueError, match="closed schema"):
+        TypeRegistry().register(
+            replace(type_registry().get("test.state_machine", 1), commands={"request_b": OpenArgs})
+        )
+
+
+def test_timestamp_field_survives_json_roundtrip_and_normalizes_utc():
+    schema = Schema(
+        fields={"at": FieldSchema(type="timestamp", required=True, physical_state=False)}
+    )
+    original = FieldValue(status="valid", quality="healthy", value="2026-01-01T13:00:00+01:00")
+    value = validate_fields(schema, {"at": original}, NOW)["at"]
+    restored = FieldValue.model_validate_json(value.model_dump_json())
+    assert validate_fields(schema, {"at": restored}, NOW)["at"].value == NOW
+
+
+@pytest.mark.parametrize("raw", ["NaN", "Infinity", "-Infinity"])
+def test_numeric_transform_rejects_nonfinite_json_values(config, raw):
+    from core_contracts.adapters.ha import transform
+
+    config["bindings"][0]["transform"] = dict(kind="type_cast", target="number")
+    parsed = validate(config, type_registry())
+    with pytest.raises(ValueError, match="non-finite"):
+        transform(raw, parsed.bindings[0], parsed)

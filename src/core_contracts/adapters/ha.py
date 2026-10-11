@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from math import isfinite
 from typing import Any
 
 import aiohttp
@@ -22,12 +23,17 @@ def timestamp(value: Any) -> datetime | None:
 
 
 def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
+    def finite(number: float) -> float:
+        if not isfinite(number):
+            raise ValueError("non-finite number")
+        return number
+
     transformation = binding.transform
     if transformation is None:
         return value
     if transformation.kind == "type_cast":
         if transformation.target == "number":
-            return float(value)
+            return finite(float(value))
         if transformation.target == "bool":
             if value not in (True, False, "true", "false", "on", "off"):
                 raise ValueError("invalid boolean")
@@ -35,7 +41,7 @@ def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
         return str(value)
     if transformation.kind == "unit_scale":
         assert transformation.factor is not None and transformation.offset is not None
-        return float(value) * transformation.factor + transformation.offset
+        return finite(float(value) * transformation.factor + transformation.offset)
     catalog = next(c for c in config.catalogs if c.catalog_id == transformation.catalog_id)
     return catalog.entries[str(value)]
 

@@ -107,6 +107,12 @@ class API:
                         "unbound source",
                         "disabled required dependency",
                         "revision_not_found",
+                        "scheduler source adapter not implemented",
+                        "dependency monitor source required",
+                        "dependency monitor cycle",
+                        "unbound dependency monitor",
+                        "unsupported internal dependency monitor",
+                        "refresh requires HA source binding",
                     }
                     else "invalid_request"
                 )

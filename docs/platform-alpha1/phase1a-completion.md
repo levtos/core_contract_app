@@ -17,6 +17,7 @@ es erfolgt kein Merge, Release oder Live-Eingriff in diesem Auftrag.
 | Mehrstufige Ketten ungetestet (P0) | Sonde nachvollzogen; dauerhafte vierstufige Grace→NOT→Fusion→stable_for-Kette, atomare Publication, held/degraded/partial_evidence | multistage_publication_restore_and_no_grace_extension, graph_through_real_client |
 | Ketten-Restart mit PostgreSQL (P0 Test) | realer unabhängiger Store-Neuaufbau, ursprüngliche Grace-Frist, Ablauf und neue Revision | test_postgres: multistage_chain_postgres_restart_restore (CI-PostgreSQL) |
 | Registry-Zyklen nur Selbstreferenz (P1) | Validierung bereits korrekt, ergänzte Mehrstufen-/Disabled-/Rollback-Tests statt Algorithmus-Umbau | chain_revision_rollback_disabled_and_multistage_cycle |
+| Deaktivierte optionale Dependencies | präzisiert: nur deaktivierte Pflichtinputs blockieren Aktivierung; optionale liefern dependency_unavailable und Fusion kann degraded weiterarbeiten | disabled_optional_dependency_degrades_without_blocking_activation |
 | test.* hart im generischen Registrar (E2) | bestätigt; Registrierung erweiterbar, App-Katalog unverändert synthetisch. Opus-Vorschlag core.* ausdrücklich nicht übernommen | code_defined_type_registration_extensible_but_production_only_test; G13 |
 | Dependency.monitor ungenutzt (P1) | bestätigt; interne HA/MQTT- und explizite Source-Monitore, Zyklus-/Bindingprüfung, transitive Fingerprints/Invalidierung | dependency_internal_and_source_monitor, unused_ha_and_source_monitor_readiness |
 | map_ref liefert input_unknown (P1) | bestätigt; spezifisches unmapped_value in HA und MQTT; Cast-/Scale-Fehler bleiben invalid_value | transforms_preserve_precise_failure, generic_transforms |
@@ -57,6 +58,18 @@ zehnminütige Liveness-/Ingress-Prüfung sind historische Teilnachweise. Sie wer
 weder erneut ausgeführt noch als Nachweis für diesen neuen Code ausgegeben.
 
 ## Verbleibende Grenzen
+
+Gezielter technischer Selbstreview der geänderten Pfade: Commit-before-publication und
+Refresh-dispatch, partielle Producer-Fehler, ursprüngliche Grace-Fristen, Fingerprints und
+v1-Typbeschreibungen, optionale/erforderliche Dependencies, Argument-Coercion/Extras,
+Timestamp-JSON-Roundtrip und nicht endliche Transform-Ergebnisse. Zusätzlich wird bewiesen,
+dass alte Adapter-Revisionen weder neue Evidence noch Readiness freigeben. Gefundene
+Kanten sind im selben PR korrigiert und als Regressionstests enthalten. Kein neuer Gesamtaudit.
+
+Lokaler Stand vor finaler CI: **316 passed, 11 skipped** (Umgebung PG/MQTT/HA),
+strict mypy ohne Fehler, 14 Frontend-Tests, Svelte/TypeScript ohne Fehler/Warnungen und
+Produktionsbuild erfolgreich. Vollständige CI umfasst die lokal fehlenden Dienste;
+der unveränderliche Abschlussnachweis am PR nennt den finalen Commit und Lauf.
 
 Keine Domain-Typen, keine Aktorik, keine externe Plugin-Plattform. Die gebündelte
 [Live-Abnahme](live-acceptance.md) bleibt offen; eine grüne CI schließt sie nicht.

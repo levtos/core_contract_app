@@ -8,7 +8,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from .model import Model
+from .model import Model, utc
 from .quality import FieldValue, ReasonCode, unknown
 from .statemachine import Machine, MachineState
 
@@ -112,6 +112,10 @@ class TypeRegistry:
             raise ValueError("versioned type identity required")
         if set(contract_type.refresh_inputs) - {i.name for i in contract_type.inputs}:
             raise ValueError("unknown refresh input")
+        if any(
+            model.model_config.get("extra") != "forbid" for model in contract_type.commands.values()
+        ):
+            raise ValueError("command arguments must use a closed schema")
         if (
             contract_type.schema.grace_capable
             and contract_type.schema.grace_parameter not in contract_type.parameters.model_fields
@@ -159,5 +163,10 @@ def validate_fields(
                 value = unknown(ReasonCode.INVALID_VALUE, name, now)
         if value.usable(now) and not declaration.accepts(value.value):
             value = unknown(ReasonCode.INVALID_VALUE, name, now)
+        elif value.usable(now) and declaration.type == "timestamp":
+            stamp = (
+                datetime.fromisoformat(value.value) if isinstance(value.value, str) else value.value
+            )
+            value = value.model_copy(update={"value": utc(stamp)})
         result[name] = FieldValue.model_validate(value.model_dump())
     return result
