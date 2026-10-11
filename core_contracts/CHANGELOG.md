@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0a3 — Phase 1A (prepared)
+
+- Reusable producer kit, multi-field contracts and multistage graph/restore coverage.
+- Dependency monitoring, declared source refresh, typed commands and MQTT-only readiness.
+- Atomic command rejection on producer failure and lifecycle regression tests.
+- Visible setup diagnostics for invalid existing Supervisor options.
+- Preserve installation identity, database schema and existing API/Bridge protocols.
+- Publication pending; no automatic installation or Live acceptance.
+- [Alpha 3 release preparation](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a3.md).
+
 ## 1.0.0a2 — First-Run-Wizard
 
 - German Ingress setup before database initialization, private resumable configuration.
