@@ -5,6 +5,7 @@ import copy
 import json
 from dataclasses import replace
 from datetime import timedelta
+from unittest.mock import Mock
 from uuid import uuid4
 
 import aiohttp
@@ -22,6 +23,7 @@ from core_contracts.runtime import Runtime
 from core_contracts.schema import FieldSchema, Schema, TypeRegistry, validate_fields
 from core_contracts.security import Tokens
 from core_contracts.testing.contract_types import type_registry
+from core_contracts.testing.contract_types.evaluate import machine as machine_fields
 
 from .conftest import activate
 from .test_core import NOW
@@ -511,6 +513,207 @@ async def test_producer_failure_discards_node_and_refresh(runtime, config):
     assert "partial" not in runtime.state.tables["node_state"]["fixture.echo"]
     assert field(runtime)["reasons"][0]["code"] == "evaluation_error"
     assert runtime.live
+
+
+@pytest.mark.parametrize("fail_command", [True, False])
+async def test_command_producer_failure_is_atomic_and_replayable(runtime, config, fail_command):
+    def fields(ctx):
+        result = machine_fields(ctx)  # state_machine() has already applied the override.
+        if ctx.origin != "command":
+            ctx.bucket(
+                "command", FieldValue(status="valid", quality="healthy", value=0), False, 0, 1
+            )
+        if ctx.origin == "command":
+            assert ctx.node["machine"]["state"] == "b"
+            ctx.node["command_effect"] = True
+            ctx.bucket(
+                "command", FieldValue(status="valid", quality="healthy", value=2), False, 0, 1
+            )
+            ctx.request_refresh("a")
+            if fail_command:
+                raise ValueError("synthetic failure after state_machine")
+        return result
+
+    original = runtime.types.get("test.state_machine", 1)
+    runtime.types.types["test.state_machine", 1] = replace(
+        original, evaluate=Producer(fields), refresh_inputs=("a",)
+    )
+    config["contracts"] = [
+        contract("echo", "state_machine", ["source.a"], dict(deadline_s=10, sessions=False))
+    ]
+    await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    before = runtime.state.model_copy(deep=True)
+    latches = copy.deepcopy(runtime.latches)
+    publications = runtime.subscribe()
+    command = dict(
+        command_id="producer.failure",
+        contract_id="fixture.echo",
+        command="request_b",
+        args={},
+        origin=dict(kind="test", actor="test", client_name="test"),
+        issued_at=runtime.clock.now_utc(),
+        valid_until=runtime.clock.now_utc() + timedelta(seconds=30),
+        expected_registry_revision=1,
+    )
+    expected = dict(command_id=command["command_id"], status="accepted")
+    if fail_command:
+        expected.update(status="rejected", reason="evaluation_error")
+
+    # Inspect the actual commit boundary: response and effect must agree in one write.
+    commit = runtime.store.commit
+    committed = []
+
+    async def inspect_commit(state):
+        assert state.tables["command_log"][command["command_id"]]["result"] == expected
+        if fail_command:
+            for table in ("node_state", "sm_instance", "sm_episode", "sm_transition", "deadline"):
+                assert state.tables[table] == before.tables[table]
+            assert runtime.pending_latches == latches
+            assert not runtime.pending_refresh
+        else:
+            assert state.tables["node_state"]["fixture.echo"]["machine"]["state"] == "b"
+        committed.append(state.model_copy(deep=True))
+        await commit(state)
+
+    runtime.store.commit = inspect_commit
+    try:
+        result = await runtime.submit("command", command)
+        assert result == expected
+        assert len(committed) == 1
+    finally:
+        runtime.store.commit = commit
+    assert (await runtime.store.get("command_log", command["command_id"]))["result"] == expected
+    assert (await runtime.store.load()).tables["node_state"] == runtime.state.tables["node_state"]
+    assert publications.get_nowait()["type"] == "delta"
+    assert publications.empty()
+    if fail_command:
+        assert field(runtime)["reasons"][0]["code"] == "evaluation_error"
+        assert runtime.latches == latches
+        assert runtime.refresh_requests.empty()
+    else:
+        assert field(runtime)["value"] == "b"
+        assert runtime.latches["fixture.echo:command"].latch is True
+        assert runtime.refresh_requests.get_nowait() == (1, "source.a")
+    snapshot = runtime.snapshot()
+    assert await runtime.submit("command", command) == expected
+    assert runtime.snapshot() == snapshot
+    assert publications.empty() and runtime.refresh_requests.empty()
+    await runtime.stop()
+    restarted = Runtime(runtime.store, runtime.clock, runtime.types)
+    await restarted.start()
+    try:
+        publications = restarted.subscribe()
+        snapshot = restarted.snapshot()
+        assert await restarted.submit("command", command) == expected
+        assert restarted.snapshot() == snapshot
+        assert publications.empty() and restarted.refresh_requests.empty()
+    finally:
+        await restarted.stop()
+
+
+def lifecycle_producer(runtime):
+    def initialize(ctx):
+        ctx.node["inits"] = ctx.node.get("inits", 0) + 1
+
+    def dispose(ctx):
+        ctx.node["disposed"] = True
+
+    hooks = Mock()
+    hooks.init.side_effect = initialize
+    hooks.dispose.side_effect = dispose
+    original = runtime.types.get("test.boolean", 1)
+    runtime.types.types["test.boolean", 1] = replace(
+        original,
+        evaluate=Producer(lambda ctx: {"value": ctx.input("a")}, hooks.init, hooks.dispose),
+    )
+    return hooks
+
+
+@pytest.mark.parametrize("change", ["parameter", "binding"])
+async def test_producer_lifecycle_semantic_change(runtime, config, change):
+    hooks = lifecycle_producer(runtime)
+    config["contracts"] = [contract("echo", "boolean", ["source.a"], dict(operator="not"))]
+    await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    old_node = copy.deepcopy(runtime.state.tables["node_state"]["fixture.echo"])
+    assert hooks.init.call_count == 1 and hooks.dispose.call_count == 0
+    if change == "parameter":
+        config["contracts"][0]["parameters"]["operator"] = "or"
+    else:
+        config["bindings"][0]["adapter"]["ha_entity_id"] = "sensor.replacement"
+    await activate(runtime, config)
+    assert [call[0] for call in hooks.mock_calls] == ["init", "dispose", "init"]
+    disposed = hooks.dispose.call_args.args[0]
+    assert disposed.node["fingerprint"] == old_node["fingerprint"]
+    assert disposed.node["disposed"]
+    node = runtime.state.tables["node_state"]["fixture.echo"]
+    assert node["fingerprint"] != old_node["fingerprint"]
+    assert node["inits"] == 1 and "disposed" not in node
+    assert node["producer_epoch"] == runtime.state.epoch_id
+    # Revisions without a semantic change and ordinary evaluations do not re-init.
+    await activate(runtime, config)
+    await runtime.submit("observation", obs(runtime))
+    assert hooks.init.call_count == 2 and hooks.dispose.call_count == 1
+
+
+@pytest.mark.parametrize("pause", ["disable", "remove"])
+async def test_producer_lifecycle_removal_and_resume(runtime, config, pause):
+    hooks = lifecycle_producer(runtime)
+    instance = contract("echo", "boolean", ["source.a"], dict(operator="not"))
+    config["contracts"] = [instance]
+    await activate(runtime, config)
+    if pause == "disable":
+        instance["enabled"] = False
+    else:
+        config["contracts"] = []
+    await activate(runtime, config)
+    assert [call[0] for call in hooks.mock_calls] == ["init", "dispose"]
+    assert "fixture.echo" not in runtime.snapshot()["contracts"]
+    node = (await runtime.store.load()).tables["node_state"]["fixture.echo"]
+    assert node["disposed"] and "producer_epoch" not in node
+    await activate(runtime, config)
+    assert hooks.dispose.call_count == 1
+    instance["enabled"] = True
+    config["contracts"] = [instance]
+    await activate(runtime, config)
+    assert [call[0] for call in hooks.mock_calls] == ["init", "dispose", "init"]
+    assert "fixture.echo" in runtime.snapshot()["contracts"]
+    assert (
+        runtime.state.tables["node_state"]["fixture.echo"]["producer_epoch"]
+        == runtime.state.epoch_id
+    )
+    await runtime.submit("observation", obs(runtime))
+    assert hooks.init.call_count == 2
+
+
+async def test_producer_lifecycle_ordered_stop_and_restart(runtime, config):
+    hooks = lifecycle_producer(runtime)
+    config["contracts"] = [contract("echo", "boolean", ["source.a"], dict(operator="not"))]
+    await activate(runtime, config)
+    runtime.ingest(obs(runtime))
+    epoch = runtime.state.epoch_id
+    await runtime.stop()
+    assert runtime.queue.empty() and runtime.task.done()
+    stopped = await runtime.store.load()
+    assert stopped.tables["runtime_epoch"][epoch]["ended_at"] is not None
+    assert stopped.tables["node_state"]["fixture.echo"]["disposed"]
+    assert "producer_epoch" not in stopped.tables["node_state"]["fixture.echo"]
+    assert [call[0] for call in hooks.mock_calls] == ["init", "dispose"]
+    await runtime.stop()
+    assert hooks.dispose.call_count == 1
+    restarted = Runtime(runtime.store, runtime.clock, runtime.types)
+    await restarted.start()
+    try:
+        assert restarted.state.epoch_id != epoch
+        node = restarted.state.tables["node_state"]["fixture.echo"]
+        assert node["inits"] == 2 and node["producer_epoch"] == restarted.state.epoch_id
+        assert [call[0] for call in hooks.mock_calls] == ["init", "dispose", "init"]
+        await restarted.submit("observation", obs(restarted))
+        assert hooks.init.call_count == 2
+    finally:
+        await restarted.stop()
+    assert [call[0] for call in hooks.mock_calls] == ["init", "dispose", "init", "dispose"]
 
 
 @pytest.mark.parametrize(

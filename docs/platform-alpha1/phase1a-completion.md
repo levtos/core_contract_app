@@ -31,6 +31,29 @@ es erfolgt kein Merge, Release oder Live-Eingriff in diesem Auftrag.
 
 ## G1–G15 und Nachweisgrenzen
 
+### Gezielte Schlusskorrektur nach Opus-Delta-Review (R1/T1)
+
+Ausgangs-HEAD: `ed8eb742613e0caff4e30c280a64be7926ab1548`. Benni hat nach dem
+unabhängigen Opus-Review (GO mit Einschränkungen) ausschließlich R1 und T1 beauftragt.
+Kein erneuter Gesamtaudit und keine Übernahme weiterer P2-Befunde.
+
+| Befund | Korrektur / Nachweis | Dauerhafte Regression in `tests/test_phase1a.py` |
+|---|---|---|
+| R1: `accepted` trotz Producer-Exception nach `state_machine()` | `_evaluate` liefert fehlgeschlagene Contract-IDs nur für den laufenden Aufruf zurück. Scheitert der Command-Zielcontract, wird vor dem gemeinsamen Commit `rejected/evaluation_error` gespeichert. Die bestehende Fehlerbehandlung verwirft Node-/SM-/Latch-/Refresh-Mutationen und veröffentlicht den Fehlerzustand. Keine neue persistierte Struktur. | `test_command_producer_failure_is_atomic_and_replayable[True]`: reproduziert den Fehler am Ausgangscode; prüft Node, SM-Instanz, Episode, Transition, Deadline, vorhandenen Latch und Refresh direkt an der Commit-Grenze sowie gespeicherte Antwort, Replay ohne Publication/Refresh und Replay nach Prozess-Neustart. `[False]` beweist die erfolgreiche Transition mit Latch und Refresh. |
+| T1: Parameter-/Semantikwechsel | Alter Context wird disposed, neuer Fingerprint genau einmal initialisiert; identische Revision und normale Auswertung initialisieren nicht erneut. | `test_producer_lifecycle_semantic_change[parameter/binding]` |
+| T1: Entfernung und Wiederaufnahme | Dispose bei Entfernung beziehungsweise Disable, keine doppelte Finalisierung bei weiterer inaktiver Revision; erneutes Init bei Wiederaufnahme. | `test_producer_lifecycle_removal_and_resume[remove/disable]` |
+| T1: geordneter Prozess-Stopp und Reinitialisierung | Queue abgearbeitet, Dispose persistiert, Epoche beendet, Processor beendet; wiederholter Stop ohne weiteres Dispose. Neustart initialisiert genau einmal in neuer Epoche, anschließender Stop finalisiert erneut. | `test_producer_lifecycle_ordered_stop_and_restart` |
+
+Die sieben neuen Testfälle bestehen. T1 erforderte keine Lifecycle-Codeänderung.
+Lokaler vollständiger Backend-Lauf: **323 passed, 11 skipped** (PG/MQTT/HA benötigen
+die CI-Umgebung); Ruff, Formatprüfung und strict mypy erfolgreich. Die vollständige
+CI für den neuen finalen HEAD und dessen SHA werden im Abschlusskommentar zu PR #11
+verlinkt. G14 gilt erst mit diesem erfolgreichen Lauf. Die kurze unabhängige Kontrolle
+dieses konkreten Deltas bleibt vor einem Merge offen; es besteht keine Merge-Freigabe.
+Alle bisherigen P2-Folgepunkte und Live-Gates bleiben unverändert offen.
+
+### Gate-Matrix
+
 „Automatisch vollständig“ bezeichnet den technischen Umfang der angegebenen Tests,
 nicht eine Freigabe der produktiven HA-Installation. CI-abhängige Aussagen gelten erst
 mit dem verlinkten vollständig grünen finalen PR-Head.
@@ -66,9 +89,10 @@ Timestamp-JSON-Roundtrip und nicht endliche Transform-Ergebnisse. Zusätzlich wi
 dass alte Adapter-Revisionen weder neue Evidence noch Readiness freigeben. Gefundene
 Kanten sind im selben PR korrigiert und als Regressionstests enthalten. Kein neuer Gesamtaudit.
 
-Lokaler Stand vor finaler CI: **316 passed, 11 skipped** (Umgebung PG/MQTT/HA),
-strict mypy ohne Fehler, 14 Frontend-Tests, Svelte/TypeScript ohne Fehler/Warnungen und
-Produktionsbuild erfolgreich. Vollständige CI umfasst die lokal fehlenden Dienste;
+Lokaler Stand nach R1/T1 vor finaler CI: **323 passed, 11 skipped** (Umgebung PG/MQTT/HA),
+Ruff/Formatprüfung und strict mypy ohne Fehler. Der vorherige Stand hatte 14 erfolgreiche
+Frontend-Tests, Svelte/TypeScript ohne Fehler/Warnungen und einen erfolgreichen
+Produktionsbuild. Die vollständige finale CI prüft diese erneut und umfasst die lokal fehlenden Dienste;
 der unveränderliche Abschlussnachweis am PR nennt den finalen Commit und Lauf.
 
 Keine Domain-Typen, keine Aktorik, keine externe Plugin-Plattform. Die gebündelte

@@ -694,7 +694,9 @@ class Runtime:
         machine_override: dict[str, MachineState] | None = None,
         trigger_source: str | None = None,
         initial_latches: dict[str, Bucket] | None = None,
-    ) -> None:
+    ) -> set[str]:
+        """Return transaction-local failures after discarding their staged producer effects."""
+        evaluation_errors: set[str] = set()
         now, seq = self.clock.now_utc(), state.publication_seq + 1
         self.pending_latches = copy.deepcopy(
             self.latches if initial_latches is None else initial_latches
@@ -777,6 +779,7 @@ class Runtime:
                 )
                 self.pending_refresh.update(refresh)
             except Exception as error:
+                evaluation_errors.add(key)
                 LOGGER.error(
                     "evaluation_error",
                     extra={"contract_id": key, "error_type": type(error).__name__},
@@ -863,6 +866,7 @@ class Runtime:
                 "epoch_id": state.epoch_id,
                 "registry_revision": state.active_revision,
             }
+        return evaluation_errors
 
     def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:
         producer = self.types.get(contract.type_id, contract.type_version).evaluate
@@ -953,14 +957,18 @@ class Runtime:
                     result["reason"] = status
                 if status == "accepted":
                     override[contract.contract_id] = updated
+        if override and config:
+            evaluation_errors = self._evaluate(
+                state, config, origin="command", machine_override=override
+            )
+            if command.contract_id in evaluation_errors:
+                result.update(status="rejected", reason="evaluation_error")
         state.tables["command_log"][command.command_id] = {
             "digest": digest,
             "result": result,
             "at": now.isoformat(),
             "command": command.model_dump(mode="json"),
         }
-        if override and config:
-            self._evaluate(state, config, origin="command", machine_override=override)
         await self._commit(state, publication=bool(override))
         if result["status"] != "accepted":
             LOGGER.info(
