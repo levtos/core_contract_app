@@ -22,6 +22,106 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_delta2_guard_error_persistent_http_replay_after_restart(
+    database, config, aiohttp_client, tmp_path, monkeypatch
+):
+    from .test_alpha4_delta2 import assert_replay, exercise_guard_failure
+    from .test_workbench_api import api_client
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        command, expected = await exercise_guard_failure(
+            runtime, config, aiohttp_client, tmp_path, monkeypatch
+        )
+    finally:
+        await runtime.stop()
+        await store.close()
+    # Reopen the database with a fresh Store and Runtime; no in-memory command cache.
+    restored = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored.open()
+    restarted = Runtime(restored, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        _, client, headers = await api_client(restarted, aiohttp_client, tmp_path)
+        await assert_replay(restarted, client, headers, command, expected)
+        assert (await restored.get("command_log", command["command_id"]))["result"] == expected
+    finally:
+        await restarted.stop()
+        await restored.close()
+
+
+async def test_review_hysteresis_recovery_and_time_filters(database, config):
+    from .test_alpha4_review import exercise_latch_restore, observation
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        end = await exercise_latch_restore(runtime, config)
+
+        def fail():
+            raise OSError("injected transaction failure")
+
+        store.before_commit = fail
+        runtime.clock.advance(1)
+        with pytest.raises(OSError):
+            await runtime.submit("observation", observation(runtime, 3, ingest_seq=5))
+        assert runtime.latches["fixture.echo:latch"].latch is True
+        store.before_commit = None
+        await runtime.submit("recover")
+        await runtime.submit(
+            "snapshot",
+            [
+                observation(runtime, 3, ingest_seq=6).model_copy(
+                    update={"observation_kind": "snapshot"}
+                )
+            ],
+        )
+        assert field(runtime)["value"] is False
+        assert field(runtime, key="held")["held_until"] == end
+        runtime.clock.advance(1)
+        await runtime.submit("observation", observation(runtime, 6, ingest_seq=7))
+        runtime.clock.advance(1)
+        await runtime.submit("observation", observation(runtime, 3, ingest_seq=8))
+        assert field(runtime)["value"] is True
+    finally:
+        await runtime.stop()
+        await store.close()
+    restored = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored.open()
+    restarted = Runtime(restored, runtime.clock, type_registry())
+    await restarted.start()
+    try:
+        await restarted.submit(
+            "snapshot",
+            [
+                observation(restarted, 3, ingest_seq=9).model_copy(
+                    update={"observation_kind": "snapshot"}
+                )
+            ],
+        )
+        assert field(restarted)["value"] is False
+        assert field(restarted, key="held")["held_until"] == end
+    finally:
+        await restarted.stop()
+        await restored.close()
+
+
+async def test_review_history_time_filters(database):
+    from .test_alpha4_review import exercise_history_times
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    try:
+        await exercise_history_times(store)
+    finally:
+        await store.close()
+
+
 async def test_multistage_chain_postgres_restart_restore(database, config):
     store = PostgresStore(database, MIGRATIONS, tls=False)
     await store.open()
@@ -54,6 +154,78 @@ async def test_multistage_chain_postgres_restart_restore(database, config):
         await restored_store.close()
 
 
+async def test_declarative_cascade_history_immutability_and_recovery(database, config):
+    import copy
+
+    from core_contracts.history import HistoryQuery
+    from core_contracts.validation import RegistryValidationError
+
+    from .test_alpha4_acceptance import exercise_cascade
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    grace, deadline = await exercise_cascade(runtime, config)
+    first = await store.history("source_observation_history", HistoryQuery(limit=2))
+    assert len(first["items"]) == 2 and first["next_cursor"]
+    following = await store.history(
+        "source_observation_history", HistoryQuery(limit=2, cursor=first["next_cursor"])
+    )
+    assert not {r["id"] for r in first["items"]} & {r["id"] for r in following["items"]}
+    for reference in field(runtime, "timed")["evidence"]:
+        assert await store.evidence(reference) is not None
+    assert await store.definition("test.timed", 1) is not None
+    assert (await store.history("sm_episode", HistoryQuery(contract_id="fixture.flow")))["items"]
+    assert (await store.history("deadline", HistoryQuery(contract_id="fixture.flow")))["items"]
+    for table in ("sm_episode", "deadline"):
+        await store.writer.execute(f"UPDATE {table} SET payload=payload-'contract_id'")
+        assert (await store.history(table, HistoryQuery(contract_id="fixture.flow")))["items"]
+        assert not (await store.history(table, HistoryQuery(contract_id="fixture.other")))["items"]
+    committed = runtime.snapshot()
+    trace = copy.deepcopy(runtime.state.tables["node_state"]["fixture.flow"]["trace"])
+
+    def fail():
+        raise OSError("test transaction rollback")
+
+    store.before_commit = fail
+    runtime.clock.advance(1)
+    with pytest.raises(OSError):
+        await runtime.submit(
+            "observation", observation(runtime, True).model_copy(update={"ingest_seq": 5})
+        )
+    assert runtime.state.publication_seq == committed["publication_seq"]
+    assert runtime.state.tables["node_state"]["fixture.flow"]["trace"] == trace
+    store.before_commit = None
+    await runtime.submit("recover")
+    assert field(runtime, "timed")["held_until"] == grace
+    await runtime.stop()
+    await store.close()
+    restored = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored.open()
+    restarted = Runtime(restored, runtime.clock, type_registry())
+    await restarted.start()
+    try:
+        assert field(restarted, "timed")["held_until"] == grace
+        assert restarted.state.tables["sm_instance"]["fixture.flow"]["deadline"] == deadline
+        changed = copy.deepcopy(config)
+        next(d for d in changed["definitions"] if d["type_id"] == "test.timed")["rules"]["grace"][
+            "duration_s"
+        ] = 5
+        with pytest.raises(RegistryValidationError):
+            await restarted.submit("validate", changed)
+        await restarted.submit("rollback", {"revision": 1, "expected_active_revision": 1})
+        assert restarted.state.active_revision == 2
+        assert (await restored.history("diagnostic_event", HistoryQuery()))["items"]
+        command = (await restored.history("command_log", HistoryQuery()))["items"][0]
+        sequence = restarted.state.publication_seq
+        assert await restarted.submit("command", command["command"]) == command["result"]
+        assert restarted.state.publication_seq == sequence
+    finally:
+        await restarted.stop()
+        await restored.close()
+
+
 @pytest_asyncio.fixture
 async def database():
     dsn = os.environ.get("TEST_DATABASE_DSN")
@@ -74,6 +246,43 @@ async def database():
         )
         await admin.execute(f'DROP DATABASE "{name}"')
         await admin.close()
+
+
+async def test_alpha3_fingerprint_upgrade_restart_and_rollback(database, config):
+    import copy
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    await activate(runtime, config)
+    original = runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"]
+    await runtime.stop()
+    await store.close()
+    for upgrade in (False, True):
+        store = PostgresStore(database, MIGRATIONS, tls=False)
+        await store.open()
+        runtime = Runtime(store, FakeClock(NOW), type_registry())
+        await runtime.start()
+        try:
+            if not upgrade:
+                assert runtime.config.fingerprint_version == 1
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] == original
+                changed = copy.deepcopy(config)
+                changed["fingerprint_version"] = 2
+                assert (await runtime.submit("validate", changed))["diff"]["fingerprint_version"][
+                    "context_migration"
+                ]
+                await activate(runtime, changed)
+            else:
+                assert runtime.config.fingerprint_version == 2
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] != original
+                await runtime.submit("rollback", {"revision": 1, "expected_active_revision": 2})
+                assert runtime.config.fingerprint_version == 1
+                assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] == original
+        finally:
+            await runtime.stop()
+            await store.close()
 
 
 async def test_postgres_restart_commit_failure_and_writer_lock(database, config):

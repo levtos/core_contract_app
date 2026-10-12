@@ -1,5 +1,10 @@
 # HTTP/WS API, protocol 1
 
+Alpha-4-Erweiterung (Implementierung, noch keine Releasefreigabe):
+[Manual-first Workbench API](alpha4/workbench-api.md) und
+[ADR 0003](adr/0003-declarative-platform.md). Die bisherigen Protokoll-1-Routen
+bleiben erhalten; deklarative Definitionen, Verwaltung und Diagnose sind additiv.
+
 Phase-1A-Ergänzung: Das Envelope-Feld `fields` enthält mehrere unabhängig validierte
 Felder. `contract_health` aggregiert nur Pflichtfelder, `available` nur die deklarierten
 Projektionsfelder. `/types` beschreibt bei neuen Typversionen optionale `commands`

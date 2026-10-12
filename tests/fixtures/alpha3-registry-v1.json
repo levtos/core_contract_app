@@ -1,0 +1,251 @@
+{
+  "config_schema_version": 1,
+  "dependencies": [
+    {
+      "dependency_id": "dep.alpha_ha",
+      "kind": "ha",
+      "monitor": "internal",
+      "source_id": null
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "source.cc_alpha_test_a",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1.0,
+        "interval_s": null,
+        "liveness_source": null
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-a",
+      "display_name": ""
+    },
+    {
+      "source_id": "source.cc_alpha_test_b",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1.0,
+        "interval_s": null,
+        "liveness_source": null
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-b",
+      "display_name": ""
+    },
+    {
+      "source_id": "source.cc_alpha_test_number",
+      "source_type": "state",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1.0,
+        "interval_s": null,
+        "liveness_source": null
+      },
+      "dependency_id": "dep.alpha_ha",
+      "physical_source_key": "cc-alpha-test-number",
+      "display_name": ""
+    }
+  ],
+  "bindings": [
+    {
+      "binding_id": "binding.cc_alpha_test_a",
+      "source_id": "source.cc_alpha_test_a",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_boolean.cc_alpha_test_a",
+        "ha_attribute": null,
+        "ha_time_attribute": null,
+        "mqtt_topic": null,
+        "mqtt_value_path": null,
+        "mqtt_time_path": null
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "bool",
+        "factor": null,
+        "offset": null,
+        "catalog_id": null
+      },
+      "display_name": ""
+    },
+    {
+      "binding_id": "binding.cc_alpha_test_b",
+      "source_id": "source.cc_alpha_test_b",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_boolean.cc_alpha_test_b",
+        "ha_attribute": null,
+        "ha_time_attribute": null,
+        "mqtt_topic": null,
+        "mqtt_value_path": null,
+        "mqtt_time_path": null
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "bool",
+        "factor": null,
+        "offset": null,
+        "catalog_id": null
+      },
+      "display_name": ""
+    },
+    {
+      "binding_id": "binding.cc_alpha_test_number",
+      "source_id": "source.cc_alpha_test_number",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_number.cc_alpha_test_number",
+        "ha_attribute": null,
+        "ha_time_attribute": null,
+        "mqtt_topic": null,
+        "mqtt_value_path": null,
+        "mqtt_time_path": null
+      },
+      "transform": {
+        "kind": "type_cast",
+        "target": "number",
+        "factor": null,
+        "offset": null,
+        "catalog_id": null
+      },
+      "display_name": ""
+    }
+  ],
+  "contracts": [
+    {
+      "contract_id": "test.alpha1.echo",
+      "type_id": "test.echo",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_a"
+        }
+      ],
+      "parameters": {},
+      "display_name": "TEST Alpha 1 echo",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.grace",
+      "type_id": "test.temporal",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_a"
+        }
+      ],
+      "parameters": {
+        "operation": "grace",
+        "duration_s": 10,
+        "accepts_held": false
+      },
+      "display_name": "TEST Alpha 1 grace",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.not",
+      "type_id": "test.boolean",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.grace"
+        }
+      ],
+      "parameters": {
+        "operator": "not"
+      },
+      "display_name": "TEST Alpha 1 not",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.fusion",
+      "type_id": "test.fusion",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.not"
+        },
+        {
+          "name": "b",
+          "ref": "source.cc_alpha_test_b"
+        }
+      ],
+      "parameters": {
+        "strategy": "first_healthy"
+      },
+      "display_name": "TEST Alpha 1 fusion",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.stable",
+      "type_id": "test.temporal",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.fusion"
+        }
+      ],
+      "parameters": {
+        "operation": "stable_for",
+        "duration_s": 2,
+        "accepts_held": true
+      },
+      "display_name": "TEST Alpha 1 stable",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.multi",
+      "type_id": "test.multi",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.cc_alpha_test_number"
+        },
+        {
+          "name": "b",
+          "ref": "test.alpha1.stable"
+        }
+      ],
+      "parameters": {},
+      "display_name": "TEST Alpha 1 multi",
+      "description": ""
+    },
+    {
+      "contract_id": "test.alpha1.machine",
+      "type_id": "test.state_machine",
+      "type_version": 2,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "test.alpha1.stable"
+        }
+      ],
+      "parameters": {
+        "deadline_s": 30,
+        "sessions": false
+      },
+      "display_name": "TEST Alpha 1 machine",
+      "description": ""
+    }
+  ],
+  "catalogs": []
+}

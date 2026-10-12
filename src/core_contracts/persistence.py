@@ -14,6 +14,7 @@ from typing import Any, Protocol
 import asyncpg
 from pydantic import BaseModel, Field
 
+from .history import CONTRACT_SQL, HISTORY_TABLES, TIME_SQL, HistoryQuery, page, timestamp
 from .model import canonical
 
 TABLES = (
@@ -99,6 +100,9 @@ class Store(Protocol):
     async def rows(
         self, table: str, *, contract_id: str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]: ...
+    async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]: ...
+    async def definition(self, type_id: str, version: int) -> dict[str, Any] | None: ...
+    async def evidence(self, reference: str) -> dict[str, Any] | None: ...
 
 
 class PostgresStore:
@@ -297,6 +301,71 @@ class PostgresStore:
         )
         return [json.loads(row["payload"]) for row in records]
 
+    async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]:
+        if table not in HISTORY_TABLES.values() or self.pool is None:
+            raise ValueError("invalid_history_table")
+        position = query.position(table)
+        contract_match = f"{CONTRACT_SQL}=$1"
+        if table in {"sm_episode", "deadline"}:
+            # Alpha-3 episode/deadline rows omitted contract_id. Their durable
+            # transition owns the episode; resolve it without rewriting history.
+            contract_match += (
+                " OR (payload->>'contract_id' IS NULL AND EXISTS "
+                "(SELECT 1 FROM sm_transition AS transition WHERE "
+                "transition.payload->>'contract_id'=$1 AND "
+                f"transition.payload->>'episode_id'={table}.payload->>'episode_id'))"
+            )
+        records = await self.pool.fetch(
+            f"SELECT key,payload FROM {table} WHERE "
+            f"($1::text IS NULL OR {contract_match}) "
+            "AND ($2::text IS NULL OR payload->>'source_id'=$2) "
+            f"AND ($3::timestamptz IS NULL OR {TIME_SQL}>=$3) "
+            f"AND ($4::timestamptz IS NULL OR {TIME_SQL}<=$4) "
+            f"AND ($5::timestamptz IS NULL OR ({TIME_SQL},key)<($5,$6)) "
+            f"ORDER BY {TIME_SQL} DESC,key DESC LIMIT $7",
+            query.contract_id,
+            query.source_id,
+            query.since,
+            query.until,
+            position[0] if position else None,
+            position[1] if position else None,
+            query.limit + 1,
+        )
+        return page([(row["key"], json.loads(row["payload"])) for row in records], query, table)
+
+    async def definition(self, type_id: str, version: int) -> dict[str, Any] | None:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        value = await self.pool.fetchval(
+            "SELECT definition FROM registry_revision, "
+            "LATERAL jsonb_array_elements(COALESCE(payload->'config'->'definitions','[]'::jsonb)) AS entries(definition) "
+            "WHERE definition->>'type_id'=$1 AND definition->>'type_version'=$2 LIMIT 1",
+            type_id,
+            str(version),
+        )
+        return json.loads(value) if value is not None else None
+
+    async def evidence(self, reference: str) -> dict[str, Any] | None:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        # Current evidence identities are primary keys. Do not turn this indexed
+        # lookup into a scan via the legacy computed-reference OR predicate.
+        direct = await self.get("source_observation_history", reference)
+        if direct is not None or reference.startswith("v2:"):
+            return direct
+        value = await self.pool.fetchval(
+            "SELECT payload FROM source_observation_history WHERE "
+            "(COALESCE(payload->>'reference_version','1')='1' AND "
+            "(payload->>'epoch_id') || ':' || (payload->>'ingest_seq') || ':' || "
+            "(payload->>'binding_id')=$1) "
+            "UNION ALL SELECT payload FROM source_observation_current "
+            "WHERE COALESCE(payload->>'reference_version','1')='1' AND "
+            "(payload->>'epoch_id') || ':' || (payload->>'ingest_seq') || ':' || "
+            "(payload->>'binding_id')=$1 LIMIT 1",
+            reference,
+        )
+        return json.loads(value) if value is not None else None
+
     async def close(self) -> None:
         if self.pool:
             try:
@@ -372,6 +441,64 @@ class MemoryStore:
                 reverse=True,
             )[:limit]
         )
+
+    async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]:
+        await self.probe()
+        if table not in HISTORY_TABLES.values():
+            raise ValueError("invalid_history_table")
+        position = query.position(table)
+        legacy_episodes = (
+            {
+                row.get("episode_id")
+                for row in self.state.tables["sm_transition"].values()
+                if row.get("contract_id") == query.contract_id
+            }
+            if query.contract_id and table in {"sm_episode", "deadline"}
+            else set()
+        )
+        records = [
+            (key, value)
+            for key, value in self.state.tables[table].items()
+            if (
+                query.contract_id is None
+                or value.get("contract_id", value.get("command", {}).get("contract_id"))
+                == query.contract_id
+                or (value.get("contract_id") is None and value.get("episode_id") in legacy_episodes)
+            )
+            and (query.source_id is None or value.get("source_id") == query.source_id)
+            and (query.since is None or timestamp(value) >= query.since)
+            and (query.until is None or timestamp(value) <= query.until)
+            and (position is None or (timestamp(value), key) < position)
+        ]
+        records.sort(key=lambda row: (timestamp(row[1]), row[0]), reverse=True)
+        return page(copy.deepcopy(records[: query.limit + 1]), query, table)
+
+    async def definition(self, type_id: str, version: int) -> dict[str, Any] | None:
+        await self.probe()
+        return next(
+            (
+                copy.deepcopy(definition)
+                for revision in self.state.tables["registry_revision"].values()
+                for definition in revision["config"].get("definitions", [])
+                if (definition["type_id"], definition["type_version"]) == (type_id, version)
+            ),
+            None,
+        )
+
+    async def evidence(self, reference: str) -> dict[str, Any] | None:
+        await self.probe()
+        direct = self.state.tables["source_observation_history"].get(reference)
+        if direct is not None or reference.startswith("v2:"):
+            return copy.deepcopy(direct)
+        for table in ("source_observation_history", "source_observation_current"):
+            for key, value in self.state.tables[table].items():
+                if key == reference or (
+                    value.get("reference_version", 1) == 1
+                    and f"{value['epoch_id']}:{value['ingest_seq']}:{value['binding_id']}"
+                    == reference
+                ):
+                    return copy.deepcopy(value)
+        return None
 
     async def close(self) -> None:
         self.locked = False

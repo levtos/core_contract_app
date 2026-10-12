@@ -49,7 +49,14 @@ class Observation(Model):
     epoch_id: str
     ingest_seq: int = Field(ge=0)
     registry_revision: int | None = None
+    reference_version: Literal[1, 2] = 1
     availability: Literal["available", "unavailable", "unknown", "absent"] = "available"
+
+    @model_validator(mode="after")
+    def reference_complete(self) -> Self:
+        if self.reference_version == 2 and self.registry_revision is None:
+            raise ValueError("versioned_evidence_requires_revision")
+        return self
 
     @field_validator(
         "device_time",
@@ -69,6 +76,12 @@ class Observation(Model):
             return self.device_time
         return self.ha_measurement
 
+    def storage_document(self) -> dict[str, Any]:
+        """Omit the additive default for documents still using Alpha-3 identities."""
+        return self.model_dump(
+            mode="json", exclude={"reference_version"} if self.reference_version == 1 else set()
+        )
+
     @property
     def ha_measurement(self) -> datetime | None:
         if self.observation_kind == "report":
@@ -84,6 +97,8 @@ class Observation(Model):
 
     @property
     def reference(self) -> str:
+        if self.reference_version == 2:
+            return f"v2:{self.epoch_id}:{self.registry_revision}:{self.adapter}:{self.ingest_seq}:{self.binding_id}"
         return f"{self.epoch_id}:{self.ingest_seq}:{self.binding_id}"
 
 

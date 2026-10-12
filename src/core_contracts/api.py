@@ -1,10 +1,13 @@
 """Two listeners with independent ingress and bearer trust boundaries."""
 
 import asyncio
+import logging
+import re
 import secrets
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import aiohttp
 import asyncpg
@@ -12,10 +15,14 @@ from aiohttp import WSMsgType, web
 from pydantic import ValidationError
 
 from . import __version__
+from .capabilities import capabilities, configuration_schema, describe_types, reasons
+from .history import HISTORY_TABLES, HistoryQuery
 from .model import canonical
+from .registry import fingerprints, registry_types
 from .runtime import Runtime
 from .security import RateLimiter, Tokens
 from .setup import Setup
+from .validation import RegistryValidationError
 
 
 class API:
@@ -38,6 +45,7 @@ class API:
         )
         self.limiter = RateLimiter(runtime.clock)
         self.setup = setup
+        runtime.configuration_error = bool(setup and setup.configuration_error)
         self.auth_limiter = RateLimiter(runtime.clock)
         self.sockets: set[web.WebSocketResponse] = set()
 
@@ -61,6 +69,9 @@ class API:
             if role != "health" and not self.limiter.allow(f"{request.remote}:{role}"):
                 raise web.HTTPTooManyRequests()
             request["role"] = role
+            # No client identity header is accepted. The ingress peer is checked
+            # above; bearer identities are represented by their authenticated role.
+            request["actor"] = {"kind": "ingress" if ingress else "token", "role": role}
             setup_path = request.path.startswith("/api/v1/setup/")
             static_path = ingress and not request.path.startswith(("/api/", "/health/"))
             if setup_path and (not ingress or self.setup is None):
@@ -85,6 +96,23 @@ class API:
                     raise web.HTTPForbidden()
             try:
                 response = await handler(request)
+            except RegistryValidationError as error:
+                response = web.json_response(
+                    {
+                        "error": "invalid_request",
+                        "valid": False,
+                        "issues": [issue.model_dump() for issue in error.issues],
+                        "details": [
+                            {
+                                "location": issue.path.split("/parameters/", 1)[1].split("/"),
+                                "type": issue.code.removeprefix("parameter."),
+                            }
+                            for issue in error.issues
+                            if issue.code.startswith("parameter.") and "/parameters/" in issue.path
+                        ],
+                    },
+                    status=400,
+                )
             except (KeyError, ValueError, ValidationError) as error:
                 # Do not reflect input, DSNs, credentials, or Pydantic's input_value.
                 code = (
@@ -132,7 +160,7 @@ class API:
                 )
             except RuntimeError, OSError, asyncpg.PostgresError, asyncpg.InterfaceError:
                 response = web.json_response({"error": "persistence_unavailable"}, status=503)
-            response.headers["Cache-Control"] = "no-store"
+            response.headers.setdefault("Cache-Control", "no-store")
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'"
@@ -208,18 +236,7 @@ class API:
         runtime = self.runtime
         if request.path.endswith("live"):
             return web.json_response({"live": runtime.live}, status=200 if runtime.live else 503)
-        reasons = []
-        if self.setup and self.setup.configuration_error:
-            reasons.append("invalid_supervisor_options")
-        if not runtime.persistence:
-            reasons.append("persistence_unavailable")
-        if runtime.state.active_revision == 0:
-            reasons.append("no_active_registry")
-        if runtime.requires_ha_snapshot and not runtime.first_snapshot:
-            reasons.append("first_bridge_snapshot_pending")
-        return web.json_response(
-            {**runtime.service_state(), "reasons": reasons}, status=200 if runtime.ready else 503
-        )
+        return web.json_response(runtime.service_state(), status=200 if runtime.ready else 503)
 
     def info(self) -> dict[str, Any]:
         return {
@@ -231,7 +248,21 @@ class API:
             "installation_label": self.installation_label,
             "epoch_id": self.runtime.state.epoch_id,
             "publication_seq": self.runtime.state.publication_seq,
+            "server_time": self.runtime.clock.now_utc().isoformat(),
+            "command_time": {
+                "clock": "server_utc",
+                "issued_at_must_not_be_future": True,
+                "valid_until_exclusive": True,
+                "client_guidance": "measure round-trip uncertainty",
+            },
         }
+
+    @staticmethod
+    async def object_body(request: web.Request) -> dict[str, Any]:
+        value = await request.json()
+        if not isinstance(value, dict):
+            raise ValueError("request object required")
+        return value
 
     async def dispatch(self, request: web.Request) -> web.Response:
         path, method = request.match_info["path"], request.method
@@ -239,6 +270,8 @@ class API:
         public = path in {
             "info",
             "types",
+            "capabilities",
+            "reasons",
             "contracts",
             "snapshot",
             "diagnostics/problems",
@@ -250,7 +283,36 @@ class API:
         if path == "info" and method == "GET":
             result = self.info()
         elif path == "types" and method == "GET":
-            result = [t.description() for t in runtime.types.types.values()]
+            result = describe_types(config, runtime.types)
+        elif path == "capabilities" and method == "GET":
+            result = capabilities(config, runtime.types)
+        elif path == "reasons" and method == "GET":
+            result = reasons()
+        elif path == "registry/schema" and method == "GET":
+            result = configuration_schema()
+        elif path == "registry/validate" and method == "POST":
+            result = await runtime.submit("validate", await request.json())
+        elif path == "definitions" and method == "GET":
+            result = [d.model_dump(mode="json") for d in config.definitions] if config else []
+        elif path == "ha/entities" and method == "GET":
+            if runtime.entity_discovery is None:
+                return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
+            limit = int(request.query.get("limit", "100"))
+            after = request.query.get("after", "")
+            if not 1 <= limit <= 200 or len(after) > 256:
+                raise ValueError("invalid discovery page")
+            try:
+                entities = await runtime.entity_discovery()
+            except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError, TypeError:
+                return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
+            selected_entities = [e for e in entities if e["entity_id"] > after]
+            result = {
+                "items": selected_entities[:limit],
+                "next_cursor": selected_entities[limit - 1]["entity_id"]
+                if len(selected_entities) > limit
+                else None,
+                "read_only": True,
+            }
         elif path == "contracts" and method == "GET":
             result = runtime.snapshot()["contracts"]
         elif path.startswith("contracts/") and method == "GET":
@@ -295,6 +357,101 @@ class API:
                 "gaps": await runtime.store.rows("history_gap"),
                 "dependencies": [d.model_dump() for d in config.dependencies] if config else [],
             }
+        elif path.startswith("diagnostics/contracts/") and method == "GET":
+            key = path.removeprefix("diagnostics/contracts/")
+            contract = (
+                next((c for c in config.contracts if c.contract_id == key), None)
+                if config
+                else None
+            )
+            if contract is None or config is None:
+                raise web.HTTPNotFound()
+            declaration = registry_types(config, runtime.types).get(
+                contract.type_id, contract.type_version
+            )
+            node = state.tables["node_state"].get(key, {})
+            expected = fingerprints(config, runtime.types)[key]
+            # Temporal contexts contain prior raw values: expose timing/identity
+            # only, never dump node_state into a diagnostic response.
+            temporal = []
+            for identity, context in [("legacy", node), *node.get("rules", {}).items()]:
+                if "temporal" in context:
+                    temporal.append(
+                        {
+                            "id": identity,
+                            "state": {
+                                k: v
+                                for k, v in context["temporal"].items()
+                                if k
+                                in {
+                                    "fingerprint",
+                                    "since_at",
+                                    "grace_until",
+                                    "grace_armed",
+                                    "gap_at",
+                                }
+                            },
+                            "restore_pending": "restore_pending" in context,
+                        }
+                    )
+            machine = (
+                declaration.machine_factory(contract.parameters)
+                if declaration.machine_factory
+                else None
+            )
+            due = (
+                declaration.next_due(contract.parameters, node, runtime.clock.now_utc())
+                if declaration.next_due
+                else None
+            )
+            result = {
+                "contract_id": key,
+                "registry_revision": state.active_revision,
+                "start_case": state.tables["contract_lifecycle"].get(key, {}).get("start_case"),
+                "fingerprint": node.get("fingerprint"),
+                "expected_fingerprint": expected,
+                "fingerprint_compatible": node.get("fingerprint") == expected,
+                "next_due": due.isoformat() if due else None,
+                "temporal": temporal,
+                "trace": node.get("trace"),
+                "machine": {
+                    "states": machine.definition.states,
+                    "initial": machine.definition.initial,
+                    "commands": machine.definition.commands,
+                    "deadline_seconds": machine.definition.deadline_seconds,
+                    "sessions": machine.definition.sessions,
+                    "transitions": [
+                        {
+                            "source": t.source,
+                            "target": t.target,
+                            "event": t.event,
+                            "reason": t.reason,
+                            "new_episode": t.new_episode,
+                            "ends_episode": t.ends_episode,
+                        }
+                        for t in machine.definition.transitions
+                    ],
+                    "current": state.tables["sm_instance"].get(key),
+                }
+                if machine
+                else None,
+            }
+        elif path.startswith("history/query/") and method == "GET":
+            kind = path.removeprefix("history/query/")
+            if kind not in HISTORY_TABLES:
+                raise web.HTTPNotFound()
+            result = await runtime.store.history(
+                HISTORY_TABLES[kind], HistoryQuery.model_validate(dict(request.query))
+            )
+        elif path.startswith("evidence/reference/") and method == "GET":
+            reference = path.removeprefix("evidence/reference/")
+            if len(reference) > 1024:
+                raise ValueError("invalid evidence reference")
+            result = await runtime.store.evidence(reference)
+            if result is None:
+                return web.json_response(
+                    {"error": "evidence_not_found", "reference": reference}, status=404
+                )
         elif path in {"sources", "bindings"} and method == "GET":
             result = [v.model_dump(mode="json") for v in getattr(config, path)] if config else []
         elif path.startswith("evidence/") and method == "GET":
@@ -308,6 +465,8 @@ class API:
             key = path.removeprefix("history/")
             result = await runtime.store.rows("contract_state_history", contract_id=key)
         elif path in {"registry/active", "registry/active/export"} and method == "GET":
+            if path.endswith("export") and config is None:
+                return web.json_response({"error": "no_active_registry"}, status=409)
             result = (
                 config.model_dump(mode="json")
                 if path.endswith("export") and config
@@ -320,7 +479,13 @@ class API:
         elif path == "registry/drafts" and method == "GET":
             result = list(state.tables["registry_draft"].values())
         elif path == "registry/drafts" and method == "POST":
-            result = await runtime.submit("draft_create", {"config": await request.json()})
+            document = await request.json()
+            payload = (
+                document
+                if isinstance(document, dict) and "config" in document
+                else {"config": document}
+            )
+            result = await runtime.submit("draft_create", {**payload, "_actor": request["actor"]})
         elif path.startswith("registry/drafts/"):
             parts = path.split("/")
             key = parts[2]
@@ -328,23 +493,79 @@ class API:
                 result = state.tables["registry_draft"][key]
             elif len(parts) == 3 and method == "PUT":
                 result = await runtime.submit(
-                    "draft_update", {**await request.json(), "draft_id": key}
+                    "draft_update",
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
+                )
+            elif len(parts) == 3 and method == "DELETE":
+                result = await runtime.submit(
+                    "draft_delete",
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
                 )
             elif len(parts) == 4 and parts[3] == "validate" and method == "POST":
                 result = await runtime.submit(
                     "validate", state.tables["registry_draft"][key]["config"]
                 )
             elif len(parts) == 4 and parts[3] == "activate" and method == "POST":
-                result = await runtime.submit("activate", {**await request.json(), "draft_id": key})
+                result = await runtime.submit(
+                    "activate",
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
+                )
             else:
                 raise web.HTTPMethodNotAllowed(method, ["GET", "PUT", "POST"])
         elif path == "registry/rollback" and method == "POST":
-            result = await runtime.submit("rollback", await request.json())
+            result = await runtime.submit(
+                "rollback", {**await self.object_body(request), "_actor": request["actor"]}
+            )
         elif path == "tokens" and method == "GET":
             result = {"roles": ["consumer", "admin"], "tokens_visible": False}
         elif path == "tokens/rotate" and method == "POST":
-            role = (await request.json())["role"]
-            result = {"role": role, "token": self.tokens.rotate(role)}
+            role = (await self.object_body(request))["role"]
+            if role not in {"admin", "consumer"}:
+                raise ValueError("invalid token role")
+            rotation_id = str(uuid4())
+            await runtime.submit(
+                "audit",
+                {
+                    "operation": "token_rotation_requested",
+                    "_actor": request["actor"],
+                    "details": {"role": role, "rotation_id": rotation_id},
+                },
+            )
+            result = {
+                "role": role,
+                "token": self.tokens.rotate(role),
+                "status": "rotated",
+                "rotation_id": rotation_id,
+                "audit_status": "complete",
+            }
+            try:
+                await runtime.submit(
+                    "audit",
+                    {
+                        "operation": "token_rotated",
+                        "_actor": request["actor"],
+                        "details": {"role": role, "rotation_id": rotation_id},
+                    },
+                )
+            except Exception:
+                # The private token file has already committed. Never hide the
+                # new credential behind an audit error or invite a blind retry.
+                result["audit_status"] = "completion_unconfirmed"
+                logging.getLogger(__name__).warning(
+                    "token_rotation_audit_unconfirmed", extra={"rotation_id": rotation_id}
+                )
         else:
             raise web.HTTPNotFound()
         return web.Response(text=canonical(result), content_type="application/json")
@@ -424,4 +645,12 @@ class API:
         target = (root / (request.match_info["path"] or "index.html")).resolve()
         if not target.is_relative_to(root) or not target.is_file():
             raise web.HTTPNotFound()
-        return web.FileResponse(target)
+        versioned = target.parent == root / "assets" and re.search(
+            r"-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2|svg|png)$", target.name
+        )
+        return web.FileResponse(
+            target,
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable" if versioned else "no-store"
+            },
+        )

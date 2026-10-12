@@ -8,7 +8,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from .model import Model, utc
+from .model import Model, checksum, utc
 from .quality import FieldValue, ReasonCode, unknown
 from .statemachine import Machine, MachineState
 
@@ -21,6 +21,12 @@ class FieldSchema(Model):
     unit: str | None = None
 
     def accepts(self, value: Any) -> bool:
+        if type(value) in {int, float}:
+            try:
+                if not isfinite(value):
+                    return False
+            except OverflowError:
+                return False
         if self.type == "timestamp" and isinstance(value, str):
             try:
                 value = datetime.fromisoformat(value)
@@ -77,6 +83,8 @@ class ContractType:
     next_due: Callable[[dict[str, Any], dict[str, Any], datetime], datetime | None] | None = None
     commands: dict[str, type[BaseModel]] = field(default_factory=dict)
     refresh_inputs: tuple[str, ...] = ()
+    definition: dict[str, Any] | None = None
+    grace_outputs: tuple[str, ...] = ()
 
     def description(self) -> dict[str, Any]:
         return {
@@ -97,6 +105,21 @@ class ContractType:
                 else {}
             ),
             **({"refresh_inputs": self.refresh_inputs} if self.refresh_inputs else {}),
+            **({"grace_outputs": self.grace_outputs} if self.grace_outputs else {}),
+            **(
+                {
+                    "definition": self.definition,
+                    "definition_fingerprint": checksum(
+                        {
+                            k: v
+                            for k, v in self.definition.items()
+                            if k not in {"display_name", "description"}
+                        }
+                    ),
+                }
+                if self.definition is not None
+                else {}
+            ),
         }
 
 
@@ -148,6 +171,7 @@ def validate_fields(
     values: dict[str, FieldValue],
     now: datetime,
     inputs: dict[str, FieldValue] | None = None,
+    grace_outputs: tuple[str, ...] = (),
 ) -> dict[str, FieldValue]:
     result: dict[str, FieldValue] = {}
     for name, declaration in schema.fields.items():
@@ -159,7 +183,9 @@ def validate_fields(
         if value.status == "held":
             inherited = [v for v in (inputs or {}).values() if v.status == "held" and v.usable(now)]
             propagated = any(v.held_until == value.held_until for v in inherited)
-            if not value.usable(now) or not (schema.grace_capable or propagated):
+            if not value.usable(now) or not (
+                schema.grace_capable or propagated or name in grace_outputs
+            ):
                 value = unknown(ReasonCode.INVALID_VALUE, name, now)
         if value.usable(now) and not declaration.accepts(value.value):
             value = unknown(ReasonCode.INVALID_VALUE, name, now)

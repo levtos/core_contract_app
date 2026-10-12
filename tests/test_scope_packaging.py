@@ -39,11 +39,38 @@ def test_no_domain_registration_outside_testing():
                 and isinstance(node.func, ast.Name)
                 and node.func.id == "ContractType"
             ):
+                # Alpha 4's generic adapter constructs types from validated data.
+                # It cannot register a domain type: the shared public model
+                # rejects every identity outside test.* (tested below).
+                if path.name == "declarative.py" and any(
+                    keyword.arg == "type_id"
+                    and isinstance(keyword.value, ast.Attribute)
+                    and isinstance(keyword.value.value, ast.Name)
+                    and keyword.value.value.id == "definition"
+                    and keyword.value.attr == "type_id"
+                    for keyword in node.keywords
+                ):
+                    continue
                 raise AssertionError(
                     f"Only fixture packages may register contract types: {path.name}"
                 )
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 assert not any(node.value.startswith(term + ".v") for term in domain_terms)
+
+
+def test_declarative_types_cannot_register_domains():
+    import pytest
+    from pydantic import ValidationError
+
+    from core_contracts.declarative_models import DeclarativeDefinition
+
+    from .test_declarative import definition
+
+    for identity in ("opening.v1", "presence.v1", "climate.v1", "test", "other.test"):
+        data = definition()
+        data["type_id"] = identity
+        with pytest.raises(ValidationError):
+            DeclarativeDefinition.model_validate(data)
 
 
 def test_example_registry_and_no_forbidden_context():
