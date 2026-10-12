@@ -1,7 +1,7 @@
 import dagre from '@dagrejs/dagre';
-import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import { applyNodeChanges, Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
 import { Cable, FileCode2, Sigma } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { FieldStatusBadge, QualityBadge } from '@/components/status-parts';
 import { Badge } from '@/components/ui/badge';
@@ -85,13 +85,26 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
     return new Set([selected, ...r.upstream, ...r.downstream]);
   }, [graph, selected]);
 
-  const nodes: Node<NodeData>[] = graph.nodes.map((node) => ({
-    id: node.id,
-    type: 'terra',
-    position: positions.get(node.id) ?? { x: 0, y: 0 },
-    selected: node.id === selected,
-    data: { node, envelope: node.contractId && node.kind === 'contract' ? (envelopes?.[node.contractId] ?? null) : null, dim: highlighted !== null && !highlighted.has(node.id) },
-  }));
+  const desired: Node<NodeData>[] = useMemo(
+    () =>
+      graph.nodes.map((node) => ({
+        id: node.id,
+        type: 'terra',
+        position: positions.get(node.id) ?? { x: 0, y: 0 },
+        // Fixed card size: nodes are usable (and fitView works) before any DOM measurement.
+        width: WIDTH,
+        height: HEIGHT,
+        selected: node.id === selected,
+        data: { node, envelope: node.contractId && node.kind === 'contract' ? (envelopes?.[node.contractId] ?? null) : null, dim: highlighted !== null && !highlighted.has(node.id) },
+      })),
+    [graph, positions, selected, envelopes, highlighted],
+  );
+  // React Flow reports node sizes as changes; a controlled canvas must apply them or nothing renders.
+  const [nodes, setNodes] = useState<Node<NodeData>[]>(desired);
+  useEffect(() => {
+    setNodes((previous) => desired.map((node) => ({ ...node, measured: previous.find((p) => p.id === node.id)?.measured })));
+  }, [desired]);
+  const onNodesChange = useCallback((changes: NodeChange<Node<NodeData>>[]) => setNodes((current) => applyNodeChanges(changes, current)), []);
   const edges: Edge[] = graph.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
@@ -114,6 +127,7 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      onNodesChange={onNodesChange}
       fitView
       minZoom={0.2}
       maxZoom={1.6}

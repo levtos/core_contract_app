@@ -149,7 +149,6 @@ export default function SourcesPage() {
                   freshness: { mode: 'event_stateful', future_tolerance_s: 1 },
                   dependency_id: str(asArray(c.dependencies).filter(isObject)[0]?.dependency_id),
                   physical_source_key: uniqueName('physical.neu', asArray(c.sources).filter(isObject).map((s) => str(s.physical_source_key))),
-                  display_name: '',
                 })}
                 usage={(item, config) => {
                   const used = consumersOfSource(config, str(item.source_id));

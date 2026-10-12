@@ -97,7 +97,7 @@ export function CreateDraftDialog({
           <legend className="mb-1 text-xs font-medium text-muted">Ausgangspunkt</legend>
           {options.map((option) => (
             <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-accent/60 bg-accent/5' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
-              <input type="radio" name="origin" className="mt-1 accent-[var(--color-accent)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
+              <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-accent)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
               <span>
                 <span className="font-medium">{option.label}</span>
                 <span className="block text-xs text-muted">{option.hint}</span>

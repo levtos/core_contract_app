@@ -33,10 +33,12 @@ const NAV = [
 
 function readCollapsed(): boolean {
   try {
-    return localStorage.getItem('terra.nav.collapsed') === '1';
+    const stored = localStorage.getItem('terra.nav.collapsed');
+    if (stored !== null) return stored === '1';
   } catch {
-    return false;
+    /* optional convenience only */
   }
+  return typeof window !== 'undefined' && window.innerWidth < 900;
 }
 
 /** Top-bar chips: readiness and connection are separate facts. */

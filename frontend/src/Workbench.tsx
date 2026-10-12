@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { createHashRouter, RouterProvider, type RouteObject } from 'react-router';
+import { RouteError } from '@/components/RouteError';
 import { Shell } from '@/components/Shell';
 import { Spinner } from '@/components/ui/layout';
 import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
@@ -22,6 +23,7 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
     {
       path: '/',
       element: <Shell onSetup={onSetup} />,
+      errorElement: <RouteError />,
       children: [
         { index: true, element: <OverviewPage /> },
         { path: 'contracts', element: lazyPage(() => import('@/features/contracts/ContractsPage')) },

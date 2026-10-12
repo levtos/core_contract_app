@@ -86,7 +86,7 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
                 { label: 'Zustände', value: <span className="flex flex-wrap gap-1.5">{machine.states.map((s) => <Badge key={s} tone={current?.state === s ? 'accent' : machine.initial === s ? 'info' : 'neutral'}>{s}{machine.initial === s ? ' (initial)' : ''}</Badge>)}</span> },
                 { label: 'Deadline', value: machine.deadline_seconds ? `${machine.deadline_seconds} s` : 'keine' },
                 { label: 'Sessions', value: machine.sessions ? 'ja' : 'nein' },
-                { label: 'Befehle', value: Object.keys(machine.commands ?? {}).join(', ') || 'keine' },
+                { label: 'Befehle', value: (Array.isArray(machine.commands) ? machine.commands.map(String) : Object.keys(machine.commands ?? {})).join(', ') || 'keine' },
               ]}
             />
             {current ? (

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Terra Workbench (Phase 1B, for review)
+
+- New React 19 / TypeScript / Vite 8 / Tailwind 4 administration UI replacing the Svelte engineering UI:
+  manual-first, capability-driven editors for all Alpha-4 definitions, rules, state machines, sources,
+  bindings, catalogs and contracts; Registry Studio (drafts, validation, diff/impact, activation,
+  rollback, OCC conflict handling); graph; diagnostics, history, explain, commands; administration.
+- First-run assistant ported without functional or security changes.
+- Frontend only: no backend, API, schema or legacy change. `dev/workbench_demo.py` is a local review aid.
+- See [docs/workbench/README.md](docs/workbench/README.md). No release, tag or Live acceptance implied.
+
 ## 1.0.0a4 — Declarative Platform (prepared, 2026-10-12)
 
 - Declarative Core Platform: closed, versioned rule language on the existing engines
