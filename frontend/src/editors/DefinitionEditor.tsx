@@ -1,5 +1,5 @@
 import { Lock, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox, Tabs, Tip } from '@/components/ui/controls';
 import { Collapsible } from '@/components/ui/controls';
@@ -41,6 +41,7 @@ export function DefinitionEditor({
   caps,
   locked,
   lockReason,
+  initialTab,
 }: {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
@@ -48,6 +49,7 @@ export function DefinitionEditor({
   caps: Capabilities | undefined;
   locked: boolean;
   lockReason?: string;
+  initialTab?: string;
 }) {
   const defaults = operatorDefaults(caps);
   const ctx = ruleContext(value, false);
@@ -332,7 +334,10 @@ export function DefinitionEditor({
     },
   ];
 
-  const [tab, setTab] = useState('general');
+  const [tab, setTab] = useState(initialTab ?? 'general');
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
   return (
     <RuleEnvProvider value={{ ctx, caps, locked }}>
       <div className="flex flex-col gap-4">

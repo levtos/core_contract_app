@@ -34,6 +34,8 @@ export interface Conflict {
 export interface WorkingDocument {
   draft: Draft | null;
   config: Registry | null;
+  displayName: string;
+  setDisplayName: (name: string) => void;
   dirty: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -78,6 +80,7 @@ function rememberDraftId(id: string | null): void {
 interface Snapshot {
   draft: Draft | null;
   config: Registry | null;
+  name: string;
   past: Registry[];
   future: Registry[];
 }
@@ -87,7 +90,7 @@ const IDLE: ValidationView = { state: 'idle', result: null, issues: [], stale: f
 export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }: { children: ReactNode; validateDebounceMs?: number }) {
   const client = useQueryClient();
   const { create, update } = useDraftMutations();
-  const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, past: [], future: [] });
+  const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, name: '', past: [], future: [] });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
@@ -98,7 +101,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
   const latest = useRef(snap);
   latest.current = snap;
 
-  const dirty = snap.draft !== null && snap.config !== null && !deepEqual(snap.config, snap.draft.config);
+  const dirty = snap.draft !== null && snap.config !== null && (!deepEqual(snap.config, snap.draft.config) || snap.name !== (snap.draft.display_name ?? ''));
 
   const open = useCallback((draft: Draft) => {
     rememberDraftId(draft.draft_id);
@@ -106,7 +109,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
     setValidation(IDLE);
     setSaveError(null);
     setConflict(null);
-    setSnap({ draft, config: clone(draft.config), past: [], future: [] });
+    setSnap({ draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] });
   }, []);
 
   const close = useCallback(() => {
@@ -114,7 +117,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
     validatedFor.current = null;
     setValidation(IDLE);
     setConflict(null);
-    setSnap({ draft: null, config: null, past: [], future: [] });
+    setSnap({ draft: null, config: null, name: '', past: [], future: [] });
   }, []);
 
   // Restore the previously opened draft after a reload (id only; content is re-read from the server).
@@ -137,6 +140,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
     });
   }, []);
 
+  const setDisplayName = useCallback((name: string) => setSnap((c) => (c.draft ? { ...c, name } : c)), []);
   const setAtPointer = useCallback((pointer: string, value: Json | undefined) => edit((config) => setAt(config, pointer, value) as Registry), [edit]);
   const replaceAll = useCallback((config: Registry) => edit(() => config), [edit]);
 
@@ -199,12 +203,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
   }, [dirty]);
 
   const save = useCallback(async () => {
-    const { draft, config } = latest.current;
+    const { draft, config, name } = latest.current;
     if (!draft || !config) return 'error' as const;
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = await update.mutateAsync({ draft, config });
+      const saved = await update.mutateAsync({ draft, config, display_name: name });
       setSnap((c) => (c.config === config ? { ...c, draft: saved } : { ...c, draft: saved }));
       return 'saved' as const;
     } catch (error) {
@@ -241,7 +245,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       }
       // Explicit overwrite: re-base on the server version the user has just seen.
       try {
-        const saved = await update.mutateAsync({ draft: current.server, config });
+        const saved = await update.mutateAsync({ draft: current.server, config, display_name: latest.current.name });
         setConflict(null);
         setSnap((c) => ({ ...c, draft: saved }));
       } catch (error) {
@@ -261,6 +265,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
     () => ({
       draft: snap.draft,
       config: snap.config,
+      displayName: snap.name,
+      setDisplayName,
       dirty,
       canUndo: snap.past.length > 0,
       canRedo: snap.future.length > 0,
@@ -281,7 +287,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, conflict, validation, autoValidate, open, close, edit, setAtPointer, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, conflict, validation, autoValidate, open, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (

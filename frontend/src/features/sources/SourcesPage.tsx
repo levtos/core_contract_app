@@ -1,6 +1,6 @@
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { MasterDetail } from '@/components/MasterDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,9 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
   const issues = useAllIssues();
   const config = src.config ?? {};
   const list = useMemo(() => asArray(config[name]).filter(isObject), [config, name]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [params] = useSearchParams();
+  const initial = params.get('tab') === name && params.get('item') !== null ? Number(params.get('item')) : null;
+  const [selected, setSelected] = useState<number | null>(Number.isInteger(initial) ? initial : null);
   const [removing, setRemoving] = useState<number | null>(null);
   useEffect(() => {
     if (selected !== null && selected >= list.length) setSelected(list.length ? list.length - 1 : null);
@@ -120,6 +122,7 @@ const chips = (label: string, ids: string[], to?: (id: string) => string) =>
 
 export default function SourcesPage() {
   const caps = useCapabilities();
+  const [params, setParams] = useSearchParams();
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const registrySchema = caps.data?.schemas.registry;
   return (
@@ -127,6 +130,8 @@ export default function SourcesPage() {
       <PageHeader title="Sources & Bindings" description="Quellen, ihre Frische und Herkunft, Bindings an Home Assistant oder MQTT samt Transformationen, Kataloge und Dependencies." />
       <ReadOnlyNotice what="Sources & Bindings" />
       <Tabs
+        value={params.get('tab') ?? 'sources'}
+        onValueChange={(tab) => setParams({ tab }, { replace: true })}
         items={[
           {
             value: 'sources',

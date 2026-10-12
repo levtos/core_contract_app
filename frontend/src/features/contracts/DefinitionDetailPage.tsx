@@ -1,6 +1,6 @@
 import { ArrowLeft, GitBranchPlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/controls';
@@ -22,6 +22,7 @@ export default function DefinitionDetailPage() {
   const doc = useWorkingDocument();
   const caps = useCapabilities();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [versioning, setVersioning] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [migrate, setMigrate] = useState<Set<string>>(new Set());
@@ -86,6 +87,7 @@ export default function DefinitionDetailPage() {
           value={definition}
           pointer={pointer}
           caps={caps.data}
+          initialTab={params.get('tab') ?? undefined}
           locked={locked}
           lockReason={lockedSince !== null ? `Diese Version war in Revision ${lockedSince} aktiv.` : src.editable ? undefined : 'Schreibgeschützte Ansicht der aktiven Registry.'}
           onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}

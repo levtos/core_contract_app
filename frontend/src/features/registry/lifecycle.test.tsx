@@ -1,0 +1,216 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
+import { describe, expect, it } from 'vitest';
+import { ConflictDialog } from '@/features/authoring/DraftBar';
+import { useWorkingDocument, WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
+import type { Draft } from '@/lib/types';
+import { installFakeApi, makeDraft, sampleConfig, type FakeApi } from '../../../test/fakeApi';
+import { ActivateDialog, RollbackDialog } from './ActivationDialogs';
+
+const user = userEvent.setup();
+
+/** Minimal surface over the working document, driven like the real UI. */
+function Surface({ draft }: { draft: Draft }) {
+  const doc = useWorkingDocument();
+  return (
+    <div>
+      <button onClick={() => doc.open(draft)}>open</button>
+      <button onClick={() => doc.edit((c) => ({ ...c, marker: 'edited' }))}>edit</button>
+      <button onClick={() => void doc.save()}>save</button>
+      <button onClick={doc.undo}>undo</button>
+      <button onClick={doc.redo}>redo</button>
+      <output data-testid="state">{JSON.stringify({ dirty: doc.dirty, version: doc.draft?.draft_version, marker: (doc.config as { marker?: string } | null)?.marker ?? null, undo: doc.canUndo, redo: doc.canRedo, id: doc.draft?.draft_id })}</output>
+      <ConflictDialog />
+    </div>
+  );
+}
+
+function mountSurface(api: FakeApi, draftId = 'd1') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <WorkingDocumentProvider validateDebounceMs={3_600_000}>
+          <Surface draft={api.drafts.get(draftId) as unknown as Draft} />
+        </WorkingDocumentProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+const state = () => JSON.parse(screen.getByTestId('state').textContent!) as { dirty: boolean; version: number; marker: string | null; undo: boolean; redo: boolean; id: string };
+
+describe('draft lifecycle: working document and OCC', () => {
+  it('tracks edits, undo/redo and saves with the draft version', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
+    mountSurface(api);
+    await user.click(screen.getByText('open'));
+    expect(state()).toMatchObject({ dirty: false, version: 1, marker: null });
+    await user.click(screen.getByText('edit'));
+    expect(state()).toMatchObject({ dirty: true, marker: 'edited', undo: true });
+    await user.click(screen.getByText('undo'));
+    expect(state()).toMatchObject({ dirty: false, marker: null, redo: true });
+    await user.click(screen.getByText('redo'));
+    await user.click(screen.getByText('save'));
+    await waitFor(() => expect(state()).toMatchObject({ dirty: false, version: 2, marker: 'edited' }));
+    const put = api.calls.find((c) => c.method === 'PUT')!;
+    expect(put.body).toMatchObject({ draft_version: 1, config: { marker: 'edited' } });
+  });
+
+  it('never overwrites silently on a version conflict and offers explicit choices', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
+    mountSurface(api);
+    await user.click(screen.getByText('open'));
+    await user.click(screen.getByText('edit'));
+    api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) }); // someone else saved
+    await user.click(screen.getByText('save'));
+    const dialog = await screen.findByRole('dialog', { name: /Versionskonflikt/ });
+    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' }); // untouched
+    expect(state().dirty).toBe(true); // local edits preserved
+
+    // Cancel keeps both sides as they are.
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(state()).toMatchObject({ dirty: true, marker: 'edited' });
+    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' });
+  });
+
+  it('can keep local changes as a new draft instead of overwriting', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
+    mountSurface(api);
+    await user.click(screen.getByText('open'));
+    await user.click(screen.getByText('edit'));
+    api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
+    await user.click(screen.getByText('save'));
+    await user.click(await screen.findByRole('button', { name: /als neuen Draft sichern/ }));
+    await waitFor(() => expect(api.drafts.size).toBe(2));
+    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' });
+    const copy = [...api.drafts.values()].find((d) => d.draft_id !== 'd1')!;
+    expect(copy.config).toMatchObject({ marker: 'edited' });
+    await waitFor(() => expect(state().id).toBe(copy.draft_id));
+  });
+
+  it('taking the server state discards local edits only after the explicit choice', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
+    mountSurface(api);
+    await user.click(screen.getByText('open'));
+    await user.click(screen.getByText('edit'));
+    api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
+    await user.click(screen.getByText('save'));
+    await user.click(await screen.findByRole('button', { name: 'Server-Stand übernehmen' }));
+    await waitFor(() => expect(state()).toMatchObject({ dirty: false, marker: 'other-session', version: 2 }));
+  });
+
+  it('overwriting needs a second explicit confirmation click and then re-bases on the server version', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
+    mountSurface(api);
+    await user.click(screen.getByText('open'));
+    await user.click(screen.getByText('edit'));
+    api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
+    await user.click(screen.getByText('save'));
+    await user.click(await screen.findByRole('button', { name: /Server-Stand überschreiben/ }));
+    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' }); // first click changes nothing
+    await user.click(screen.getByRole('button', { name: 'Wirklich überschreiben' }));
+    await waitFor(() => expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited' }));
+    const puts = api.calls.filter((c) => c.method === 'PUT');
+    expect(puts.at(-1)!.body).toMatchObject({ draft_version: 2 }); // the version the user just saw
+  });
+
+  it('shows the unsaved validation result addressed by JSON pointer', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig({ __invalid: true }))] });
+    function Probe() {
+      const doc = useWorkingDocument();
+      return (
+        <div>
+          <button onClick={() => doc.open(api.drafts.get('d1') as unknown as Draft)}>open</button>
+          <button onClick={() => void doc.validateNow()}>validate</button>
+          <output data-testid="issues">{doc.validation.issues.map((i) => `${i.code}@${i.path}`).join('|')}</output>
+        </div>
+      );
+    }
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkingDocumentProvider validateDebounceMs={3_600_000}>
+          <Probe />
+        </WorkingDocumentProvider>
+      </QueryClientProvider>,
+    );
+    await user.click(screen.getByText('open'));
+    await user.click(screen.getByText('validate'));
+    await waitFor(() => expect(screen.getByTestId('issues').textContent).toContain('definition.unknown_rule_input@/definitions/0/outputs/value'));
+    expect(api.calls.some((c) => c.path === 'registry/validate')).toBe(true);
+    expect(api.drafts.get('d1')!.draft_version).toBe(1); // validation never writes
+  });
+});
+
+function renderDialog(ui: React.ReactNode) {
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
+}
+
+describe('activation requires an explicit, version-checked confirmation', () => {
+  it('does not offer activation for an invalid draft and shows the issues', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig({ __invalid: true }))] });
+    renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
+    await screen.findByText(/nicht gültig/);
+    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.getByText('definition.unknown_rule_input')).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path.endsWith('/activate'))).toBe(false);
+  });
+
+  it('activates only after the confirmation checkbox and sends both OCC tokens', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())], revisions: [{ revision: 4, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
+    renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
+    const button = await screen.findByRole('button', { name: 'Jetzt aktivieren' });
+    await screen.findByText(/Statische Analyse/);
+    expect(button).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
+    expect(button).toBeEnabled();
+    await user.click(button);
+    await screen.findByText('Revision 5 ist aktiv');
+    expect(api.calls.find((c) => c.path.endsWith('/activate'))!.body).toEqual({ draft_version: 1, expected_active_revision: 4 });
+  });
+
+  it('reports an active-revision conflict honestly and activates nothing', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())], revisions: [{ revision: 1, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
+    api.failNext.push({ path: /\/activate$/, status: 409, body: { error: 'active_revision_conflict', details: [] } });
+    renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
+    await screen.findByText(/Statische Analyse/);
+    await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
+    await user.click(screen.getByRole('button', { name: 'Jetzt aktivieren' }));
+    await screen.findByText('Konflikt – nichts wurde aktiviert');
+    expect(screen.queryByText(/ist aktiv/)).toBeNull();
+    expect(api.revisions).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /erneut prüfen/ }));
+    await screen.findByText(/Statische Analyse/);
+  });
+
+  it('rollback creates a new revision from history and also needs confirmation', async () => {
+    const r1 = { revision: 1, config: sampleConfig({ marker: 'one' }), checksum: 'a'.repeat(64), created_at: 'x' };
+    const r2 = { revision: 2, config: sampleConfig({ marker: 'two' }), checksum: 'b'.repeat(64), created_at: 'y' };
+    const api = installFakeApi({ revisions: [r1, r2] });
+    renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
+    await screen.findByText(/Statische Analyse/);
+    const go = screen.getByRole('button', { name: 'Zurückrollen' });
+    expect(go).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: /als neue Revision 3 aktivieren/ }));
+    await user.click(go);
+    await screen.findByText(/Neue Revision 3 aktiv/);
+    expect(api.revisions).toHaveLength(3);
+    expect(api.revisions[2]!.config).toMatchObject({ marker: 'one' }); // historical content
+    expect(api.revisions[0]!.config).toMatchObject({ marker: 'one' }); // history untouched
+    expect(api.calls.find((c) => c.path === 'registry/rollback')!.body).toEqual({ revision: 1, expected_active_revision: 2 });
+  });
+
+  it('rollback loses the race against a newer activation (OCC) and changes nothing', async () => {
+    const r1 = { revision: 1, config: sampleConfig(), checksum: 'a'.repeat(64), created_at: 'x' };
+    const api = installFakeApi({ revisions: [r1, { ...r1, revision: 2 }] });
+    api.failNext.push({ path: /^registry\/rollback$/, status: 409, body: { error: 'active_revision_conflict', details: [] } });
+    renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
+    await screen.findByText(/Statische Analyse/);
+    await user.click(screen.getByRole('checkbox', { name: /als neue Revision 3 aktivieren/ }));
+    await user.click(screen.getByRole('button', { name: 'Zurückrollen' }));
+    await screen.findByText('Konflikt – nichts wurde aktiviert');
+    expect(api.revisions).toHaveLength(2);
+  });
+});
