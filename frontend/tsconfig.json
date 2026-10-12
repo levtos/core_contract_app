@@ -1,1 +1,24 @@
-{"extends":"@tsconfig/svelte/tsconfig.json","compilerOptions":{"strict":true,"allowJs":true,"checkJs":true,"moduleResolution":"bundler","resolveJsonModule":true,"types":["vite/client"]},"include":["src/**/*.ts","src/**/*.svelte","vite.config.ts"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": true,
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+    "paths": { "@/*": ["./src/*"] },
+    "baseUrl": "."
+  },
+  "include": ["src", "test", "vite.config.ts"]
+}

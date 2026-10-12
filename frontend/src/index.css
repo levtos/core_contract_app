@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import '@xyflow/react/dist/base.css';
+
+/* Terra Workbench — ruhiges, dunkles Petrol-Design. Alle Farben als Tokens. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+
+  --color-canvas: #0a1013;
+  --color-panel: #0f181c;
+  --color-raised: #142127;
+  --color-sunken: #0b1317;
+  --color-line: #1f3037;
+  --color-line-strong: #2d444d;
+  --color-fg: #e4eef1;
+  --color-muted: #8ba2aa;
+  --color-faint: #5d757d;
+  --color-accent: #2dd4bf;
+  --color-accent-strong: #14b8a6;
+  --color-accent-deep: #0f4f4a;
+  --color-accent-fg: #03201d;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+  --color-info: #60a5fa;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-pop: 0 12px 40px -8px rgb(0 0 0 / 0.65), 0 0 0 1px var(--color-line-strong);
+}
+
+:root {
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* React Flow nutzt das dunkle Token-Set. */
+.react-flow {
+  --xy-edge-stroke-default: var(--color-line-strong);
+  --xy-edge-stroke-selected-default: var(--color-accent);
+  --xy-background-color-default: transparent;
+  --xy-minimap-background-color-default: var(--color-panel);
+  --xy-controls-button-background-color-default: var(--color-raised);
+  --xy-controls-button-color-default: var(--color-fg);
+  --xy-controls-button-border-color-default: var(--color-line);
+  --xy-controls-button-background-color-hover-default: var(--color-line);
+}
+.react-flow__attribution {
+  display: none;
+}
+
+/* Animations für Base-UI-Popups (zustandsgesteuert über data-Attribute). */
+[data-starting-style],
+[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.98);
+}
+.popup-anim {
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
