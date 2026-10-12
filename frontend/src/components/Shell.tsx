@@ -15,6 +15,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/controls';
+import { DraftBar } from '@/features/authoring/DraftBar';
 import { useLive } from '@/lib/live-context';
 import { useActiveRevision, useInfo } from '@/lib/queries';
 import { classifySystem, overallState } from '@/lib/status';
@@ -131,11 +132,9 @@ export function Shell({ onSetup }: { onSetup: () => void }) {
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-panel/70 px-5 backdrop-blur">
+        <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line bg-panel/70 px-5 py-2 backdrop-blur">
           <StatusChips />
-          <span className="hidden text-xs text-faint sm:block">
-            {info.data ? `v${info.data.version} · API ${info.data.api_protocol}` : ''}
-          </span>
+          <DraftBar />
         </header>
         <main id="main" className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8">
           <Outlet />

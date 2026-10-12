@@ -86,3 +86,20 @@ export function findType(caps: Capabilities | undefined, typeId: string, version
 export function typeFields(type: TypeDescription | undefined): string[] {
   return type ? Object.keys(type.schema.fields) : [];
 }
+
+/**
+ * Fields the schema requires when `prop` has `value`, read from the server's
+ * if/then conditions (e.g. Freshness.mode, AdapterConfig.kind). The browser
+ * only interprets the metadata; it does not decide validity.
+ */
+export function requiredWhen(root: JsonSchema | undefined, def: string, prop: string, value: string): string[] {
+  const conditions = root ? getAt(root, `/$defs/${def}/allOf`) : undefined;
+  if (!Array.isArray(conditions)) return [];
+  for (const condition of conditions) {
+    if (!isObject(condition)) continue;
+    const matches = getAt(condition, `/if/properties/${prop}/const`) === value;
+    const required = getAt(condition, '/then/required');
+    if (matches && Array.isArray(required)) return required.map(String);
+  }
+  return [];
+}

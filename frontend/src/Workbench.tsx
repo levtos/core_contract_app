@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react';
 import { createHashRouter, RouterProvider, type RouteObject } from 'react-router';
 import { Shell } from '@/components/Shell';
 import { Spinner } from '@/components/ui/layout';
+import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import { LiveProvider } from '@/lib/live-context';
 import { OverviewPage } from '@/features/overview/OverviewPage';
 
@@ -42,7 +43,9 @@ export function Workbench({ onSetup }: { onSetup: () => void }) {
   const [router] = useState(() => createHashRouter(workbenchRoutes(onSetup)));
   return (
     <LiveProvider>
-      <RouterProvider router={router} />
+      <WorkingDocumentProvider>
+        <RouterProvider router={router} />
+      </WorkingDocumentProvider>
     </LiveProvider>
   );
 }

@@ -134,7 +134,11 @@ export interface HistoryPage {
 
 export interface HaEntity {
   entity_id: string;
-  [key: string]: Json;
+  display_name: string;
+  unit: string | null;
+  device_class: string | null;
+  state_class: string | null;
+  attributes: string[];
 }
 
 export interface HaEntityPage {
