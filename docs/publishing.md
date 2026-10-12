@@ -6,8 +6,8 @@ Konfiguration `core_contracts/config.yaml` verlangt diese öffentlichen Images:
 
 | Supervisor-Architektur | Docker-Plattform | Image |
 |---|---|---|
-| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a3 |
-| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a3 |
+| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a4 |
+| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a4 |
 
 `{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-core-contracts` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
@@ -15,9 +15,10 @@ Supervisor-Konfiguration; die Python-Paketversion muss dazu passen.
 
 ## Explizit veröffentlichen
 
-Die Versionsangaben oben beschreiben den vorbereiteten Alpha-3-Stand, keine bereits
-erfolgte Veröffentlichung. [Alpha-3-Nachweise und Freigabeschritte](releases/1.0.0a3.md)
-trennen Vorbereitung, GHCR-Publikation und Live-Abnahme.
+Die Versionsangaben oben beschreiben den vorbereiteten Alpha-4-Stand, keine bereits
+erfolgte Veröffentlichung. [Alpha-4-Nachweise und Freigabeschritte](releases/1.0.0a4.md)
+trennen Vorbereitung, GHCR-Publikation und Live-Abnahme. Frühere Stände:
+[Alpha 3](releases/1.0.0a3.md).
 
 1. Packaging-PR prüfen und mit vollständig grüner CI nach main mergen.
 2. Die volle main-SHA ermitteln und den Workflow **Publish Supervisor images**

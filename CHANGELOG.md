@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0a4 — Declarative Platform (prepared, 2026-10-12)
+
+- Declarative Core Platform: closed, versioned rule language on the existing engines
+  (three-valued boolean logic, compare, map, first-match, bucket, formulas, fusion,
+  stable_for/dwell/grace/edge/delta/age) and data-defined state machines with typed commands.
+- Manual-first authoring: draft CRUD with OCC and metadata, unsaved aggregate validation
+  with JSON-Pointer issues, semantic diff and static impact, explicit activation, rollback,
+  export and re-import through the same public APIs.
+- Workbench APIs: capabilities and schemas, reason catalog, contract diagnostics and explain,
+  bounded history with cursors, exact evidence resolution, read-only HA entity discovery,
+  server time, readiness reasons on WebSocket, administrative audit.
+- Alpha-3 compatibility: config schema 1, API/Bridge protocol 1, DB migrations and
+  installation ID unchanged; pure v1 documents keep the released storage shape; declarative
+  definitions require explicit `fingerprint_version: 2`. Downgrade only via a matching backup pair.
+- Opus review corrections OPUS-A4-01–A4-17 and OPUS-A4-D2-01/D2-02 included; follow-ups F1
+  (retention/indexes/production scale) and F2 (large graphs) remain open.
+- Release preparation only; publication and HA/Supervisor Live acceptance remain separate gates.
+- [Alpha 4 scope, publication and upgrade notes](docs/releases/1.0.0a4.md).
+
 ## 1.0.0a3 — Phase 1A (prepared, 2026-10-11)
 
 - Reusable producer lifecycle, temporal/state-machine orchestration and multi-field contracts.

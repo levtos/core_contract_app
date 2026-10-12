@@ -7,7 +7,8 @@ Baseline: released Alpha 3, commit
 
 This is a technical implementation for independent review. It does not authorize
 merge, an Alpha-4 version bump, release, image publication, installation or Live
-acceptance. The version remains 1.0.0a3 until separately approved release work.
+acceptance. Version 1.0.0a4 is set only by the separately approved release
+preparation recorded in the [Alpha 4 release notes](../releases/1.0.0a4.md).
 The exact reviewed head and final CI run belong to the PR/issue evidence, avoiding
 a self-referential commit hash in this tracked document.
 

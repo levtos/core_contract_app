@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0a4 — Declarative Platform (prepared)
+
+- Declarative contract definitions and state machines as registry data on the existing engines.
+- Manual-first Workbench APIs: drafts, validation, diff/impact, activation, rollback, export.
+- Diagnostics, explain, bounded history, evidence resolution, audit and read-only HA discovery.
+- Preserve installation identity, database schema, released v1 storage shape and API/Bridge protocols.
+- Opus review corrections included; F1/F2 scale follow-ups and Live acceptance remain open.
+- Publication pending; no automatic installation or Live acceptance.
+- [Alpha 4 release preparation](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a4.md).
+
 ## 1.0.0a3 — Phase 1A (prepared)
 
 - Reusable producer kit, multi-field contracts and multistage graph/restore coverage.
