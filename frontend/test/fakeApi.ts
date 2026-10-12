@@ -36,6 +36,8 @@ export interface FakeApi {
   /** Inject a server-side change between load and save (simulates a second session). */
   touchDraft: (id: string, patch: Partial<FakeDraft>) => void;
   failNext: { path: RegExp; status: number; body: unknown }[];
+  /** Route overrides, consulted first (first match wins). */
+  routes: { match: RegExp; method?: string; respond: (path: string, body: any) => Response | Promise<Response> }[];
   active: () => number;
   fetch: ReturnType<typeof vi.fn>;
 }
@@ -54,6 +56,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
       api.drafts.set(id, { ...draft, ...patch, draft_version: patch.draft_version ?? draft.draft_version + 1 });
     },
     failNext: [],
+    routes: [],
     active: () => api.revisions.at(-1)?.revision ?? 0,
     fetch: vi.fn(),
   };
@@ -70,6 +73,8 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
       const [f] = api.failNext.splice(forced, 1);
       return json(f!.status, f!.body);
     }
+    const custom = api.routes.find((r) => r.match.test(path) && (!r.method || r.method === method));
+    if (custom) return custom.respond(path, body);
     const validation = (config: JsonObject) => {
       const issues = api.issuesFor(config);
       return issues.length ? json(400, { error: 'invalid_request', valid: false, issues, details: [] }) : json(200, { ...validOk, valid: true, issues: [] });
@@ -134,6 +139,8 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
   vi.stubGlobal('fetch', api.fetch);
   return api;
 }
+
+export const reply = json;
 
 export const sampleConfig = (extra: JsonObject = {}): JsonObject => ({
   config_schema_version: 1,

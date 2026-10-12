@@ -12,7 +12,7 @@ import { setupRequest, validConnection, type Connection, type SetupStatus } from
 
 const PHASES = ['Willkommen', 'PostgreSQL verbinden', 'Skript und Import', 'Bridge einrichten', 'Abschluss'];
 
-const BRIDGE_LABELS: Record<string, string> = {
+export const BRIDGE_LABELS: Record<string, string> = {
   active: 'Bridge aktiv (Protokoll 1)',
   installed_not_configured: 'Bridge erkannt, Konfigurationseintrag fehlt',
   missing_or_restart_pending: 'Bridge nicht erkannt: fehlt oder HA-Neustart steht aus',

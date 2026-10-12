@@ -4,6 +4,7 @@ import { Shell } from '@/components/Shell';
 import { Spinner } from '@/components/ui/layout';
 import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import { LiveProvider } from '@/lib/live-context';
+import { SetupContext } from '@/lib/setup-context';
 import { OverviewPage } from '@/features/overview/OverviewPage';
 
 const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
@@ -43,9 +44,11 @@ export function Workbench({ onSetup }: { onSetup: () => void }) {
   const [router] = useState(() => createHashRouter(workbenchRoutes(onSetup)));
   return (
     <LiveProvider>
-      <WorkingDocumentProvider>
-        <RouterProvider router={router} />
-      </WorkingDocumentProvider>
+      <SetupContext.Provider value={onSetup}>
+        <WorkingDocumentProvider>
+          <RouterProvider router={router} />
+        </WorkingDocumentProvider>
+      </SetupContext.Provider>
     </LiveProvider>
   );
 }
