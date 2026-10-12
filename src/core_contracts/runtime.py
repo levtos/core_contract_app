@@ -13,6 +13,7 @@ from uuid import uuid4
 from pydantic import Field, ValidationError, field_validator
 
 from .clock import Clock
+from .declarative import GuardEvaluationError
 from .evidence import Observation, assess, is_new, is_older
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
@@ -1086,22 +1087,26 @@ class Runtime:
             elif not data:
                 result.update(status="rejected", reason="guard_rejected")
             else:
-                updated, status = machine.step(
-                    MachineState.model_validate(data),
-                    command.command,
-                    self._inputs(contract, config, state),
-                    now,
-                    state.active_revision,
-                    manual=True,
-                    args=args,
-                )
-                result["status"] = (
-                    "rejected" if status in {"guard_rejected", "guard_unknown"} else status
-                )
-                if status in {"guard_rejected", "guard_unknown"}:
-                    result["reason"] = status
-                if status == "accepted":
-                    override[contract.contract_id] = updated
+                try:
+                    updated, status = machine.step(
+                        MachineState.model_validate(data),
+                        command.command,
+                        self._inputs(contract, config, state),
+                        now,
+                        state.active_revision,
+                        manual=True,
+                        args=args,
+                    )
+                except GuardEvaluationError:
+                    result.update(status="rejected", reason="evaluation_error")
+                else:
+                    result["status"] = (
+                        "rejected" if status in {"guard_rejected", "guard_unknown"} else status
+                    )
+                    if status in {"guard_rejected", "guard_unknown"}:
+                        result["reason"] = status
+                    if status == "accepted":
+                        override[contract.contract_id] = updated
         if override and config:
             evaluation_errors = self._evaluate(
                 state, config, origin="command", machine_override=override

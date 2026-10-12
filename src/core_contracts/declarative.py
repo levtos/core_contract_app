@@ -38,6 +38,10 @@ class DefinitionValidationErrors(ValueError):
         super().__init__(str(issues[0]))
 
 
+class GuardEvaluationError(Exception):
+    """A local data/operation failure in a read-only declarative guard."""
+
+
 def map_key(value: Any) -> str:
     """Canonical JSON scalar keys; numeric equality includes 42 == 42.0."""
     if type(value) in {int, float} and isfinite(value):
@@ -304,11 +308,17 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
                 )
             seen.add(pair)
 
+        reachable: dict[str, bool] = {}
+
         def reaches_machine(rule: dm.Rule) -> bool:
             if isinstance(rule, dm.MachineRule):
                 return True
             if isinstance(rule, dm.ReferenceRule):
-                return reaches_machine(definition.rules[rule.name])
+                # References and cycles were checked above. Cache false results too:
+                # a shared DAG must not expand into every possible reference path.
+                if rule.name not in reachable:
+                    reachable[rule.name] = reaches_machine(definition.rules[rule.name])
+                return reachable[rule.name]
             return any(reaches_machine(child) for child in children(rule))
 
         if not any(reaches_machine(rule) for rule in definition.outputs.values()):
@@ -510,7 +520,12 @@ def compile_machine(
 
     def guard(rule: dm.Rule) -> Guard:
         def evaluate(inputs: dict[str, FieldValue], now: datetime) -> bool | None:
-            value = (evaluation or Evaluation(definition, inputs, now)).evaluate(rule)
+            try:
+                value = (evaluation or Evaluation(definition, inputs, now)).evaluate(rule)
+            except (ArithmeticError, LookupError, TypeError, ValueError) as error:
+                # Only local evaluator failures cross this boundary. Infrastructure
+                # errors and the command transaction/commit stay outside it.
+                raise GuardEvaluationError("evaluation_error") from error
             if evaluation:
                 evaluation.trace.append(
                     {

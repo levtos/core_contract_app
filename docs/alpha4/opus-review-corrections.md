@@ -84,6 +84,34 @@ accepting that scale; consider affected-subgraph reuse only with command,
 freshness, deadline, recovery and atomic-publication equivalence tests. No
 second runtime or risky graph-scheduler redesign is introduced in this delta.
 
+## Second delta review: D2-01 and D2-02
+
+Correction baseline: `9c7925c56f259b8c5e89834fc97b1837e044a96c`.
+This delta changes only the two paths below and their regression evidence.
+The accepted F1/F2 follow-ups and the previous A4-01–A4-17 decisions stay unchanged.
+The final commit and complete CI run are recorded in PR #14's completion comment.
+
+| Finding / severity | Correction and regression evidence | Compatibility / remaining risk / blocker |
+|---|---|---|
+| OPUS-A4-D2-01 / HIGH | Machine reachability memoizes both true and false answers by rule name within one definition check. Existing reference/cycle/type/resource validation runs unchanged. `test_fanout_reachability_is_bounded_and_definition_local` covers seven levels, fan-out 35, 253 named-rule nodes (256 total including outputs/reinitialization), cold validation <100 ms, unreachable rejection and isolation between definitions. `test_machine_direct_and_indirect_reachability` and `test_fanout_preserves_depth_node_and_cycle_limits` protect reachability and limits; `test_evaluation_cost_limit_remains_effective` protects the 512-invocation bound. `test_health_http_request_concurrent_with_cold_validation` sends a real second-socket HTTP request when the POST validator starts, requiring a 200 health response within 200 ms. | No global/revision cache, schema or semantic changes. Timing assertions are regression bounds for this synthetic definition, not a general latency guarantee for large registries (F2 unchanged). Implementation blocker: no; independent two-path delta confirmation remains required. |
+| OPUS-A4-D2-02 / MEDIUM | The read-only declarative guard boundary classifies local arithmetic, lookup, type and value failures as `GuardEvaluationError`. Only that exception is converted by the command path to `rejected/evaluation_error`; the normal transaction persists the command result with no override/evaluation/publication. `test_guard_error_http_persistence_and_restart` reproduces ZeroDivisionError through HTTP, verifies stored result and identical replay before/after a fresh Runtime, and confirms healthy guards still transition. `test_delta2_guard_error_persistent_http_replay_after_restart` repeats the HTTP assertions against PostgreSQL and reopens both Store and Runtime before replay. | No command/API/schema/fingerprint change. Both stores preserve all other persisted tables; publication sequence, complete node/SM contexts (including deadline), latches and pending refresh remain unchanged on rejection. Replay performs no commit. `test_guard_rejection_does_not_mask_infrastructure_failure` covers guard infrastructure, command lookup and commit errors: 503 and no persisted rejection. Infrastructure failures still require normal recovery; they are not successful command decisions. Implementation blocker: no; independent delta confirmation remains required. |
+
+All new in-memory/HTTP tests are in `tests/test_alpha4_delta2.py`; the durable
+restart test is in `tests/test_postgres.py`. No existing tests were weakened.
+The PostgreSQL fixture uses an isolated test database, never a live installation.
+
+Initial targeted run (Windows, Python 3.14.5): 89 tests passed across the new
+delta tests, `test_declarative.py` and `test_alpha4_review.py`. Cold valid
+fan-out validation: **6.970 ms**; unreachable variant: **5.940 ms**; concurrent
+HTTP health response: **17.587 ms**. These are single local observations.
+The final complete CI independently enforces the same timing bounds and includes
+PostgreSQL, MQTT, HA kernel, frontend, lint/format/types/audits and both image
+architectures. Reproduce timing properties with:
+
+```sh
+uv run pytest tests/test_alpha4_delta2.py -q -o junit_family=xunit1 --junitxml=delta2.xml
+```
+
 ## Live gates and test-contract adjustments
 
 - A4-14: on a separately authorized HA installation verify trusted Ingress,

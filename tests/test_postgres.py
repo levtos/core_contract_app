@@ -22,6 +22,37 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_delta2_guard_error_persistent_http_replay_after_restart(
+    database, config, aiohttp_client, tmp_path, monkeypatch
+):
+    from .test_alpha4_delta2 import assert_replay, exercise_guard_failure
+    from .test_workbench_api import api_client
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        command, expected = await exercise_guard_failure(
+            runtime, config, aiohttp_client, tmp_path, monkeypatch
+        )
+    finally:
+        await runtime.stop()
+        await store.close()
+    # Reopen the database with a fresh Store and Runtime; no in-memory command cache.
+    restored = PostgresStore(database, MIGRATIONS, tls=False)
+    await restored.open()
+    restarted = Runtime(restored, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        _, client, headers = await api_client(restarted, aiohttp_client, tmp_path)
+        await assert_replay(restarted, client, headers, command, expected)
+        assert (await restored.get("command_log", command["command_id"]))["result"] == expected
+    finally:
+        await restarted.stop()
+        await restored.close()
+
+
 async def test_review_hysteresis_recovery_and_time_filters(database, config):
     from .test_alpha4_review import exercise_latch_restore, observation
 
