@@ -2,7 +2,7 @@ import { Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
 import { deref, type JsonSchema } from '@/lib/capabilities';
-import { isObject, join, type Json, type JsonObject } from '@/lib/json';
+import { deepEqual, isObject, join, type Json, type JsonObject } from '@/lib/json';
 import { AddButton, Fld, IconButton, NumberField, SectionTitle } from './common';
 import { ValueEditor } from './ValueEditor';
 
@@ -32,20 +32,29 @@ export interface SchemaFormProps {
 const MAX_DEPTH = 24;
 
 /** Merge `allOf` members that are plain object fragments into one schema node. */
-function merged(root: JsonSchema, node: JsonObject): JsonObject {
+export function merged(root: JsonSchema, node: JsonObject, seen = new Set<JsonObject>(), depth = 0): JsonObject {
   if (!Array.isArray(node.allOf)) return node;
+  if (seen.has(node) || depth > MAX_DEPTH) return {};
+  seen.add(node);
   let result: JsonObject = { ...node };
   delete result.allOf;
   for (const part of node.allOf) {
     const resolved = deref(root, part as Json);
     if (!resolved || 'if' in resolved || 'then' in resolved) continue; // conditionals are validation hints
-    const inner = merged(root, resolved);
+    const inner = merged(root, resolved, new Set(seen), depth + 1);
+    const properties: JsonObject = { ...(isObject(inner.properties) ? inner.properties : {}) };
+    for (const [key, value] of Object.entries(isObject(result.properties) ? result.properties : {})) {
+      properties[key] = key in properties ? { allOf: [properties[key]!, value] } : value;
+    }
     result = {
       ...inner,
       ...result,
-      properties: { ...(isObject(inner.properties) ? inner.properties : {}), ...(isObject(result.properties) ? result.properties : {}) },
+      properties,
       required: [...new Set([...(Array.isArray(inner.required) ? inner.required : []), ...(Array.isArray(result.required) ? result.required : [])])],
     };
+    if (typeof inner.minimum === 'number') result.minimum = Math.max(inner.minimum, typeof result.minimum === 'number' ? result.minimum : inner.minimum);
+    if (typeof inner.maximum === 'number') result.maximum = Math.min(inner.maximum, typeof result.maximum === 'number' ? result.maximum : inner.maximum);
+    if (Array.isArray(inner.enum) && Array.isArray(node.enum)) result.enum = inner.enum.filter((v) => (node.enum as Json[]).some((x) => deepEqual(v, x)));
   }
   return result;
 }
@@ -104,8 +113,9 @@ function objectDefault(root: JsonSchema, node: JsonObject, depth: number): JsonO
 
 /** Does `value` fit the (shallow) shape of this variant? Used to pick the active union branch. */
 export function variantMatches(root: JsonSchema, variant: Json, value: Json | undefined, depth = 0): boolean {
-  const node = deref(root, variant);
-  if (!node) return false;
+  const raw = deref(root, variant);
+  if (!raw || depth > MAX_DEPTH) return false;
+  const node = merged(root, raw);
   if (isNullVariant(node)) return value === null || value === undefined;
   if ('const' in node) return JSON.stringify(node.const) === JSON.stringify(value);
   if (Array.isArray(node.enum)) return node.enum.some((e) => JSON.stringify(e) === JSON.stringify(value));
@@ -120,6 +130,7 @@ export function variantMatches(root: JsonSchema, variant: Json, value: Json | un
 
 function discriminatorFits(node: JsonObject, value: JsonObject): boolean {
   const properties = isObject(node.properties) ? node.properties : {};
+  if (Array.isArray(node.required) && node.required.some((key) => typeof key === 'string' && !(key in value))) return false;
   for (const [key, spec] of Object.entries(properties)) {
     if (isObject(spec) && 'const' in spec && key in value && value[key] !== spec.const) return false;
   }
@@ -149,6 +160,13 @@ export function SchemaForm(props: SchemaFormProps) {
   const node = merged(root, raw);
   const rec = (extra: Partial<SchemaFormProps>) => <SchemaForm {...props} depth={depth + 1} {...extra} />;
 
+  // JSON Schema type arrays are unions too, including an explicit null branch.
+  if (Array.isArray(node.type) && node.type.length > 1) {
+    const union = { ...node };
+    delete union.type;
+    return rec({ node: { ...union, anyOf: node.type.map((type) => ({ ...union, type })) } });
+  }
+
   if (isObject(node.discriminator) && node.discriminator.propertyName === 'op' && renderRule && isObject(value)) {
     return <>{renderRule({ value, onChange, pointer, label: caption })}</>;
   }
@@ -160,20 +178,20 @@ export function SchemaForm(props: SchemaFormProps) {
     const nullable = nonNull.length < variants.length;
     const single = nonNull.length === 1 && nonNull[0] !== undefined ? nonNull[0] : undefined;
     const singleNode = single !== undefined ? deref(root, single) : undefined;
-    if (single !== undefined && singleNode && ['string', 'number', 'integer'].includes(typesOf(singleNode)[0] ?? '')) {
+    if (single !== undefined && singleNode && !('enum' in singleNode) && !('const' in singleNode) && ['string', 'number', 'integer'].includes(typesOf(singleNode)[0] ?? '')) {
       const numeric = typesOf(singleNode)[0] !== 'string';
       return (
-        <Fld label={caption} pointer={pointer} hint={nullable ? 'leer lassen für „nicht gesetzt“' : undefined}>
+        <div className="flex flex-col gap-2"><Fld label={caption} pointer={pointer}>
           {(p) => (
             <Input
               {...p}
               type={numeric ? 'number' : 'text'}
               step={numeric ? 'any' : undefined}
               value={value === null || value === undefined ? '' : String(value)}
-              onChange={(e) => onChange(e.target.value === '' ? (nullable ? null : '') : numeric ? Number(e.target.value) : e.target.value)}
+              onChange={(e) => { if (!numeric || e.target.value !== '') onChange(numeric ? Number(e.target.value) : e.target.value); }}
             />
           )}
-        </Fld>
+        </Fld>{nullable && <AddButton onClick={() => onChange(null)}>Auf null setzen</AddButton>}</div>
       );
     }
     if (single !== undefined && nullable && (value === null || value === undefined)) {
@@ -184,7 +202,7 @@ export function SchemaForm(props: SchemaFormProps) {
         </div>
       );
     }
-    if (single !== undefined) return rec({ node: single, label: title });
+    if (single !== undefined) return <div className="flex flex-col gap-2">{rec({ node: single, label: title })}{nullable && <AddButton onClick={() => onChange(null)}>Auf null setzen</AddButton>}</div>;
     // General union: pick the branch, then edit it with its own schema.
     const activeIndex = Math.max(0, variants.findIndex((v) => variantMatches(root, v, value)));
     const active = variants[activeIndex]!;
@@ -211,11 +229,16 @@ export function SchemaForm(props: SchemaFormProps) {
   }
   if (Array.isArray(node.enum)) {
     const options = node.enum;
+    const selected = options.findIndex((v) => deepEqual(v, value));
+    const labels = options.map((v) => typeof v === 'object' ? JSON.stringify(v) : String(v));
+    const unique = new Set(labels).size === options.length;
+    const ids = options.map((_, i) => unique ? labels[i]! : String(i));
     return (
       <Fld label={caption} pointer={pointer}>
         {(p) => (
-          <Select {...p} value={String(value ?? options[0])} onChange={(e) => onChange(options.find((v) => String(v) === e.target.value))}>
-            {options.map((v) => <option key={String(v)} value={String(v)}>{String(v)}</option>)}
+          <Select {...p} value={selected < 0 ? '' : ids[selected]} onChange={(e) => onChange(options[ids.indexOf(e.target.value)])}>
+            {selected < 0 && <option value="" disabled>Wert wählen</option>}
+            {options.map((v, i) => <option key={i} value={ids[i]}>{unique ? labels[i] : JSON.stringify(v)}</option>)}
           </Select>
         )}
       </Fld>
@@ -274,7 +297,7 @@ export function SchemaForm(props: SchemaFormProps) {
     const properties = isObject(node.properties) ? node.properties : {};
     const requiredKeys = Array.isArray(node.required) ? (node.required as string[]) : [];
     const current = isObject(value) ? value : {};
-    const open = node.additionalProperties !== false && (node.additionalProperties !== undefined || !hasProperties);
+    const open = node.additionalProperties !== false;
     const extraKeys = Object.keys(current).filter((k) => !(k in properties));
     const additional = isObject(node.additionalProperties) ? node.additionalProperties : undefined;
     const set = (key: string, next: Json | undefined) => {

@@ -91,10 +91,10 @@ export function flow(user: UserEvent) {
   const activateOpenDraft = async (draftId: string) => {
     await go(`#/registry/drafts/${draftId}`);
     const button = await screen.findByRole('button', { name: /Aktivieren/ });
-    await waitFor(() => expect(button).toBeEnabled(), { timeout: 20_000 });
+    await waitFor(() => expect(button).toBeEnabled(), { timeout: 65_000 });
     await user.click(button);
     const dialog = await screen.findByRole('dialog', { name: 'Registry aktivieren' });
-    await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 }));
     await user.click(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' }));
     return dialog;
   };

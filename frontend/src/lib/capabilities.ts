@@ -52,12 +52,17 @@ export interface Capabilities {
 }
 
 /** Resolve a local `#/$defs/…` reference. */
-export function deref(root: JsonSchema, node: Json | undefined): JsonObject | undefined {
+export function deref(root: JsonSchema, node: Json | undefined, seen = new Set<string>()): JsonObject | undefined {
   if (!isObject(node)) return undefined;
   const ref = node.$ref;
   if (typeof ref === 'string' && ref.startsWith('#/')) {
-    const target = getAt(root, ref.slice(1));
-    return isObject(target) ? target : undefined;
+    if (seen.has(ref)) return undefined;
+    seen.add(ref);
+    const target = deref(root, getAt(root, ref.slice(1)), seen);
+    if (!target) return undefined;
+    const siblings = { ...node };
+    delete siblings.$ref;
+    return Object.keys(siblings).length ? { ...target, ...siblings } : target;
   }
   return node;
 }

@@ -62,9 +62,10 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
 
   it('imports a valid registry, edits it graphically (including structured catalog values), exports and re-imports it without loss', async () => {
     app();
-    await f.createDraft('Import', 'Import (JSON)', JSON.stringify(registry));
+    const enriched: JsonObject = { ...registry, x_future: { z: [2, null], a: { id: 'stable' } }, definitions: (registry.definitions as JsonObject[]).map((d, i) => i === 0 ? { ...d, x_note: { z: 1, a: 2 } } : d) };
+    await f.createDraft('Import', 'Import (JSON)', JSON.stringify(enriched));
     const imported = [...api.drafts.values()][0]!;
-    expect(imported.config).toEqual(registry);
+    expect(imported.config).toEqual(enriched);
 
     // Edit through the UI: a catalog with object / list / null values.
     await f.go('#/sources?tab=catalogs');
@@ -85,7 +86,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await user.selectOptions(screen.getByLabelText('Wert für aus: Typ'), 'null');
 
     await user.click(f.saveButton());
-    const expected = { ...registry, catalogs: [{ catalog_id: 'catalog.struktur', kind: 'map', version: 1, entries: { an: { liste: ['eins', null] }, aus: null } }] };
+    const expected = { ...enriched, catalogs: [{ catalog_id: 'catalog.struktur', kind: 'map', version: 1, entries: { an: { liste: ['eins', null] }, aus: null } }] };
     await waitFor(() => expect(api.drafts.get(imported.draft_id)!.draft_version).toBeGreaterThan(1));
     expect(savedConfig(imported.draft_id)).toEqual(expected);
 
@@ -93,6 +94,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await f.go('#/registry');
     await user.click((await screen.findAllByRole('button', { name: /Export/ }))[0]!);
     await waitFor(() => expect(exported).toHaveLength(1));
+    expect(Object.keys(JSON.parse(exported[0]!).x_future)).toEqual(['z', 'a']);
     await f.createDraft('Reimport', 'Import (JSON)', exported[0]);
     const second = [...api.drafts.values()].find((d) => d.display_name === 'Reimport')!;
     expect(second.config).toEqual(expected);

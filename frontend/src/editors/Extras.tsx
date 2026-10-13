@@ -4,7 +4,7 @@ import { deref } from '@/lib/capabilities';
 import { isObject, join, type Json, type JsonObject } from '@/lib/json';
 import { useRegistrySchema } from '@/lib/schema-context';
 import { IconButton } from './common';
-import { SchemaForm, type SchemaFormProps } from './SchemaForm';
+import { merged, SchemaForm, type SchemaFormProps } from './SchemaForm';
 import { ValueEditor } from './ValueEditor';
 
 /** Properties each specialised editor renders itself; everything else comes from the schema. */
@@ -62,7 +62,8 @@ export function Extras({
 }) {
   const root = useRegistrySchema();
   const handled = new Set<string>((HANDLED as Record<string, string[]>)[def] ?? []);
-  const definition = root ? deref(root, { $ref: `#/$defs/${def}` }) : undefined;
+  const raw = root ? deref(root, { $ref: `#/$defs/${def}` }) : undefined;
+  const definition = root && raw ? merged(root, raw) : undefined;
   const properties = definition && isObject(definition.properties) ? definition.properties : {};
   const required = definition && Array.isArray(definition.required) ? (definition.required as string[]) : [];
   const declared = Object.keys(properties).filter((k) => !handled.has(k) && k !== 'op');

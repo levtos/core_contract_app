@@ -20,6 +20,12 @@ function mount(definition: JsonObject, locked = false) {
 const withEnumInput = (): JsonObject => ({ ...newDefinition('test.x', 1), inputs: [{ name: 'mode', schema: { ...newFieldSchema('enum'), value_catalog: ['on', 'off'] } }] });
 
 describe('operators beyond the example', () => {
+  it('preserves unknown members and a stateful node ID when changing the operator graphically', async () => {
+    const result = mount({ ...newDefinition('test.preserve', 1), outputs: { value: { op: 'bucket', id: 'stable-node', initial: false, lower: 0, upper: 1, arg: { op: 'input', name: 'a' }, x_future: { keep: [null, 1] } } } });
+    await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
+    await user.selectOptions(within(node(root)).getAllByRole('combobox', { name: /^Operator/ })[0]!, 'temporal');
+    expect((result().outputs as JsonObject).value).toMatchObject({ op: 'temporal', id: 'stable-node', x_future: { keep: [null, 1] } });
+  });
   it('map: keys follow the input type (catalog values are offered and stored as canonical JSON strings)', async () => {
     const result = mount({ ...withEnumInput(), outputs: { value: { op: 'input', name: 'mode' } } });
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));

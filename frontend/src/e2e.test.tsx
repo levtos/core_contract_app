@@ -1,10 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws'; // jsdom's global Event and Node's WebSocket are not compatible
+import { IDBFactory } from 'fake-indexeddb';
 import example from '../test/fixtures/example-registry.json';
 import { flow } from '../test/flow';
+import { exerciseCoverage } from '../test/coverage';
+import type { Capabilities } from '@/lib/capabilities';
 import { Workbench } from '@/Workbench';
 import { LiveStore, type SocketLike } from '@/lib/live';
 import type { JsonObject } from '@/lib/json';
@@ -18,6 +21,7 @@ import type { JsonObject } from '@/lib/json';
  *   TERRA_E2E_URL=http://127.0.0.1:8123 npm run test:e2e
  */
 const base = process.env.TERRA_E2E_URL;
+vi.unmock('@/lib/request-budget');
 const user = userEvent.setup();
 const f = flow(user);
 const registry = example as unknown as JsonObject;
@@ -50,7 +54,15 @@ async function expectSameAsActive(document: unknown) {
 let store: LiveStore;
 
 describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
-  beforeAll(() => {
+  it('validates all additional GUI-authored operators, freshness modes and bindings against the real engine', async () => {
+    const capabilities = (await raw<Capabilities>('capabilities')).body;
+    await exerciseCoverage(async (document) => {
+      const verdict = await raw<{ valid: boolean; issues: unknown[] }>('registry/validate', json('POST', document));
+      expect(verdict, JSON.stringify(document)).toMatchObject({ status: 200, body: { valid: true, issues: [] } });
+    }, capabilities);
+  }, 120_000);
+  beforeEach(() => {
+    vi.stubGlobal('indexedDB', new IDBFactory());
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => realFetch(typeof input === 'string' && input.startsWith('./') ? `${base}${input.slice(1)}` : input, init));
     HTMLAnchorElement.prototype.click = () => {};
     store = new LiveStore({ createSocket: () => new WebSocket(`${base!.replace(/^http/, 'ws')}/api/v1/ws`) as unknown as SocketLike });
@@ -135,7 +147,8 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const rev1 = (await screen.findByText('Revision 1')).closest('li')!;
     await user.click(within(rev1).getByRole('button', { name: /Zurückrollen/ }));
     const rollback = await screen.findByRole('dialog', { name: /Auf Revision 1 zurückrollen/ });
-    await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Revision 1 als neue Revision 3/ }));
+    // The real shared scheduler can wait for its 61-second window after this fast scripted flow.
+    await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Revision 1 als neue Revision 3/ }, { timeout: 65_000 }));
     await user.click(within(rollback).getByRole('button', { name: 'Zurückrollen' }));
     await within(rollback).findByText(/Neue Revision 3 aktiv/, {}, { timeout: 20_000 });
     await expectSameAsActive(registry); // revision 3 carries revision 1's content again
@@ -144,7 +157,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
 
     // 7. A concurrent change by another session is reported as a conflict and overwrites nothing.
     await f.go(`#/registry/drafts/${draftId}`);
-    await screen.findByRole('button', { name: /Aktivieren/ });
+    await waitFor(() => expect(screen.getByLabelText('Draft-Name')).toHaveValue('E2E'), { timeout: 65_000 });
     await f.go('#/contracts');
     await user.click(await screen.findByRole('button', { name: /Neue Instanz/ }));
     const create = await screen.findByRole('dialog', { name: 'Neue Contract-Instanz' });
@@ -154,7 +167,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const other = await raw(`registry/drafts/${draftId}`, json('PUT', { config: { ...current.config, other_session: true }, draft_version: current.draft_version }));
     expect(other.status).toBe(200);
     await user.click(f.saveButton());
-    await screen.findByRole('dialog', { name: /Versionskonflikt/ });
+    await screen.findByRole('dialog', { name: /Versionskonflikt/ }, { timeout: 65_000 });
     expect(((await raw<{ config: JsonObject }>(`registry/drafts/${draftId}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
   }, 300_000);
 });

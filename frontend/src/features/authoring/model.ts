@@ -139,7 +139,10 @@ export function convertRule(old: Rule, op: string, ctx: RuleContext, defaults: O
     const args = op === 'not' ? old.args.slice(0, 1) : old.args.length >= 1 ? old.args : newRule(op, ctx, defaults).args!;
     return { ...old, op, args };
   }
-  return newRule(op, ctx, defaults);
+  const known = new Set(['op', 'name', 'schema', 'value', 'args', 'comparison', 'left', 'right', 'arg', 'entries', 'cases', 'id', 'initial', 'lower', 'upper', 'version', 'strategy', 'operation', 'duration_s', 'accepts_held']);
+  const extra = Object.fromEntries(Object.entries(old).filter(([key]) => !known.has(key)));
+  const next = newRule(op, ctx, defaults);
+  return { ...extra, ...next, ...(next.id !== undefined && old.id !== undefined ? { id: old.id } : {}) };
 }
 
 /** Direct sub-expressions with their pointer segments relative to the node. */

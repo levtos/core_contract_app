@@ -1,8 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import { clone, deepEqual, getAt, setAt, type Json } from '@/lib/json';
-import { keys, useDraftMutations, validateConfig } from '@/lib/queries';
+import { useDraftMutations, validateConfig } from '@/lib/queries';
 import { IssuesProvider } from './issues';
 import type { Draft, Registry, ValidationResult } from '@/lib/types';
 
@@ -94,7 +93,6 @@ interface Snapshot {
 const IDLE: ValidationView = { state: 'idle', result: null, issues: [], stale: false, error: null };
 
 export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }: { children: ReactNode; validateDebounceMs?: number }) {
-  const client = useQueryClient();
   const { create, update } = useDraftMutations();
   const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, name: '', past: [], future: [] });
   const [saving, setSaving] = useState(false);
@@ -102,8 +100,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [validation, setValidation] = useState<ValidationView>(IDLE);
   const [autoValidate, setAutoValidate] = useState(true);
+  const autoValidateRef = useRef(autoValidate);
+  autoValidateRef.current = autoValidate;
   const validatedFor = useRef<Registry | null>(null);
   const runId = useRef(0);
+  const documentId = useRef(0);
+  const savingRef = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latest = useRef(snap);
   latest.current = snap;
@@ -113,6 +115,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   const open = useCallback((draft: Draft, options?: { reload?: boolean }) => {
     // Selecting the draft that is already open must never drop its local edits or undo history.
     if (latest.current.draft?.draft_id === draft.draft_id && !options?.reload) return;
+    documentId.current += 1;
+    clearTimeout(retryTimer.current);
     rememberDraftId(draft.draft_id);
     validatedFor.current = null;
     runId.current += 1;
@@ -146,6 +150,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   const cancelSwitch = useCallback(() => setSwitchRequest(null), []);
 
   const close = useCallback(() => {
+    documentId.current += 1;
     rememberDraftId(null);
     validatedFor.current = null;
     runId.current += 1;
@@ -196,6 +201,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   }, []);
 
   const validateNow = useCallback(async () => {
+    clearTimeout(retryTimer.current);
     const config = latest.current.config;
     if (!config) return;
     const id = ++runId.current;
@@ -214,7 +220,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         const limited = error instanceof ApiError && error.kind === 'rate_limited';
         setValidation({ state: 'failed', result: null, issues: [], stale: false, error: limited ? describeError(error) : error instanceof Error ? error.message : 'Validierung fehlgeschlagen' });
         // Too many requests is transient: look again later instead of leaving the document unchecked.
-        if (limited) retryTimer.current = setTimeout(() => void validateNow(), 10_000);
+        if (limited) retryTimer.current = setTimeout(() => { if (id === runId.current && autoValidateRef.current) void validateNow(); }, 60_000);
       }
     }
   }, []);
@@ -230,7 +236,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     return () => clearTimeout(timer);
   }, [snap.config, autoValidate, validateNow, validateDebounceMs]);
 
-  useEffect(() => () => clearTimeout(retryTimer.current), []);
+  useEffect(() => () => { runId.current += 1; clearTimeout(retryTimer.current); }, []);
 
   // Unsaved changes: warn on leaving the page.
   useEffect(() => {
@@ -245,17 +251,21 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   const save = useCallback(async () => {
     const { draft, config, name } = latest.current;
-    if (!draft || !config) return 'error' as const;
+    if (!draft || !config || savingRef.current) return 'error' as const;
+    const owner = documentId.current;
+    savingRef.current = true;
     setSaving(true);
     setSaveError(null);
     try {
       const saved = await update.mutateAsync({ draft, config, display_name: name });
-      setSnap((c) => (c.config === config ? { ...c, draft: saved } : { ...c, draft: saved }));
+      if (owner === documentId.current) setSnap((c) => ({ ...c, draft: saved }));
       return 'saved' as const;
     } catch (error) {
+      if (owner !== documentId.current) return 'error' as const;
       if (error instanceof ApiError && error.code === 'draft_version_conflict') {
         try {
           const server = await api<Draft>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`);
+          if (owner !== documentId.current) return 'error' as const;
           setConflict({ server });
           return 'conflict' as const;
         } catch {
@@ -265,6 +275,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       setSaveError(error instanceof ApiError ? (error.code === 'persistence_unavailable' ? 'Persistenz nicht erreichbar – nichts gespeichert.' : `Speichern fehlgeschlagen: ${error.code}`) : 'Speichern fehlgeschlagen.');
       return 'error' as const;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }, [update]);
@@ -273,7 +284,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     async (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => {
       const current = conflict;
       const { config, draft } = latest.current;
-      if (!current || !config || !draft) return;
+      if (!current || !config || !draft || current.server.draft_id !== draft.draft_id || savingRef.current) return;
+      const owner = documentId.current;
       if (choice === 'cancel') return setConflict(null);
       if (choice === 'take-server') {
         setConflict(null);
@@ -281,26 +293,26 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       }
       if (choice === 'keep-local-as-new') {
         const created = await create.mutateAsync({ config, display_name: `${draft.display_name || draft.draft_id} (lokale Änderungen)` });
+        if (owner !== documentId.current) return;
         setConflict(null);
-        return open(created);
+        rememberDraftId(created.draft_id);
+        setSnap((c) => ({ ...c, draft: created }));
+        return;
       }
       // Explicit overwrite: re-base on the server version the user has just seen.
       try {
         const saved = await update.mutateAsync({ draft: current.server, config, display_name: latest.current.name });
+        if (owner !== documentId.current) return;
         setConflict(null);
         setSnap((c) => ({ ...c, draft: saved }));
       } catch (error) {
+        if (owner !== documentId.current) return;
         setSaveError(error instanceof ApiError ? `Überschreiben fehlgeschlagen: ${error.code}` : 'Überschreiben fehlgeschlagen.');
         setConflict(null);
       }
     },
     [conflict, create, open, update],
   );
-
-  // Keep derived server lists fresh after local saves.
-  useEffect(() => {
-    if (snap.draft) void client.invalidateQueries({ queryKey: keys.drafts });
-  }, [snap.draft?.draft_version, snap.draft?.draft_id, client]);
 
   const value = useMemo<WorkingDocument>(
     () => ({

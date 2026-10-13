@@ -1,4 +1,4 @@
-import { canonicalJson, isObject } from '@/lib/json';
+import { isObject } from '@/lib/json';
 import type { Registry } from '@/lib/types';
 
 export type ParsedImport = { ok: true; config: Registry; display_name?: string } | { ok: false; error: string };
@@ -24,7 +24,7 @@ export function parseRegistryJson(text: string): ParsedImport {
 }
 
 export function exportRegistry(config: Registry): string {
-  return canonicalJson(config);
+  return JSON.stringify(config, null, 2);
 }
 
 /** Browser download of generated text (no server round trip, no credentials involved). */

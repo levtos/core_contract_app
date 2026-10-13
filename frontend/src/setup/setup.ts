@@ -1,3 +1,5 @@
+import { coolDownRequests, reserveRequest } from '@/lib/request-budget';
+
 export interface Connection {
   host: string; port: number; database: string; user: string; password?: string;
   sslmode: 'verify-full' | 'require' | 'disable'; ca: string;
@@ -29,11 +31,13 @@ const errors: Record<string, string> = {
   invalid_setup_request: 'Eingaben oder Importcode ungültig. Bitte prüfen.',
 };
 export async function setupRequest<T>(path: string, body?: unknown, csrf = ''): Promise<T> {
+  await reserveRequest();
   const response = await fetch(`./api/v1/setup/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Setup-CSRF': csrf },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (response.status === 429) await coolDownRequests(response.headers.get('Retry-After'));
   const value = await response.json().catch(() => ({ error: 'invalid_response' }));
   if (!response.ok) throw new Error(errors[value.error] ?? 'Einrichtung nicht verfügbar. Ingress-Sitzung erneuern und erneut prüfen.');
   return value as T;

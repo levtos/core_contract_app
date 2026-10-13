@@ -177,6 +177,10 @@ export class LiveStore {
         this.patch({ service: message as unknown as ServiceState, lastEventAt: now });
         break;
       case 'snapshot':
+        if (typeof message.epoch_id !== 'string' || !Number.isSafeInteger(message.publication_seq) || !message.contracts || typeof message.contracts !== 'object') {
+          this.resync(socket);
+          break;
+        }
         this.patch({
           connection: 'open',
           stale: false,
@@ -184,15 +188,18 @@ export class LiveStore {
           epochId: String(message.epoch_id ?? ''),
           publicationSeq: Number(message.publication_seq ?? 0),
           registryRevision: Number(message.registry_revision ?? 0),
-          publicationConfirmed: message.publication_confirmed === false ? false : true,
+          publicationConfirmed: typeof message.publication_confirmed === 'boolean' ? message.publication_confirmed : null,
           lastEventAt: now,
         });
         break;
       case 'delta': {
         const continues =
+          this.state.connection === 'open' && !this.state.stale &&
           this.state.contracts !== null &&
           message.epoch_id === this.state.epochId &&
-          message.prev_seq === this.state.publicationSeq;
+          message.prev_seq === this.state.publicationSeq &&
+          Number.isSafeInteger(message.publication_seq) && Number(message.publication_seq) > Number(message.prev_seq) &&
+          message.contracts !== null && typeof message.contracts === 'object';
         if (!continues) {
           this.resync(socket);
           break;
@@ -217,6 +224,7 @@ export class LiveStore {
   }
 
   private resync(socket: SocketLike): void {
+    if (this.state.connection === 'resyncing') return;
     this.patch({ connection: 'resyncing', stale: true, resyncCount: this.state.resyncCount + 1 });
     this.subscribeAll(socket);
   }

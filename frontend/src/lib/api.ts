@@ -1,4 +1,5 @@
 import type { Json } from './json';
+import { coolDownRequests, reserveRequest } from './request-budget';
 
 /** One structured server finding; paths are JSON Pointers into the submitted document. */
 export interface Issue {
@@ -78,6 +79,7 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
   const method = options.method ?? 'GET';
   let response: Response;
   try {
+    await reserveRequest(options.signal);
     response = await fetch(`./api/v1/${path}`, {
       method,
       headers: options.body === undefined ? {} : { 'Content-Type': 'application/json' },
@@ -89,6 +91,7 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
     throw new ApiError(0, 'network_error', [], 'Der Dienst ist nicht erreichbar.');
   }
   if (!response.ok) {
+    if (response.status === 429) await coolDownRequests(response.headers.get('Retry-After'));
     const body = (await response.json().catch(() => null)) as ErrorBody | null;
     const code = body?.error ?? 'invalid_response';
     throw new ApiError(response.status, code, issuesFromBody(body), `${code} (${response.status})`);
@@ -110,7 +113,7 @@ const MESSAGES: Record<string, string> = {
   evidence_not_found: 'Zu dieser Referenz liegt keine aufgezeichnete Evidenz vor.',
   invalid_request: 'Die Anfrage ist ungültig.',
   network_error: 'Der Dienst ist nicht erreichbar.',
-  rate_limited: 'Zu viele Anfragen in kurzer Zeit. Die Oberfläche versucht es automatisch später erneut.',
+  rate_limited: 'Zu viele Anfragen. Weitere Anfragen warten; diese Aktion wurde nicht automatisch wiederholt.',
 };
 
 export function describeError(error: unknown): string {

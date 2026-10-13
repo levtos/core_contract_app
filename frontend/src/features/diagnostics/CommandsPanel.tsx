@@ -75,6 +75,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
   }, [spec?.name, contractId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = useMutation({
+    retry: false,
     mutationFn: async () => {
       const id = uuid();
       setSent({ id, result: null, error: null });

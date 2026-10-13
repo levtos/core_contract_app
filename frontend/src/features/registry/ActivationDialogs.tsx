@@ -39,13 +39,18 @@ function useCheck(open: boolean, subject: string, run: () => Promise<ValidationR
 
   const start = useCallback(async () => {
     const mine = ++ticket.current;
+    const runCandidate = runRef.current;
     setState({ subject, check: { state: 'checking' }, expected: 0 });
     let outcome: Check;
     let expected = 0;
     try {
       const active = await client.fetchQuery({ queryKey: keys.active, queryFn: () => api<RevisionRow | null>('registry/active'), staleTime: 0 });
+      if (mine !== ticket.current) return;
       expected = active?.revision ?? 0;
-      outcome = { state: 'ok', result: await runRef.current() };
+      const result = await runCandidate();
+      const after = await api<RevisionRow | null>('registry/active');
+      if ((after?.revision ?? 0) !== expected) throw new StaleSubject('Die aktive Revision hat sich während der Prüfung geändert. Erneut prüfen.');
+      outcome = { state: 'ok', result };
     } catch (error) {
       if (error instanceof StaleSubject) outcome = { state: 'stale', message: error.message };
       else if (error instanceof ApiError && error.kind === 'validation') outcome = { state: 'invalid', issues: error.issues };
@@ -103,7 +108,10 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
     if (saved.draft_version !== draft.draft_version) {
       throw new StaleSubject(`Der Draft wurde zwischenzeitlich auf v${saved.draft_version} geändert (geöffnet: v${draft.draft_version}). Neu laden und erneut prüfen.`);
     }
-    return api<ValidationResult>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/validate`, { method: 'POST', body: {} });
+    const result = await api<ValidationResult>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/validate`, { method: 'POST', body: {} });
+    const after = await api<Draft>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`);
+    if (after.draft_version !== saved.draft_version) throw new StaleSubject('Der Draft hat sich während der Prüfung geändert. Neu laden und erneut prüfen.');
+    return result;
   });
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const [done, setDone] = useState<{ subject: string; revision: RevisionRow } | null>(null);
@@ -116,7 +124,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
     activate.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, subject]);
-  const ready = check.state === 'ok' && check.result.valid;
+  const ready = check.state === 'ok' && check.result.valid && !activate.error;
 
   return (
     <Dialog
@@ -189,7 +197,7 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
     rollback.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, subject]);
-  const ready = check.state === 'ok' && check.result.valid;
+  const ready = check.state === 'ok' && check.result.valid && !rollback.error;
   return (
     <Dialog
       open={open}

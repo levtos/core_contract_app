@@ -2,6 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+// General component suites focus on their feature. The shared real IndexedDB
+// scheduler is exercised separately with two React clients and controlled time.
+vi.mock('@/lib/request-budget', () => ({ reserveRequest: async () => {}, coolDownRequests: async () => {} }));
+
 // jsdom lacks these browser APIs used by Base UI and React Flow.
 class ResizeObserverStub {
   observe() {}

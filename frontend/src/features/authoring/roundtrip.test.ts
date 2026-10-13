@@ -20,7 +20,7 @@ describe('import / export round trip', () => {
     expect(getAt(edited, '/definitions/4/machine/deadline_s')).toBe(30);
     const restored = setAt(edited, '/definitions/4/machine/deadline_s', 10);
     expect(deepEqual(restored, registry())).toBe(true);
-    // Export is canonical and re-importable.
+    // Export preserves the document and is re-importable.
     const again = parseRegistryJson(exportRegistry(restored));
     expect(again.ok && deepEqual(again.config, registry())).toBe(true);
   });
@@ -40,9 +40,10 @@ describe('import / export round trip', () => {
     for (const bad of ['null', '[]', '7', '"x"', '{nope']) expect(parseRegistryJson(bad).ok).toBe(false);
   });
 
-  it('export is order-independent and stable', () => {
+  it('export preserves member order; canonical comparison remains order-independent', () => {
     const shuffled = Object.fromEntries(Object.entries(registry()).reverse());
-    expect(exportRegistry(shuffled)).toBe(exportRegistry(registry()));
+    expect(Object.keys(JSON.parse(exportRegistry(shuffled)))).toEqual(Object.keys(shuffled));
+    expect(canonicalJson(shuffled)).toBe(canonicalJson(registry()));
     expect(canonicalJson({ b: 1, a: { d: 1, c: 2 } })).toBe('{\n  "a": {\n    "c": 2,\n    "d": 1\n  },\n  "b": 1\n}');
   });
 });

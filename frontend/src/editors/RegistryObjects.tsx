@@ -132,7 +132,11 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <div className="grid gap-3 sm:grid-cols-4">
           <Fld label="Modus" pointer={join(fp, 'mode')} className="sm:col-span-2">
             {(p) => (
-              <Select {...p} value={mode} onChange={(e) => setFreshness({ mode: e.target.value })}>
+               <Select {...p} value={mode} onChange={(e) => {
+                 const nextMode = e.target.value;
+                 const needs = requiredWhen(schema, 'Freshness', 'mode', nextMode);
+                 setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s === undefined ? { interval_s: 60 } : {}) });
+               }}>
                 {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
@@ -275,7 +279,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
               onChange={(e) => {
                 const k = e.target.value;
                 if (!k) return setTransform(undefined);
-                setTransform(k === 'type_cast' ? { kind: k, target: 'number' } : k === 'unit_scale' ? { kind: k, factor: 1, offset: 0 } : { kind: k, catalog_id: catalogIds[0] ?? '' });
+                setTransform({ ...transform, ...(k === 'type_cast' ? { kind: k, target: 'number' } : k === 'unit_scale' ? { kind: k, factor: 1, offset: 0 } : { kind: k, catalog_id: catalogIds[0] ?? '' }) });
               }}
             >
               <option value="">keine</option>

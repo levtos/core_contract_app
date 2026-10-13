@@ -15,7 +15,6 @@ import { asArray } from '@/features/authoring/model';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { api } from '@/lib/api';
 import { formatTime } from '@/lib/format';
-import { canonicalJson } from '@/lib/json';
 import type { Draft } from '@/lib/types';
 import { ActivateDialog } from './ActivationDialogs';
 import { DiffView } from './DiffView';
@@ -32,7 +31,7 @@ const SECTIONS: { key: string; label: string; to: string }[] = [
 
 function JsonExpert() {
   const doc = useWorkingDocument();
-  const current = useMemo(() => (doc.config ? canonicalJson(doc.config) : ''), [doc.config]);
+  const current = useMemo(() => (doc.config ? JSON.stringify(doc.config, null, 2) : ''), [doc.config]);
   const [text, setText] = useState(current);
   const [error, setError] = useState('');
   useEffect(() => setText(current), [current]);

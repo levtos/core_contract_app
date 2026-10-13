@@ -79,6 +79,7 @@ export function ExplainPanel({ trace }: { trace: JsonObject | null }) {
           <tbody>
             {steps.map((step, i) => {
               const status = FIELD_STATUS[step.status as FieldStatus];
+              const quality = QUALITY[step.quality as keyof typeof QUALITY];
               const reasons = Array.isArray(step.reasons) ? step.reasons.map(String) : [];
               const evidenceRefs = Array.isArray(step.evidence) ? step.evidence.map(String) : [];
               return (
@@ -90,16 +91,16 @@ export function ExplainPanel({ trace }: { trace: JsonObject | null }) {
                     {step.op === 'guard' ? (
                       <Badge tone={step.decision === true ? 'ok' : step.decision === false ? 'bad' : 'warn'}>{step.decision === true ? 'erlaubt' : step.decision === false ? 'abgelehnt' : 'unentschieden'}</Badge>
                     ) : step.op === 'fusion_selection' ? (
-                      <Badge tone="info">{text(step.selection) === 'engine' ? 'Engine-Auswahl' : 'Strategie-definiert'}</Badge>
+                      <Badge tone="info">{step.selection === 'engine' ? 'Engine-Auswahl' : step.selection === 'strategy' ? 'Strategie-definiert' : 'Auswahl nicht aufgezeichnet'}</Badge>
                     ) : status ? (
-                      <span className="flex items-center gap-1.5"><Badge tone={status.tone}>{status.label}</Badge><Badge tone={QUALITY[step.quality as 'healthy'].tone}>{QUALITY[step.quality as 'healthy'].label}</Badge></span>
+                      <span className="flex items-center gap-1.5"><Badge tone={status.tone}>{status.label}</Badge>{quality ? <Badge tone={quality.tone}>{quality.label}</Badge> : <span>Qualität nicht aufgezeichnet</span>}</span>
                     ) : (
                       '–'
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-xs">
                     {step.op === 'fusion_selection' ? (
-                      <span>Gewählt: [{(Array.isArray(step.selected_indices) ? step.selected_indices : []).join(', ')}] · Kandidaten: {(Array.isArray(step.candidate_statuses) ? step.candidate_statuses : []).map(String).join(', ')}</span>
+                      <span>Gewählt: {Array.isArray(step.selected_indices) ? `[${step.selected_indices.join(', ')}]` : 'nicht aufgezeichnet'} · Kandidaten: {Array.isArray(step.candidate_statuses) ? step.candidate_statuses.map(String).join(', ') : 'nicht aufgezeichnet'}</span>
                     ) : reasons.length ? (
                       <span className="flex flex-wrap gap-1">{reasons.map((r) => <Badge key={r} tone="warn">{r}</Badge>)}</span>
                     ) : (

@@ -160,11 +160,13 @@ export function useDraftMutations() {
   const refresh = () => client.invalidateQueries({ queryKey: keys.drafts });
   return {
     create: useMutation({
+      retry: false,
       mutationFn: (input: { config: Registry; display_name?: string; draft_id?: string }) =>
         api<Draft>('registry/drafts', { method: 'POST', body: input }),
       onSuccess: refresh,
     }),
     update: useMutation({
+      retry: false,
       mutationFn: (input: { draft: Draft; config: Registry; display_name?: string }) =>
         api<Draft>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}`, {
           method: 'PUT',
@@ -180,6 +182,7 @@ export function useDraftMutations() {
       },
     }),
     remove: useMutation({
+      retry: false,
       mutationFn: (draft: Draft) =>
         api<{ deleted: boolean }>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`, {
           method: 'DELETE',
@@ -204,6 +207,7 @@ export function useActivation() {
     );
   return {
     activate: useMutation({
+      retry: false,
       mutationFn: (input: { draft: Draft; expectedActiveRevision: number }) =>
         api<RevisionRow>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}/activate`, {
           method: 'POST',
@@ -215,6 +219,7 @@ export function useActivation() {
       onSuccess: done,
     }),
     rollback: useMutation({
+      retry: false,
       mutationFn: (input: { revision: number; expectedActiveRevision: number }) =>
         api<RevisionRow>('registry/rollback', {
           method: 'POST',
@@ -234,6 +239,7 @@ export const rotateToken = (role: 'admin' | 'consumer') => api<TokenRotation>('t
 
 export const useSubmitCommand = () =>
   useMutation({
+    retry: false,
     mutationFn: (command: JsonObject) => api<CommandResult>('commands', { method: 'POST', body: command }),
   });
 
