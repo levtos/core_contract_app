@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0a5 — Terra Workbench (2026-10-14)
+
+- React 19 administration UI with graphical Alpha-4 editors, Registry Studio, graph, diagnostics and administration.
+- Independent review fixes T1B-01–T1B-07/UX-01 and C1–C8: safe drafts/activation, typed values/catalogs,
+  dynamic schemas, protected token handling, tab-wide request budget, honest live/explain data and lossless roundtrip.
+- Flexible panels: drag-and-drop/keyboard order, widths, installation-scoped persistence and reset; editor state retained.
+- API/Bridge protocols, database schema and installation identity unchanged; no new backend feature.
+- Not verified: visible Firefox/Touch, real HA-Ingress/Supervisor embedding, real discovery,
+  accessibility and Live acceptance. Installation and final Live status remain Benni's gate.
+- [Alpha 5 notes and publication evidence](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a5.md).
+
 ## 1.0.0a4 — Declarative Platform (prepared)
 
 - Declarative contract definitions and state machines as registry data on the existing engines.
