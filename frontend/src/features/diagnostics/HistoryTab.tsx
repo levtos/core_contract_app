@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState, Fragment } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/form';
 import { Empty, Notice, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
@@ -122,7 +123,7 @@ export function HistoryTab({ initialContract = '' }: { initialContract?: string 
   const [applied, setApplied] = useState<HistoryFilters>({ contract_id: initialContract || undefined, limit: 50 });
   const invalid = since && until && new Date(since) > new Date(until);
   return (
-    <Panel>
+    <PanelLayout view="diagnostics.history"><LayoutPanel id="filters" title="Historienfilter"><Panel>
       <PanelHeader title="Historie" description="Admin-Lesezugriff auf die dauerhaft gespeicherte Historie, seitenweise mit opakem Cursor." />
       <div className="flex flex-col gap-4 p-4">
         <form
@@ -150,8 +151,8 @@ export function HistoryTab({ initialContract = '' }: { initialContract?: string 
             <span className="text-xs text-faint">Zeiten werden als UTC-Instants verglichen; Grenzen sind inklusive.</span>
           </div>
         </form>
-        <HistoryTable key={`${kind}-${JSON.stringify(applied)}`} kind={kind} filters={applied} />
       </div>
     </Panel>
+    </LayoutPanel><LayoutPanel id="history" title="Historienzeilen"><Panel className="p-4"><HistoryTable key={`${kind}-${JSON.stringify(applied)}`} kind={kind} filters={applied} /></Panel></LayoutPanel></PanelLayout>
   );
 }

@@ -34,14 +34,19 @@ Frontend; Backend, API, Legacy-Integration und Engine sind unverändert. Basis: 
 | Tabellen / Graph | TanStack Table 8, `@xyflow/react` 12 + `@dagrejs/dagre` (lazy Chunk) | Vorgabe; Layout automatisch, kein freies Programmieren nötig |
 | Formulare | eigene kontrollierte Editoren auf dem Roh-JSON-Dokument; keine Form-Bibliothek | Die Datenform ist ein rekursiver, schema-getriebener Baum; Pointer-genaue Fehler und Verlustfreiheit unbekannter Member sind so einfacher |
 | Live | eigener `LiveStore` (WebSocket Protokoll 1) | Snapshot → Deltas mit Epoche/`prev_seq`-Prüfung, Resync, Backoff, `stale`-Kennzeichnung, `installation_mismatch` |
+| Flexible Panels | `@atlaskit/pragmatic-drag-and-drop` (DOM-Core) | native Drag-Ereignisse; Tastatur-/Touch-Buttons und Breitenwahl; stabile Editor-Komponenten, kein Window-Management |
 | Schriften | `@fontsource-variable` (gebündelt) | keine Remote-Fonts; CSP `default-src 'self'` |
 
 Ingress/CSP: relative Basis (`./`), alle Assets mit Content-Hash unter `assets/` (Server:
 `immutable`), `assetsInlineLimit: 0` (keine `data:`-URIs), kein Inline-Script. `npm run
 verify:dist` prüft das am Build (läuft in CI). Gegen den echten Server geprüft: Header, Laden
 unter der CSP ohne Konsolenfehler, relative `./api/v1/`-Aufrufe und WebSocket.
-Es werden keine Tokens/Zugangsdaten im Browser gespeichert (nur: Navigationszustand,
-geöffnete Draft-ID in `sessionStorage`, Menü eingeklappt).
+Tokens/Zugangsdaten werden nicht persistent im Browser gespeichert. Persistiert
+werden die geöffnete Draft-ID in `sessionStorage`, Layout-Metadaten und Menüstatus
+pro Installation/Ansicht in `localStorage` sowie ausschließlich Request-Zeitmetadaten
+in IndexedDB für das gemeinsame Tab-Budget. Layout-Metadaten enthalten keine
+Registry-Inhalte. „Layout anpassen“ bietet Verschieben, Breitenwahl und Reset;
+Editorzustand und Sicherheitsdialoge bleiben erhalten.
 
 ## Bereiche (Routen)
 
@@ -64,11 +69,11 @@ Bestätigungen portiert (`src/setup/`), inkl. der sieben Alt-Tests.
 | Alpha-4-Bestandteil | Editor / Ansicht | Nachweis |
 |---|---|---|
 | Dependencies | `DependencyEditor` | `build-registry.test` |
-| Sources, Freshness-Modi (bedingte Felder aus Schema), `value_schema` | `SourceEditor` | `build-registry.test` |
+| Sources, Freshness-Modi (bedingte Felder aus Schema), `value_schema` | `SourceEditor` | `build-registry.test`, `manualCoverage.test`, Engine-E2E mit allen vier Modi |
 | Bindings: `ha_state`, `ha_attribute`, `mqtt`, Transformationen, Entity-Picker | `BindingEditor`, `EntityPicker` | `build-registry.test`; Picker nur manuell |
 | Catalogs | `CatalogEditor` | `rules.test` |
 | Definition: Metadaten, Eingänge, Ausgabeschema, Projektion, `refresh_inputs` | `DefinitionEditor` | `build-example.test` |
-| Regeln: input, ref, literal (inkl. Objekt-/Listenwerte über den `ValueEditor`), and/or/not, compare, map, first_match, bucket, formula, fusion, temporal (stable_for/dwell/grace/edge/delta/age), machine, not_applicable | `RuleEditor` (rekursiv) | `build-example.test`: `test.condition/either/timed/flow` werden nur per GUI nachgebaut = Beispiel; `rules.test`: map, first_match, bucket, not_applicable, eindeutige Stateful-IDs, unbekannter Operator, zustandslose Guards, Sperre (dwell/edge/delta/age nur über dieselbe Temporal-Maske, nicht einzeln getestet) |
+| Regeln: input, ref, literal (inkl. Objekt-/Listenwerte über den `ValueEditor`), and/or/not, compare, map, first_match, bucket, formula, fusion, temporal (stable_for/dwell/grace/edge/delta/age), machine, not_applicable | `RuleEditor` (rekursiv) | `build-example.test`, `rules.test`, `manualCoverage.test`: alle sechs Temporal-Operationen und zusätzliche Operatoren separat grafisch erstellt und in Engine-E2E über die echte API validiert |
 | State Machine: Zustände, Transitionen, Guards, Befehle/Argumente, `argument_equals`, Episoden, Sessions, Deadline, Reinit | `MachineEditor` | `build-example.test` (`test.flow`) |
 | Contract-Instanzen, Referenzen, Paket-Typ-Parameter (Schema-Formular) | `ContractEditor`, `SchemaForm` | `build-registry.test` |
 | Unveränderliche Versionen | Sperre + „Neue Version“ | `versioning.test` |
@@ -80,6 +85,7 @@ Bestätigungen portiert (`src/setup/`), inkl. der sieben Alt-Tests.
 | Token-Rotation (`completion_unconfirmed`, nie automatisch wiederholen) | `AdminPage` | `admin.test` |
 | Audit inkl. unbestimmter Rotationen | `AdminPage` | `admin.test` |
 | Snapshot/Delta/Resync/Reconnect | `LiveStore` | `live.test` |
+| Layout, Navigation und erhaltener Editorzustand | `PanelLayout`, `Shell` | sechs React-Abläufe in `PanelLayout.test`, einschließlich nativer Drag-Adapter und echtem Source-Editor |
 
 ## Qualität und Prüfung
 

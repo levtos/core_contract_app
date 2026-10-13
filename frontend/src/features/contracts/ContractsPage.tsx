@@ -3,6 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { DataTable } from '@/components/DataTable';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -167,8 +168,8 @@ export default function ContractsPage() {
       />
       <ContractsTabs />
       <ReadOnlyNotice what="Contract-Instanzen" />
-      <Panel>
-        <div className="flex flex-wrap items-end gap-3 border-b border-line p-3">
+      <PanelLayout view="contracts"><LayoutPanel id="filters" title="Filter"><Panel>
+        <div className="flex flex-wrap items-end gap-3 p-3">
           <div className="relative min-w-56 flex-1">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
             <Input aria-label="Contracts suchen" className="pl-8" placeholder="Suchen nach ID, Name, Typ …" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -191,6 +192,7 @@ export default function ContractsPage() {
             <option value="none">ohne Zustand</option>
           </Select>
         </div>
+      </Panel></LayoutPanel><LayoutPanel id="instances" title="Contract-Instanzen"><Panel>
         {src.loading && configured.length === 0 ? (
           <Spinner />
         ) : (
@@ -209,6 +211,7 @@ export default function ContractsPage() {
           />
         )}
       </Panel>
+      </LayoutPanel></PanelLayout>
       {live.stale && live.contracts && <p className="mt-2 text-xs text-warn">Live-Zustand möglicherweise veraltet ({live.connection}).</p>}
       <NewContractDialog open={creating} onOpenChange={setCreating} onCreated={(id) => navigate(`/contracts/${encodeURIComponent(id)}`)} />
     </>

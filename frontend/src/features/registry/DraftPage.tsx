@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { ArrowLeft, CheckCircle2, CircleAlert, Download, Rocket, Save } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -112,8 +113,8 @@ export default function DraftPage() {
           </>
         }
       />
-      <div className="grid gap-5 xl:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-5 xl:col-span-2">
+      <PanelLayout view="registry.draft" defaultOrder={['validation', 'name', 'diff', 'activation', 'editor', 'json']}>
+          <LayoutPanel id="validation" title="Validierung" span={2}>
           <Panel>
             <PanelHeader title="Validierung" description="Der Server prüft den bearbeiteten (auch ungespeicherten) Stand – ohne ihn zu aktivieren." aside={<><ValidationChip /><Switch checked={doc.autoValidate} onCheckedChange={doc.setAutoValidate} label="automatisch" /><Button size="sm" onClick={() => void doc.validateNow()}>Jetzt prüfen</Button></>} />
             <div className="flex flex-col gap-3 p-4">
@@ -127,20 +128,19 @@ export default function DraftPage() {
               )}
             </div>
           </Panel>
-          <Panel>
+          </LayoutPanel><LayoutPanel id="diff" title="Diff & Auswirkungen" span={2}><Panel>
             <PanelHeader title="Diff & Auswirkungen" description="Gegenüber der aktiven Revision – nur sichtbar, wenn der Stand gültig ist." />
             <div className="p-4">
               {validation.result?.diff && validation.result.valid ? <DiffView diff={validation.result.diff} against="die aktive Revision" /> : <p className="text-sm text-muted">{validation.issues.length ? 'Erst nach Korrektur der Fehler verfügbar.' : 'Wird nach der Validierung angezeigt.'}</p>}
             </div>
           </Panel>
-          <Collapsible title="JSON-Expertenmodus"><JsonExpert /></Collapsible>
-        </div>
-        <div className="flex min-w-0 flex-col gap-5">
+          </LayoutPanel><LayoutPanel id="json" title="JSON-Experte" span={2}><Collapsible title="JSON-Expertenmodus"><JsonExpert /></Collapsible></LayoutPanel>
+          <LayoutPanel id="name" title="Draft-Name" span={1}>
           <Panel>
             <PanelHeader title="Name" />
             <div className="p-4"><Input aria-label="Draft-Name" maxLength={256} value={doc.displayName} placeholder="Name des Drafts" onChange={(e) => doc.setDisplayName(e.target.value)} /></div>
           </Panel>
-          <Panel>
+          </LayoutPanel><LayoutPanel id="activation" title="Aktivierung" span={1}><Panel>
             <PanelHeader title="Aktivierung" />
             <div className="flex flex-col gap-3 p-4">
               <p className="text-xs text-muted">Nur ein gespeicherter, gültiger Stand kann aktiviert werden. Drafts selbst sind nie live.</p>
@@ -152,7 +152,7 @@ export default function DraftPage() {
               <Button variant="primary" disabled={!canActivate} onClick={() => setActivating(true)}><Rocket size={14} /> Aktivieren …</Button>
             </div>
           </Panel>
-          <Panel>
+          </LayoutPanel><LayoutPanel id="editor" title="Registry-Inhalt" span={1}><Panel>
             <PanelHeader title="Inhalt" />
             <ul className="divide-y divide-line">
               {SECTIONS.map((section) => (
@@ -163,8 +163,8 @@ export default function DraftPage() {
             </ul>
             <div className="border-t border-line p-4"><KeyValue items={[{ label: 'Fingerprint-Version', value: String(config.fingerprint_version ?? 1) }]} /></div>
           </Panel>
-        </div>
-      </div>
+          </LayoutPanel>
+      </PanelLayout>
       {activating && <ActivateDialog key={`${draft.draft_id}@${draft.draft_version}`} draft={draft} open onOpenChange={setActivating} />}
     </>
   );

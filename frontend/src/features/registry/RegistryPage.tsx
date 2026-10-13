@@ -2,6 +2,7 @@ import { Copy, Download, FilePlus2, FolderOpen, GitCompare, History, Pencil, Rot
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
@@ -192,7 +193,7 @@ export default function RegistryPage() {
   return (
     <>
       <PageHeader title="Registry Studio" description="Drafts bearbeiten, validieren, vergleichen und ausdrücklich aktivieren; Revisionen einsehen und kontrolliert zurückrollen." />
-      <Panel className="mb-5">
+      <PanelLayout view="registry"><LayoutPanel id="active" title="Aktive Registry"><Panel>
         <PanelHeader
           title="Aktive Registry"
           aside={active.data && <a className="text-xs text-accent hover:underline" href="./api/v1/registry/active/export" download="registry.json">Aktive Konfiguration exportieren</a>}
@@ -205,12 +206,12 @@ export default function RegistryPage() {
           )}
         </div>
       </Panel>
-      <Tabs
+      </LayoutPanel><LayoutPanel id="drafts-revisions" title="Drafts & Revisionen"><Tabs
         items={[
           { value: 'drafts', label: 'Drafts', content: <DraftsTab /> },
           { value: 'revisions', label: 'Revisionen', content: <RevisionsTab /> },
         ]}
-      />
+      /></LayoutPanel></PanelLayout>
     </>
   );
 }

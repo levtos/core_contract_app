@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Copy, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ConditionList } from '@/components/status-parts';
@@ -226,13 +227,13 @@ export default function AdminPage() {
   return (
     <>
       <PageHeader title="Administration" description="Installation und Einrichtung, Bereitschaft, Bridge-Diagnose, Rollen/Tokens und der administrative Audit-Verlauf." />
-      <div className="grid gap-5 xl:grid-cols-2">
-        <InstallationPanel />
-        <ReadinessPanel />
-        <BridgePanel />
-        <TokensPanel />
-        <div className="xl:col-span-2"><AuditPanel /></div>
-      </div>
+      <PanelLayout view="admin">
+        <LayoutPanel id="installation" title="Installation" span={1}><InstallationPanel /></LayoutPanel>
+        <LayoutPanel id="readiness" title="Readiness" span={2}><ReadinessPanel /></LayoutPanel>
+        <LayoutPanel id="bridge" title="Bridge" span={1}><BridgePanel /></LayoutPanel>
+        <LayoutPanel id="tokens" title="Tokens" span={2}><TokensPanel /></LayoutPanel>
+        <LayoutPanel id="audit" title="Audit"><AuditPanel /></LayoutPanel>
+      </PanelLayout>
     </>
   );
 }

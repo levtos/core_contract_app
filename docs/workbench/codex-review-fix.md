@@ -15,7 +15,7 @@ Quelldateien von `02f4344` und bestehen nach der Korrektur.
 
 | Altbefund | Status nach Korrektur | Nachweis |
 |---|---|---|
-| T1B-01 | VERIFIED FIXED, finale Image-CI erforderlich | Fixture innerhalb von frontend; Byte-Gleichheit/Paketgrenze in test_scope_packaging; unveränderte Image-Matrix baut amd64/aarch64 ohne Publishing |
+| T1B-01 | VERIFIED FIXED | Fixture innerhalb von frontend; Byte-Gleichheit/Paketgrenze in test_scope_packaging; Teil-1-CI 38428854998 baut amd64/aarch64 ohne Publishing; finale CI wird zusätzlich gegen den gepushten Gesamtstand geprüft |
 | T1B-02 | VERIFIED FIXED | draftSafety und lifecycle; neue React-Abläufe: späte Speicherantwort nach Draftwechsel, Änderungen während Speichern, kein doppelter Save |
 | T1B-03 | VERIFIED FIXED | lifecycle und review-regressions; Server-Draftwechsel und aktive Revision während Validierung, verspätete Antwort A nach Wechsel zu B; echte Aktivierung/Conflict/Rollback in Engine-E2E |
 | T1B-04 | VERIFIED FIXED | valueEditor, rules, build-example, manualFirst; typisierte verschachtelte Werte grafisch |
@@ -76,4 +76,41 @@ Defaults ergänzen. Die Engine-E2E vergleicht deshalb die normalisierte Konfigur
 mit dem echten statischen Diff. Unbekannte Member eines zukünftigen Schemas werden
 im GUI bewahrt, aber nicht gegen den heute geschlossenen Backend-Vertrag aktiviert.
 
-Teil 2 beginnt erst nach committed und vollständig grüner Teil-1-CI.
+## Teil 2: Flexible Workbench
+
+Teil 1 ist als `bd968df7a713bd7a61ab62291e60bf870a3e70bf` getrennt committed und
+gepusht. Erst nach Erfolg aller sechs Jobs der CI 38428854998 begann Teil 2.
+
+Die feste Hauptnavigation ist einklappbar, behält zugängliche Linknamen und markiert
+auch die Definitionen als Teil der aktiven Contracts-Ansicht. Funktionale Panels
+lassen sich über „Layout anpassen“ am Griff ziehen, über Pfeiltasten bzw. Buttons
+verschieben und auf drei sinnvolle Breiten setzen. Reset stellt die Vorgaben der
+Ansicht wieder her. Auf schmalen Bildschirmen bleiben Panels einspaltig; die Buttons
+sind die Alternative für Touch und Tastatur.
+
+Der schlanke DOM-Adapter von `@atlaskit/pragmatic-drag-and-drop` übernimmt native
+Drag-Ereignisse, ohne ein Window-Management oder zusätzliche UI-Bibliothek.
+Panels sind stabile React-Geschwister mit festen Schlüsseln: Layoutänderungen
+verschieben weder den Editorzustand in einen Cache noch remounten sie den Editor.
+Dialoge und Sicherheitsbestätigungen bleiben fest und außerhalb des Layouts bzw.
+in ihren bestehenden Portalen. Kein Layoutaufruf führt eine Backend-Aktion aus.
+
+Abgedeckt sind Übersicht, Registry/Drafts, Collections mit Editoren, Definitionen,
+Instanzen/Live/Abhängigkeiten, Graph, Diagnose/Historie/Publikationen/Evidence/Commands
+und Administration. Hauptnavigation, Editorzustand und fachliche Tabs bleiben stabil.
+Einzelne reine Konfigurationsformulare werden nicht künstlich in weitere Panels geteilt.
+
+LocalStorage enthält ausschließlich freigegebene Panel-IDs, Reihenfolge, Breiten und
+den booleschen Menüstatus, getrennt durch Installation-ID und logische Ansicht.
+Vor bekannter Installation-ID wird nichts gespeichert. Beschädigte Metadaten werden
+ignoriert; fehlender Speicher verhindert nur Persistenz. Inhalte, Secrets, Tokens,
+Contract-IDs und Registry-Dokumente gelangen nicht in diese Layout-Metadaten.
+
+`PanelLayout.test.tsx` prüft sechs echte React-Abläufe: native Drag-Ereignisse mit
+dem unveränderten Library-Adapter unter StrictMode, Tastatur mit erhaltenem Fokus,
+Reload/Persistenz/Installationstrennung, Reset/Breite, beschädigten Speicher und
+einen ungespeicherten echten Source-Editor ohne Backend-Schreibzugriff. Die feste
+Navigation und ihr aktiver Zustand werden ebenfalls durch Interaktion geprüft.
+Nach Integration bestehen alle 157 React-Unit-/Integrationstests und beide
+Engine-E2E-Abläufe; Typecheck, Build, verify:dist und Production-Dependency-Audit
+sind grün. Sichtbare Firefox-/Touch-Abnahme bleibt ein offenes Gate.

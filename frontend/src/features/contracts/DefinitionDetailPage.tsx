@@ -2,6 +2,7 @@ import { ArrowLeft, GitBranchPlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Badge } from '@/components/ui/badge';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/controls';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
@@ -82,7 +83,7 @@ export default function DefinitionDetailPage() {
         }
       />
       <ReadOnlyNotice what="Definition" />
-      <fieldset disabled={!src.editable} className="min-w-0">
+      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title="Definitionseditor"><fieldset disabled={!src.editable} className="min-w-0">
         <DefinitionEditor
           value={definition}
           pointer={pointer}
@@ -93,9 +94,10 @@ export default function DefinitionDetailPage() {
           onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}
         />
       </fieldset>
-      <section className="mt-6 text-sm text-muted">
+      </LayoutPanel><LayoutPanel id="usage" title="Verwendung"><section className="text-sm text-muted">
         Verwendet von {users.length === 0 ? 'keiner Instanz' : users.map((id) => <Link key={id} to={`/contracts/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
       </section>
+      </LayoutPanel></PanelLayout>
 
       <Dialog
         open={versioning}

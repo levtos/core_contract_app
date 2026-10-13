@@ -2,6 +2,7 @@ import { ArrowLeft, Stethoscope, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ContractLiveState } from '@/components/ContractLiveState';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/controls';
@@ -92,7 +93,7 @@ export default function ContractDetailPage() {
             value: 'deps',
             label: 'Abhängigkeiten',
             content: (
-              <div className="grid max-w-5xl gap-4 lg:grid-cols-2">
+              <PanelLayout view="contract.dependencies"><LayoutPanel id="inputs" title="Eingänge" span={2}>
                 <Panel>
                   <PanelHeader title="Eingänge (hängt ab von)" />
                   <ul className="divide-y divide-line">
@@ -110,7 +111,7 @@ export default function ContractDetailPage() {
                     })}
                   </ul>
                 </Panel>
-                <Panel>
+                </LayoutPanel><LayoutPanel id="consumers" title="Verwendet von" span={1}><Panel>
                   <PanelHeader title="Verwendet von" description="Contracts, die diesen Contract als Eingang nutzen." />
                   <ul className="divide-y divide-line">
                     {consumers.length === 0 && <li className="px-4 py-3 text-sm text-muted">Kein anderer Contract nutzt ihn.</li>}
@@ -119,7 +120,7 @@ export default function ContractDetailPage() {
                     ))}
                   </ul>
                 </Panel>
-                <Panel className="lg:col-span-2">
+                </LayoutPanel><LayoutPanel id="type" title="Typ"><Panel>
                   <PanelHeader title="Typ" />
                   <div className="p-4 text-sm">
                     {typeEntry?.declarative ? (
@@ -129,7 +130,7 @@ export default function ContractDetailPage() {
                     )}
                   </div>
                 </Panel>
-              </div>
+                </LayoutPanel></PanelLayout>
             ),
           },
         ]}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { ContractLiveState } from '@/components/ContractLiveState';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { QualityBadge } from '@/components/status-parts';
 import { Badge } from '@/components/ui/badge';
 import { Tabs } from '@/components/ui/controls';
@@ -62,8 +63,7 @@ function PublicationsTab() {
     return [...seen.entries()];
   }, [publications.data]);
   return (
-    <div className="flex flex-col gap-5">
-      <Panel>
+    <PanelLayout view="diagnostics.publications"><LayoutPanel id="current" title="Aktuelle Veröffentlichung"><Panel>
         <PanelHeader title="Aktuelle Veröffentlichung" />
         <div className="p-4">
           <KeyValue
@@ -77,7 +77,7 @@ function PublicationsTab() {
           />
         </div>
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="epochs" title="Epochen"><Panel>
         <PanelHeader title="Epochen" description="Aus den geladenen Historienzeilen abgeleitet; eine neue Epoche erzwingt für Clients einen frischen Snapshot." />
         <div className="p-2">
           {epochs.length === 0 ? <p className="p-3 text-sm text-muted">Keine Epochen in den geladenen Zeilen.</p> : (
@@ -87,12 +87,12 @@ function PublicationsTab() {
           )}
         </div>
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="gaps" title="Lücken"><Panel>
         <PanelHeader title="Lücken (History Gaps)" description="Unterbrechungen der Beobachtungs-Kontinuität; betroffene Felder tragen den Grund history_gap." />
         <div className="p-4"><HistoryTable kind="gaps" filters={{ limit: 50 }} /></div>
         {gaps.isSuccess && diagnostics.data && diagnostics.data.gaps.length > 0 && <p className="border-t border-line px-4 py-2 text-xs text-muted">Aktuelle Diagnose meldet {diagnostics.data.gaps.length} Lücke(n) im Laufzeitspeicher.</p>}
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="publications" title="Veröffentlichungen"><Panel>
         <PanelHeader title="Veröffentlichungen" description="Persistierte Contract-Zustände mit Epoche und Sequenz." />
         <div className="p-4">
           <HistoryTable
@@ -108,7 +108,7 @@ function PublicationsTab() {
           />
         </div>
       </Panel>
-    </div>
+    </LayoutPanel></PanelLayout>
   );
 }
 

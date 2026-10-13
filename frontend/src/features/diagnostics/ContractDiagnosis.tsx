@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Empty, KeyValue, Notice, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
 import { formatTime } from '@/lib/format';
 import { isObject, type Json } from '@/lib/json';
@@ -29,7 +30,8 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
   const current = isObject(machine?.current) ? machine!.current : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <PanelLayout view="diagnostics.contract">
+      <LayoutPanel id="restore" title="Wiederherstellung">
       <Panel>
         <PanelHeader title="Identität & Wiederherstellung" aside={<Badge tone={d.fingerprint_compatible ? 'ok' : 'warn'}>{d.fingerprint_compatible ? 'Fingerprint kompatibel' : 'Fingerprint abweichend'}</Badge>} />
         <div className="grid gap-x-10 gap-y-3 p-4 lg:grid-cols-2">
@@ -49,7 +51,7 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
         </div>
       </Panel>
 
-      <Panel>
+      </LayoutPanel><LayoutPanel id="temporal" title="Temporal"><Panel>
         <PanelHeader title="Temporal-Kontexte" description="Nur Zeit- und Identitätsfelder; vorherige Rohwerte werden nicht ausgegeben." />
         {d.temporal.length === 0 ? (
           <Empty title="Keine Temporal-Kontexte">Dieser Contract hat keine Zeit-Knoten mit gespeichertem Kontext.</Empty>
@@ -75,7 +77,7 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
         )}
       </Panel>
 
-      <Panel>
+      </LayoutPanel><LayoutPanel id="machine" title="State Machine"><Panel>
         <PanelHeader title="State Machine" aside={machine && current ? <Badge tone="accent">{String(current.state)}</Badge> : undefined} />
         {!machine ? (
           <Empty title="Keine State Machine">Dieser Contract verwendet keine State Machine.</Empty>
@@ -125,7 +127,7 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
         )}
       </Panel>
 
-      <ExplainPanel trace={d.trace} />
-    </div>
+      </LayoutPanel><LayoutPanel id="explain" title="Explain"><ExplainPanel trace={d.trace} /></LayoutPanel>
+    </PanelLayout>
   );
 }

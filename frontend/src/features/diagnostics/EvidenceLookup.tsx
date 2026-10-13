@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -46,7 +47,7 @@ export function EvidenceTab({ initialReference = '' }: { initialReference?: stri
   const [sourceId, setSourceId] = useState<string | null>(null);
   const source = useQuery({ queryKey: ['evidence', 'source', sourceId], queryFn: () => api<JsonObject[]>(`evidence/${encodeURIComponent(sourceId!)}`), enabled: !!sourceId, retry: false });
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <PanelLayout view="diagnostics.evidence"><LayoutPanel id="reference" title="Evidence-Referenz" span={2}>
       <Panel>
         <PanelHeader title="Referenz auflösen" description="Exakte aufgezeichnete Beobachtung zu einer Evidence-Referenz (aus Feldern oder dem Explain-Trace)." />
         <div className="flex flex-col gap-3 p-4">
@@ -55,7 +56,7 @@ export function EvidenceTab({ initialReference = '' }: { initialReference?: stri
           {reference && <EvidenceResult reference={reference} />}
         </div>
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="source" title="Quellenbeobachtung" span={1}><Panel>
         <PanelHeader title="Aktuelle Beobachtung einer Quelle" description="Zuletzt gespeicherte Beobachtungen je Binding." />
         <div className="flex flex-col gap-3 p-4">
           <Field label="Source-ID">{(p) => <Input {...p} className="font-mono text-xs" placeholder="source.beispiel" value={sourceInput} onChange={(e) => setSourceInput(e.target.value)} />}</Field>
@@ -65,6 +66,6 @@ export function EvidenceTab({ initialReference = '' }: { initialReference?: stri
           {source.data && (source.data.length === 0 ? <Notice tone="info" title="Keine aktuelle Beobachtung" /> : <pre className="max-h-[50vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{JSON.stringify(source.data, null, 2)}</pre>)}
         </div>
       </Panel>
-    </div>
+    </LayoutPanel></PanelLayout>
   );
 }

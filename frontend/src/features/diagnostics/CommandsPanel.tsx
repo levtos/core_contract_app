@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +109,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
   if (eligible.length === 0) return <Empty title="Keine Commands verfügbar">Commands gibt es nur für aktivierte Contracts, deren Typ Befehle deklariert (z. B. eine State Machine mit Befehlen).</Empty>;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <><PanelLayout view="diagnostics.commands"><LayoutPanel id="command" title="Command" span={2}>
       <Panel>
         <PanelHeader title="Command" description="Nur für die aktive Registry. Ein Command fordert eine benannte Transition an; es gibt kein direktes Setzen von Werten." />
         <div className="flex flex-col gap-4 p-4">
@@ -140,7 +141,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
           )}
         </div>
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="result" title="Ergebnis" span={1}><Panel>
         <PanelHeader title="Ergebnis" />
         <div className="flex flex-col gap-3 p-4">
           {!sent && <p className="text-sm text-muted">Noch kein Command gesendet.</p>}
@@ -159,7 +160,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
           {sent && <KeyValue items={[{ label: 'Command-ID', value: <code className="break-all text-xs">{sent.id}</code> }]} />}
         </div>
       </Panel>
-      <ConfirmDialog
+      </LayoutPanel></PanelLayout><ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
         title="Command wirklich senden?"
@@ -171,6 +172,6 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
           send.mutate();
         }}
       />
-    </div>
+    </>
   );
 }

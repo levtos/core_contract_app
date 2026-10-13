@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { LayoutPanel, PanelLayout } from './PanelLayout';
 import { FieldStatusBadge, QualityBadge } from '@/components/status-parts';
 import { Badge } from '@/components/ui/badge';
 import { KeyValue, Notice, Panel, PanelHeader } from '@/components/ui/layout';
@@ -11,14 +12,14 @@ export function ContractLiveState({ envelope, stale }: { envelope: Envelope; sta
   return (
     <div className="flex flex-col gap-4">
       {stale && <Notice tone="warn" title="Stand möglicherweise veraltet">Die Live-Verbindung ist unterbrochen oder synchronisiert; gezeigt wird der letzte bekannte Stand.</Notice>}
-      <Panel>
+      <PanelLayout view="contract.state"><LayoutPanel id="contract" title="Contract"><Panel>
         <PanelHeader title="Contract" aside={<><QualityBadge quality={envelope.contract_health} /><Badge tone={envelope.available ? 'ok' : 'warn'}>{envelope.available ? 'verfügbar' : 'nicht verfügbar'}</Badge></>} />
         <div className="grid gap-x-10 p-4 sm:grid-cols-2">
           <KeyValue items={[{ label: 'Berechnet', value: formatTime(envelope.computed_at) }, { label: 'Veröffentlicht', value: formatTime(envelope.published_at) }]} />
           <KeyValue items={[{ label: 'Publication', value: envelope.publication_seq }, { label: 'Revision', value: envelope.registry_revision }]} />
         </div>
       </Panel>
-      <Panel>
+      </LayoutPanel><LayoutPanel id="fields" title="Felder"><Panel>
         <PanelHeader title="Felder" description="Status, Qualität und Gründe stammen unverändert vom Server." />
         <div className="divide-y divide-line">
           {Object.entries(envelope.fields).map(([name, field]) => (
@@ -49,12 +50,15 @@ export function ContractLiveState({ envelope, stale }: { envelope: Envelope; sta
           ))}
         </div>
       </Panel>
-      {envelope.state_machine && (
+      </LayoutPanel>{envelope.state_machine && (
+        <LayoutPanel id="machine" title="State Machine">
         <Panel>
           <PanelHeader title="State Machine" />
           <pre className="max-h-72 overflow-auto p-4 text-xs">{JSON.stringify(envelope.state_machine, null, 2)}</pre>
         </Panel>
+        </LayoutPanel>
       )}
+      </PanelLayout>
     </div>
   );
 }

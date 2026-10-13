@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { DataTable } from '@/components/DataTable';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -88,7 +89,7 @@ export default function DefinitionsPage() {
       />
       <ContractsTabs />
       <ReadOnlyNotice what="Definitionen" />
-      <Panel>
+      <PanelLayout view="definitions"><LayoutPanel id="definitions" title="Deklarative Definitionen"><Panel>
         <PanelHeader title="Deklarative Definitionen" description="Aktivierte Versionen sind gesperrt; eine Logikänderung erfordert eine neue Version." />
         <DataTable
           caption="Deklarative Definitionen"
@@ -99,7 +100,7 @@ export default function DefinitionsPage() {
           empty={<Empty title="Noch keine Definitionen">Legen Sie in einem Draft die erste deklarative Definition an – ohne JSON, direkt im Editor.</Empty>}
         />
       </Panel>
-      <Panel className="mt-5">
+      </LayoutPanel><LayoutPanel id="packages" title="Paket-Typen"><Panel>
         <PanelHeader title="Paket-Typen" description="Fest im Code der App; nicht über die Workbench änderbar, aber als Typ für Instanzen verwendbar." />
         <ul className="divide-y divide-line">
           {packageTypes.map((t) => (
@@ -112,6 +113,7 @@ export default function DefinitionsPage() {
           {packageTypes.length === 0 && <li className="px-4 py-3 text-sm text-muted">Keine Paket-Typen gemeldet.</li>}
         </ul>
       </Panel>
+      </LayoutPanel></PanelLayout>
       <Dialog
         open={creating}
         onOpenChange={setCreating}

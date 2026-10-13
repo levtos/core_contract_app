@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { FieldStatusBadge, QualityBadge } from '@/components/status-parts';
 import { Badge } from '@/components/ui/badge';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
@@ -228,14 +229,15 @@ export default function GraphPage() {
       ) : full.nodes.length === 0 ? (
         <Panel><Empty title="Noch nichts darzustellen">Der Graph entsteht aus Sources und Contracts der aktiven Registry oder des geöffneten Drafts.</Empty></Panel>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <PanelLayout view="graph"><LayoutPanel id="graph" title="Graph" span={2}>
           <Panel className="h-[min(70vh,44rem)] min-h-[24rem] overflow-hidden">
             <ReactFlowProvider>
               <Canvas key={`${structural}-${depth}-${selected ?? ''}`} graph={graph} envelopes={live.contracts} selected={selected} onSelect={select} focus={selected ?? match?.id ?? null} />
             </ReactFlowProvider>
           </Panel>
+          </LayoutPanel><LayoutPanel id="details" title="Knotendetails" span={1}>
           {selectedNode ? <Details node={selectedNode} graph={full} envelope={selectedNode.contractId ? (live.contracts?.[selectedNode.contractId] ?? null) : null} /> : <Panel><Empty title="Knoten wählen">Klicken Sie einen Knoten an, um Zustand, Abhängigkeiten und Sprungziele zu sehen.</Empty></Panel>}
-        </div>
+          </LayoutPanel></PanelLayout>
       )}
     </>
   );

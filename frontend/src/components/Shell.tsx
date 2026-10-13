@@ -10,8 +10,9 @@ import {
   Settings2,
   WifiOff,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { type ReactNode } from 'react';
+import { LayoutPreferencesProvider, useCollapsedNavigation } from './PanelLayout';
+import { Link, Outlet, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/controls';
@@ -30,16 +31,6 @@ const NAV = [
   { to: '/diagnostics', label: 'Diagnose & Historie', icon: Activity },
   { to: '/admin', label: 'Administration', icon: Settings2 },
 ];
-
-function readCollapsed(): boolean {
-  try {
-    const stored = localStorage.getItem('terra.nav.collapsed');
-    if (stored !== null) return stored === '1';
-  } catch {
-    /* optional convenience only */
-  }
-  return typeof window !== 'undefined' && window.innerWidth < 900;
-}
 
 /** Top-bar chips: readiness and connection are separate facts. */
 export function StatusChips({ extra }: { extra?: ReactNode }) {
@@ -73,16 +64,9 @@ export function StatusChips({ extra }: { extra?: ReactNode }) {
 }
 
 export function Shell({ onSetup }: { onSetup: () => void }) {
-  const [collapsed, setCollapsed] = useState(readCollapsed);
   const info = useInfo();
+  const [collapsed, setCollapsed] = useCollapsedNavigation(info.data?.installation_id ?? null);
   const { pathname } = useLocation();
-  useEffect(() => {
-    try {
-      localStorage.setItem('terra.nav.collapsed', collapsed ? '1' : '0');
-    } catch {
-      /* optional convenience only */
-    }
-  }, [collapsed]);
 
   return (
     <div className="flex h-full min-h-0">
@@ -102,25 +86,24 @@ export function Shell({ onSetup }: { onSetup: () => void }) {
           )}
         </div>
         <nav aria-label="Hauptnavigation" className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {NAV.map((item) => (
-            <NavLink
+          {NAV.map((item) => {
+            const active = item.end ? pathname === item.to : (item.match ?? [item.to]).some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+            return <Link
               key={item.to}
               to={item.to}
-              end={item.end}
-              className={({ isActive }) => {
-                const extraActive = item.match?.some((prefix) => pathname.startsWith(prefix)) ?? false;
-                return cn(
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
                   'flex items-center gap-3 rounded-[var(--radius-sm)] px-2.5 py-2 text-sm font-medium transition-colors',
-                  isActive || extraActive ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-raised hover:text-fg',
+                  active ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-raised hover:text-fg',
                   collapsed && 'justify-center px-0',
-                );
-              }}
+                )}
               title={collapsed ? item.label : undefined}
             >
               <item.icon size={17} className="shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          ))}
+            </Link>;
+          })}
         </nav>
         <div className="flex items-center justify-between gap-1 border-t border-line p-2">
           {!collapsed && (
@@ -128,7 +111,7 @@ export function Shell({ onSetup }: { onSetup: () => void }) {
               Einrichtung prüfen
             </Button>
           )}
-          <Button variant="ghost" size="icon" aria-label={collapsed ? 'Navigation ausklappen' : 'Navigation einklappen'} onClick={() => setCollapsed((v) => !v)}>
+          <Button variant="ghost" size="icon" aria-expanded={!collapsed} aria-label={collapsed ? 'Navigation ausklappen' : 'Navigation einklappen'} onClick={() => setCollapsed(!collapsed)}>
             {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
           </Button>
         </div>
@@ -139,7 +122,7 @@ export function Shell({ onSetup }: { onSetup: () => void }) {
           <DraftBar />
         </header>
         <main id="main" className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8">
-          <Outlet />
+          <LayoutPreferencesProvider value={info.data?.installation_id ?? null}><Outlet /></LayoutPreferencesProvider>
         </main>
       </div>
     </div>

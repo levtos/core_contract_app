@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
+import { LayoutPanel, PanelLayout } from './PanelLayout';
 
 export interface ListItem {
   key: string;
@@ -39,7 +40,8 @@ export function MasterDetail({
   const needle = search.trim().toLowerCase();
   const shown = needle ? items.filter((i) => `${i.label} ${i.sub ?? ''}`.toLowerCase().includes(needle)) : items;
   return (
-    <div className="grid min-h-[28rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+    <PanelLayout view={`collection.${title.toLowerCase()}`}>
+      <LayoutPanel id="collection" title={`${title}-Liste`} span={1}>
       <aside className="flex min-h-0 flex-col rounded-[var(--radius-lg)] border border-line bg-panel" aria-label={title}>
         <div className="flex items-center gap-2 border-b border-line p-2">
           <div className="relative min-w-0 flex-1">
@@ -77,7 +79,10 @@ export function MasterDetail({
           {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted">{items.length === 0 ? 'Noch keine Einträge.' : 'Keine Treffer.'}</li>}
         </ul>
       </aside>
+      </LayoutPanel>
+      <LayoutPanel id="editor" title={`${title}-Editor`} span={2}>
       <div className="min-w-0 rounded-[var(--radius-lg)] border border-line bg-panel p-5">{selected === null ? empty : children}</div>
-    </div>
+      </LayoutPanel>
+    </PanelLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { Activity, Cable, FileCode2, FlaskConical, Network, Settings2 } from 'lucide-react';
 import { Link } from 'react-router';
+import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { ConditionList, ContractLink, FieldStatusBadge } from '@/components/status-parts';
 import { Badge } from '@/components/ui/badge';
 import { Empty, KeyValue, Notice, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
@@ -57,7 +58,8 @@ export function OverviewPage() {
         title="Übersicht"
         description="Zustand der Installation, der aktiven Registry und der Contracts – Bereitschaft und Wertqualität werden getrennt dargestellt."
       />
-      <div className="grid gap-5 xl:grid-cols-3">
+      <PanelLayout view="overview">
+        <LayoutPanel id="readiness" title="Systemstatus" span={2}>
         <Panel className="xl:col-span-2">
           <PanelHeader title="Systemstatus & Readiness" aside={service && <Badge tone={service.ready ? 'ok' : 'warn'}>{service.ready ? 'bereit' : 'nicht bereit'}</Badge>} />
           <div className="space-y-4 p-4">
@@ -85,7 +87,7 @@ export function OverviewPage() {
             )}
           </div>
         </Panel>
-        <Panel>
+        </LayoutPanel><LayoutPanel id="installation" title="Installation" span={1}><Panel>
           <PanelHeader title="Installation" />
           <div className="p-4">
             {info.isPending ? (
@@ -108,7 +110,7 @@ export function OverviewPage() {
           </div>
         </Panel>
 
-        <Panel>
+        </LayoutPanel><LayoutPanel id="contracts" title="Contracts" span={1}><Panel>
           <PanelHeader title="Contracts" description="Aus dem Live-Snapshot; deaktivierte Contracts liefern keinen Zustand." />
           <div className="p-4">
             {live.contracts === null ? (
@@ -125,7 +127,7 @@ export function OverviewPage() {
           </div>
         </Panel>
 
-        <Panel className="xl:col-span-2">
+        </LayoutPanel><LayoutPanel id="problems" title="Probleme" span={2}><Panel>
           <PanelHeader title="Probleme" description="Felder ohne verwendbaren Wert (unbekannt / ungelöst) mit den Gründen des Servers." />
           <div className="p-2">
             {problems.isPending ? (
@@ -147,7 +149,7 @@ export function OverviewPage() {
           </div>
         </Panel>
 
-        <Panel className="xl:col-span-3">
+        </LayoutPanel><LayoutPanel id="events" title="Ereignisse"><Panel>
           <PanelHeader title="Jüngste Ereignisse" description="Administrative Audit-Ereignisse und Diagnosen." />
           <div className="p-2">
             {events.isPending ? (
@@ -168,7 +170,8 @@ export function OverviewPage() {
             )}
           </div>
         </Panel>
-      </div>
+        </LayoutPanel>
+      </PanelLayout>
 
       <h2 className="mb-3 mt-8 text-sm font-semibold text-muted">Bereiche</h2>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
