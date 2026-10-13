@@ -3,7 +3,7 @@ on:
   workflow_call:
   pull_request:
   push:
-    branches: [agent/platform-alpha1]
+    branches: [main, agent/platform-alpha1]
 permissions:
   contents: read
 jobs:
@@ -62,7 +62,49 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+      - run: npm run verify:dist
       - run: npm audit --audit-level=high
+  workbench-e2e:
+    # The Workbench against the REAL API and engine of a throw-away, in-memory instance
+    # (dev/workbench_demo.py): no Home Assistant, no PostgreSQL, nothing persistent.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --frozen
+      - run: npm ci
+        working-directory: frontend
+      - name: Workbench end-to-end
+        run: |
+          port="${TERRA_E2E_PORT:-8123}"
+          .venv/bin/python dev/workbench_demo.py --feed --interval 1 --port "$port" > /tmp/workbench-demo.log 2>&1 &
+          engine_pid=$!
+          cleanup() {
+            kill "$engine_pid" 2>/dev/null || true
+            wait "$engine_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:$port/api/v1/registry/drafts"; then
+              ready=true
+              break
+            fi
+            kill -0 "$engine_pid" 2>/dev/null || break
+            sleep 1
+          done
+          test "$ready" = true
+          TERRA_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
+      - name: Engine log
+        if: failure()
+        run: tail -n 80 /tmp/workbench-demo.log
   ha-bridge:
     runs-on: ubuntu-24.04
     steps:

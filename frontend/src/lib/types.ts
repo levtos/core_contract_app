@@ -1,0 +1,211 @@
+import type { Issue } from './api';
+import type { Json, JsonObject } from './json';
+
+/** Server shapes as documented in docs/api.md and docs/alpha4/workbench-api.md. */
+
+export interface Info {
+  version: string;
+  api_protocol: number;
+  bridge_protocol: number;
+  config_schema_version: number;
+  installation_id: string;
+  installation_label: string;
+  epoch_id: string;
+  publication_seq: number;
+  server_time: string;
+}
+
+export interface ServiceState {
+  type?: 'service_state';
+  ready: boolean;
+  publication_confirmed: boolean;
+  persistence: string;
+  ha: string;
+  bridge: string;
+  mqtt: string;
+  reasons: string[];
+}
+
+export type FieldStatus = 'valid' | 'held' | 'unknown' | 'not_applicable' | 'unresolved';
+
+export interface Reason {
+  code: string;
+  input: string;
+  source_id?: string | null;
+  since: string;
+  detail?: string | null;
+}
+
+export interface FieldValue {
+  status: FieldStatus;
+  value: Json;
+  quality: 'healthy' | 'degraded';
+  held_until?: string | null;
+  since_at?: string | null;
+  freshness?: string | null;
+  reasons: Reason[];
+  evidence: string[];
+  measured_at?: string | null;
+  grace_declared?: boolean;
+  positively_not_applicable?: boolean;
+}
+
+export interface Envelope {
+  contract_id: string;
+  type: { type_id: string; type_version: number } & JsonObject;
+  enabled: boolean;
+  contract_health: 'healthy' | 'degraded';
+  fields: Record<string, FieldValue>;
+  available: boolean;
+  state_machine?: JsonObject | null;
+  computed_at: string;
+  published_at: string;
+  publication_seq: number;
+  registry_revision: number;
+  epoch_id: string;
+}
+
+export type Registry = JsonObject;
+
+export interface Draft {
+  draft_id: string;
+  draft_version: number;
+  config: Registry;
+  display_name?: string;
+  base_revision?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RevisionRow {
+  revision: number;
+  config: Registry;
+  checksum: string;
+  created_at: string;
+}
+
+export interface DiffGroup {
+  added: string[];
+  removed: string[];
+  changed: string[];
+  fields: Record<string, string[]>;
+  field_paths: Record<string, string[]>;
+  field_paths_truncated: string[];
+}
+
+export interface Diff {
+  added: string[];
+  removed: string[];
+  changed: string[];
+  objects: Record<string, DiffGroup>;
+  directly_affected_contracts: string[];
+  transitively_affected_contracts: string[];
+  affected_contracts: string[];
+  affected_fields: Record<string, string[]>;
+  fingerprint_version: { before: number | null; after: number; context_migration: boolean };
+  fingerprint_changes: string[];
+  source_identity_changes: string[];
+  binding_identity_changes: string[];
+  changed_source_fingerprints: string[];
+  possibly_invalidated_contexts: string[];
+  restore: { reinitialize_contracts: string[]; retains_absolute_deadlines_if_compatible: boolean };
+  snapshot: { revision_changes: boolean; affected_contracts: string[] };
+  analysis: 'static';
+  predicts_values: false;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  issues: Issue[];
+  diff?: Diff;
+  machine_definitions?: Record<string, JsonObject>;
+}
+
+export interface HistoryItem extends JsonObject {
+  id: string;
+}
+
+export interface HistoryPage {
+  items: HistoryItem[];
+  next_cursor: string | null;
+  limit: number;
+  order: string;
+}
+
+export interface HaEntity {
+  entity_id: string;
+  display_name: string;
+  unit: string | null;
+  device_class: string | null;
+  state_class: string | null;
+  attributes: string[];
+}
+
+export interface HaEntityPage {
+  items: HaEntity[];
+  next_cursor: string | null;
+  read_only: boolean;
+}
+
+export interface TemporalState {
+  id: string;
+  state: JsonObject;
+  restore_pending: boolean;
+}
+
+export interface TraceRecord extends JsonObject {}
+
+export interface ContractDiagnosis {
+  contract_id: string;
+  registry_revision: number;
+  start_case: string | null;
+  fingerprint: string | null;
+  expected_fingerprint: string;
+  fingerprint_compatible: boolean;
+  next_due: string | null;
+  temporal: TemporalState[];
+  trace: JsonObject | null;
+  machine: {
+    states: string[];
+    initial: string;
+    commands: JsonObject;
+    deadline_seconds: number | null;
+    sessions: boolean;
+    transitions: {
+      source: string;
+      target: string;
+      event: string;
+      reason: string;
+      new_episode: boolean;
+      ends_episode: boolean;
+    }[];
+    current: JsonObject | null;
+  } | null;
+}
+
+export interface Diagnostics extends Info {
+  service: ServiceState;
+  queue_size: number;
+  commit_duration_s: number | null;
+  bridge_version: string | number | null;
+  bridge_subscriptions: number | null;
+  ingest_overflow_count: number;
+  refresh_overflow_count: number;
+  gaps: JsonObject[];
+  dependencies: JsonObject[];
+}
+
+export interface Problems {
+  service: ServiceState;
+  problems: { contract_id: string; field: string; status: string; reasons: Reason[] }[];
+}
+
+export interface TokenRotation {
+  role: 'admin' | 'consumer';
+  token: string;
+  status: 'rotated';
+  rotation_id: string;
+  audit_status: 'complete' | 'completion_unconfirmed';
+}
+
+export interface CommandResult extends JsonObject {}

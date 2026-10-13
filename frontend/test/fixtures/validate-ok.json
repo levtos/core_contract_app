@@ -1,0 +1,189 @@
+{
+ "diff": {
+  "added": [
+   "fixture.condition",
+   "fixture.either",
+   "fixture.flow",
+   "fixture.left",
+   "fixture.right",
+   "fixture.timed"
+  ],
+  "affected_contracts": [
+   "fixture.condition",
+   "fixture.either",
+   "fixture.flow",
+   "fixture.left",
+   "fixture.right",
+   "fixture.timed"
+  ],
+  "affected_fields": {
+   "fixture.condition": [
+    "value"
+   ],
+   "fixture.either": [
+    "value"
+   ],
+   "fixture.flow": [
+    "count",
+    "label",
+    "metadata",
+    "stamp",
+    "truth",
+    "value"
+   ],
+   "fixture.left": [
+    "value"
+   ],
+   "fixture.right": [
+    "value"
+   ],
+   "fixture.timed": [
+    "value"
+   ]
+  },
+  "analysis": "static",
+  "binding_identity_changes": [
+   "binding.a",
+   "binding.b"
+  ],
+  "changed": [],
+  "changed_source_fingerprints": [
+   "source.a",
+   "source.b"
+  ],
+  "directly_affected_contracts": [
+   "fixture.condition",
+   "fixture.either",
+   "fixture.flow",
+   "fixture.left",
+   "fixture.right",
+   "fixture.timed"
+  ],
+  "fingerprint_changes": [
+   "fixture.condition",
+   "fixture.either",
+   "fixture.flow",
+   "fixture.left",
+   "fixture.right",
+   "fixture.timed",
+   "source.a",
+   "source.b"
+  ],
+  "fingerprint_version": {
+   "after": 2,
+   "before": null,
+   "context_migration": false
+  },
+  "objects": {
+   "bindings": {
+    "added": [
+     "binding.a",
+     "binding.b"
+    ],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   },
+   "catalogs": {
+    "added": [],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   },
+   "contracts": {
+    "added": [
+     "fixture.condition",
+     "fixture.either",
+     "fixture.flow",
+     "fixture.left",
+     "fixture.right",
+     "fixture.timed"
+    ],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   },
+   "definitions": {
+    "added": [
+     "test.condition@1",
+     "test.either@1",
+     "test.flow@1",
+     "test.timed@1",
+     "test.truth@1"
+    ],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   },
+   "dependencies": {
+    "added": [
+     "dep.test"
+    ],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   },
+   "sources": {
+    "added": [
+     "source.a",
+     "source.b"
+    ],
+    "changed": [],
+    "field_paths": {},
+    "field_paths_truncated": [],
+    "fields": {},
+    "removed": []
+   }
+  },
+  "possibly_invalidated_contexts": [
+   "fixture.condition",
+   "fixture.either",
+   "fixture.flow",
+   "fixture.left",
+   "fixture.right",
+   "fixture.timed"
+  ],
+  "predicts_values": false,
+  "removed": [],
+  "restore": {
+   "reinitialize_contracts": [
+    "fixture.condition",
+    "fixture.either",
+    "fixture.flow",
+    "fixture.left",
+    "fixture.right",
+    "fixture.timed"
+   ],
+   "retains_absolute_deadlines_if_compatible": true
+  },
+  "snapshot": {
+   "affected_contracts": [
+    "fixture.condition",
+    "fixture.either",
+    "fixture.flow",
+    "fixture.left",
+    "fixture.right",
+    "fixture.timed"
+   ],
+   "revision_changes": true
+  },
+  "source_identity_changes": [
+   "source.a",
+   "source.b"
+  ],
+  "transitively_affected_contracts": []
+ },
+ "issues": [],
+ "machine_definitions": {},
+ "valid": true
+}

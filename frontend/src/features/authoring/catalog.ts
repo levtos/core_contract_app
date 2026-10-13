@@ -1,0 +1,93 @@
+import type { Capabilities, TypeDescription } from '@/lib/capabilities';
+import { isObject, type JsonObject } from '@/lib/json';
+import { asArray, asObject, str, type FieldSchema } from './model';
+
+/**
+ * Types an instance can use: package types and active definitions from the
+ * capability catalog, overlaid with the definitions of the draft being edited
+ * (a draft definition is not registered anywhere until activation).
+ */
+export interface TypeEntry {
+  key: string;
+  type_id: string;
+  type_version: number;
+  origin: 'package' | 'active-definition' | 'draft-definition';
+  inputs: { name: string; required: boolean; schema?: FieldSchema }[];
+  fields: Record<string, FieldSchema>;
+  parameterSchema?: JsonObject;
+  declarative: boolean;
+  machine: boolean;
+}
+
+export const typeKey = (id: string, version: number | string): string => `${id}@${version}`;
+
+export function typeCatalog(caps: Capabilities | undefined, config: JsonObject | null | undefined): TypeEntry[] {
+  const entries = new Map<string, TypeEntry>();
+  for (const t of caps?.types ?? []) {
+    entries.set(typeKey(t.type_id, t.type_version), fromDescription(t));
+  }
+  for (const raw of asArray(config?.definitions)) {
+    if (!isObject(raw)) continue;
+    const id = str(raw.type_id);
+    const version = Number(raw.type_version);
+    if (!id || !Number.isFinite(version)) continue;
+    const fields = asObject(asObject(raw.schema).fields) as Record<string, FieldSchema>;
+    entries.set(typeKey(id, version), {
+      key: typeKey(id, version),
+      type_id: id,
+      type_version: version,
+      origin: 'draft-definition',
+      declarative: true,
+      machine: isObject(raw.machine),
+      fields,
+      inputs: asArray(raw.inputs)
+        .filter(isObject)
+        .map((i) => {
+          const schema = asObject(i.schema) as FieldSchema;
+          return { name: str(i.name), required: schema.required !== false, schema };
+        }),
+    });
+  }
+  return [...entries.values()].sort((a, b) => a.type_id.localeCompare(b.type_id) || a.type_version - b.type_version);
+}
+
+function fromDescription(t: TypeDescription): TypeEntry {
+  const declarative = t.definition !== undefined;
+  return {
+    key: typeKey(t.type_id, t.type_version),
+    type_id: t.type_id,
+    type_version: t.type_version,
+    origin: declarative ? 'active-definition' : 'package',
+    declarative,
+    machine: t.producer === 'state_machine' || (declarative && isObject(t.definition?.machine)),
+    fields: t.schema.fields as Record<string, FieldSchema>,
+    inputs: t.inputs.map((i) => ({ name: i.name, required: i.required })),
+    parameterSchema: declarative ? undefined : t.parameter_schema,
+  };
+}
+
+/** Reference candidates for an instance input: sources and `contract.field` outputs. */
+export interface RefOption {
+  value: string;
+  label: string;
+  kind: 'source' | 'contract';
+  detail?: string;
+}
+
+export function refOptions(config: JsonObject | null | undefined, types: TypeEntry[], excludeContract?: string): RefOption[] {
+  const out: RefOption[] = [];
+  for (const source of asArray(config?.sources).filter(isObject)) {
+    const id = str(source.source_id);
+    if (id) out.push({ value: id, label: id, kind: 'source', detail: str(source.source_type) });
+  }
+  for (const contract of asArray(config?.contracts).filter(isObject)) {
+    const id = str(contract.contract_id);
+    if (!id || id === excludeContract) continue;
+    const type = types.find((t) => t.key === typeKey(str(contract.type_id), Number(contract.type_version)));
+    out.push({ value: id, label: id, kind: 'contract', detail: 'Wert' });
+    for (const [field, schema] of Object.entries(type?.fields ?? {})) {
+      out.push({ value: `${id}.${field}`, label: `${id}.${field}`, kind: 'contract', detail: str((schema as FieldSchema).type) });
+    }
+  }
+  return out;
+}

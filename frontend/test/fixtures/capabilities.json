@@ -1,0 +1,5967 @@
+{
+ "api_protocol": 1,
+ "capability_version": 1,
+ "compatibility": {
+  "activation": "explicit_atomic_occ",
+  "alpha3_documents": true,
+  "alpha3_type_fingerprints": "unchanged",
+  "definition_versions": "immutable_semantics"
+ },
+ "config_schema_version": 1,
+ "declarative_fingerprint_version": 2,
+ "draft_id": {
+  "generated": "uuid4",
+  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+ },
+ "evidence_reference_versions": [
+  1,
+  2
+ ],
+ "fingerprint_versions": [
+  1,
+  2
+ ],
+ "formulas": [
+  {
+   "input_schema": {
+    "physical_state": false,
+    "required": true,
+    "type": "number",
+    "unit": null,
+    "value_catalog": []
+   },
+   "name": "test.sum",
+   "output_schema": {
+    "physical_state": false,
+    "required": true,
+    "type": "number",
+    "unit": null,
+    "value_catalog": []
+   },
+   "version": 1
+  }
+ ],
+ "fusion": [
+  {
+   "conflict_detection": false,
+   "priority": "argument_order",
+   "strategy": "first_healthy"
+  },
+  {
+   "conflict_detection": true,
+   "priority": null,
+   "strategy": "latest"
+  },
+  {
+   "conflict_detection": false,
+   "priority": null,
+   "strategy": "any_true"
+  },
+  {
+   "conflict_detection": false,
+   "priority": null,
+   "strategy": "all_true"
+  },
+  {
+   "conflict_detection": true,
+   "priority": null,
+   "strategy": "test_agreement"
+  }
+ ],
+ "history": {
+  "cursor": "scope_bound_keyset",
+  "endpoint": "/api/v1/history/query/{kind}",
+  "kinds": [
+   "contracts",
+   "observations",
+   "transitions",
+   "episodes",
+   "deadlines",
+   "commands",
+   "gaps",
+   "diagnostics",
+   "revisions",
+   "activations"
+  ],
+  "limit": 200,
+  "order": "time_desc_key_desc",
+  "role": "admin",
+  "time_comparison": "utc_instant"
+ },
+ "language_versions": [
+  1
+ ],
+ "limits": {
+  "definition_nodes": 256,
+  "definitions": 128,
+  "document_bytes": 2000000,
+  "document_depth": 32,
+  "drafts": 100,
+  "evaluation_steps": 512,
+  "history_page": 200,
+  "inputs": 64,
+  "outputs": 32,
+  "registry_evaluation_steps": 8192,
+  "rule_depth": 16,
+  "trace_evidence_per_step": 64,
+  "trace_retention": "latest_relevant_committed_per_contract",
+  "trace_steps": 1024,
+  "trace_values": "no_raw_values; machine_guard_decisions_and_fusion_indices_only"
+ },
+ "map_keys": {
+  "format": "canonical_json_scalar",
+  "legacy_catalogs": "unchanged_python_str",
+  "numbers": "decimal_without_exponent_or_trailing_fraction_zeros",
+  "strings": "json_quoted_exact"
+ },
+ "metadata_access": "authenticated_consumer_or_admin",
+ "operators": [
+  {
+   "op": "input",
+   "schema_ref": "#/$defs/InputRule",
+   "stateful": false
+  },
+  {
+   "op": "ref",
+   "schema_ref": "#/$defs/ReferenceRule",
+   "stateful": false
+  },
+  {
+   "op": "literal",
+   "schema_ref": "#/$defs/LiteralRule",
+   "stateful": false
+  },
+  {
+   "op": "and",
+   "schema_ref": "#/$defs/BooleanRule",
+   "stateful": false
+  },
+  {
+   "op": "or",
+   "schema_ref": "#/$defs/BooleanRule",
+   "stateful": false
+  },
+  {
+   "op": "not",
+   "schema_ref": "#/$defs/BooleanRule",
+   "stateful": false
+  },
+  {
+   "op": "compare",
+   "schema_ref": "#/$defs/CompareRule",
+   "stateful": false
+  },
+  {
+   "op": "map",
+   "schema_ref": "#/$defs/MapRule",
+   "stateful": false
+  },
+  {
+   "op": "first_match",
+   "schema_ref": "#/$defs/FirstMatchRule",
+   "stateful": false
+  },
+  {
+   "op": "bucket",
+   "schema_ref": "#/$defs/BucketRule",
+   "stateful": true
+  },
+  {
+   "op": "formula",
+   "schema_ref": "#/$defs/FormulaRule",
+   "stateful": false
+  },
+  {
+   "op": "fusion",
+   "schema_ref": "#/$defs/FusionRule",
+   "stateful": false
+  },
+  {
+   "op": "temporal",
+   "schema_ref": "#/$defs/TemporalRule",
+   "stateful": true
+  },
+  {
+   "op": "machine",
+   "schema_ref": "#/$defs/MachineRule",
+   "stateful": true
+  },
+  {
+   "op": "not_applicable",
+   "schema_ref": "#/$defs/NotApplicableRule",
+   "stateful": false
+  }
+ ],
+ "reasons": {
+  "codes": [
+   {
+    "code": "input_unavailable",
+    "description": "The source reports unavailable.",
+    "since_version": 1
+   },
+   {
+    "code": "input_unknown",
+    "description": "Decisive input has no usable value.",
+    "since_version": 1
+   },
+   {
+    "code": "input_stale",
+    "description": "The measurement exceeds its configured freshness interval.",
+    "since_version": 1
+   },
+   {
+    "code": "input_restored",
+    "description": "Restored source data is not new measurement evidence.",
+    "since_version": 1
+   },
+   {
+    "code": "input_absent",
+    "description": "No observation exists for the required input.",
+    "since_version": 1
+   },
+   {
+    "code": "unmapped_value",
+    "description": "The map has no entry for this input.",
+    "since_version": 1
+   },
+   {
+    "code": "invalid_value",
+    "description": "The input does not satisfy its declared value type.",
+    "since_version": 1
+   },
+   {
+    "code": "no_match",
+    "description": "No first-match condition selected a result.",
+    "since_version": 1
+   },
+   {
+    "code": "conflict",
+    "description": "Equally decisive candidates disagree.",
+    "since_version": 1
+   },
+   {
+    "code": "partial_evidence",
+    "description": "Usable candidates determine the result despite missing evidence.",
+    "since_version": 1
+   },
+   {
+    "code": "source_transition_grace",
+    "description": "A previously valid value is held until its original grace deadline.",
+    "since_version": 1
+   },
+   {
+    "code": "selection_blocked",
+    "description": "An unknown earlier condition prevents deterministic selection.",
+    "since_version": 1
+   },
+   {
+    "code": "dependency_unavailable",
+    "description": "A declared runtime dependency is unavailable.",
+    "since_version": 1
+   },
+   {
+    "code": "config_incomplete",
+    "description": "The contract configuration is incomplete.",
+    "since_version": 1
+   },
+   {
+    "code": "evaluation_error",
+    "description": "Producer evaluation failed; staged producer changes were discarded.",
+    "since_version": 1
+   },
+   {
+    "code": "restore_context_missing",
+    "description": "Required persisted context is missing or inconsistent.",
+    "since_version": 1
+   },
+   {
+    "code": "restore_context_incompatible",
+    "description": "The semantic fingerprint does not match the persisted context.",
+    "since_version": 1
+   },
+   {
+    "code": "restore_context_stale",
+    "description": "A disabled or removed instance requires reinitialization.",
+    "since_version": 1
+   },
+   {
+    "code": "history_gap",
+    "description": "Observation continuity was interrupted.",
+    "since_version": 1
+   },
+   {
+    "code": "deadline_overdue_unprocessed",
+    "description": "A due transition could not be decided from current evidence.",
+    "since_version": 1
+   },
+   {
+    "code": "guard_rejected",
+    "description": "The transition guard rejected the request.",
+    "since_version": 1
+   }
+  ],
+  "version": 1
+ },
+ "references": {
+  "dynamic_lookup": false,
+  "external": [
+   "source_id",
+   "contract_id.field",
+   "contract_id (value)"
+  ],
+  "internal": "named acyclic rules",
+  "typed_sources": "value_schema or boolean/numeric/text source_type"
+ },
+ "schemas": {
+  "definition": {
+   "$defs": {
+    "BooleanRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "op": {
+          "const": "not"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "args": {
+          "maxItems": 1,
+          "minItems": 1
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "op": {
+       "enum": [
+        "and",
+        "or",
+        "not"
+       ],
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "args"
+     ],
+     "title": "BooleanRule",
+     "type": "object"
+    },
+    "BucketRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "initial": {
+       "title": "Initial",
+       "type": "boolean"
+      },
+      "lower": {
+       "title": "Lower",
+       "type": "number"
+      },
+      "op": {
+       "const": "bucket",
+       "title": "Op",
+       "type": "string"
+      },
+      "upper": {
+       "title": "Upper",
+       "type": "number"
+      }
+     },
+     "required": [
+      "op",
+      "id",
+      "arg",
+      "initial",
+      "lower",
+      "upper"
+     ],
+     "title": "BucketRule",
+     "type": "object"
+    },
+    "Case": {
+     "additionalProperties": false,
+     "properties": {
+      "then": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Then"
+      },
+      "when": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "When"
+      }
+     },
+     "required": [
+      "when",
+      "then"
+     ],
+     "title": "Case",
+     "type": "object"
+    },
+    "CommandDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "arguments": {
+       "maxProperties": 64,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "$ref": "#/$defs/FieldSchema"
+        }
+       },
+       "title": "Arguments",
+       "type": "object"
+      }
+     },
+     "title": "CommandDefinition",
+     "type": "object"
+    },
+    "CompareRule": {
+     "additionalProperties": false,
+     "properties": {
+      "comparison": {
+       "enum": [
+        "eq",
+        "ne",
+        "lt",
+        "le",
+        "gt",
+        "ge"
+       ],
+       "title": "Comparison",
+       "type": "string"
+      },
+      "left": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Left"
+      },
+      "op": {
+       "const": "compare",
+       "title": "Op",
+       "type": "string"
+      },
+      "right": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Right"
+      }
+     },
+     "required": [
+      "op",
+      "comparison",
+      "left",
+      "right"
+     ],
+     "title": "CompareRule",
+     "type": "object"
+    },
+    "FieldSchema": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "enum"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "value_catalog": {
+          "minItems": 1
+         }
+        },
+        "required": [
+         "value_catalog"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "physical_state": {
+       "title": "Physical State",
+       "type": "boolean"
+      },
+      "required": {
+       "title": "Required",
+       "type": "boolean"
+      },
+      "type": {
+       "enum": [
+        "bool",
+        "number",
+        "enum",
+        "text",
+        "timestamp",
+        "object"
+       ],
+       "title": "Type",
+       "type": "string"
+      },
+      "unit": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Unit"
+      },
+      "value_catalog": {
+       "default": [],
+       "items": {
+        "type": "string"
+       },
+       "title": "Value Catalog",
+       "type": "array"
+      }
+     },
+     "required": [
+      "type",
+      "required",
+      "physical_state"
+     ],
+     "title": "FieldSchema",
+     "type": "object"
+    },
+    "FirstMatchRule": {
+     "additionalProperties": false,
+     "properties": {
+      "cases": {
+       "items": {
+        "$ref": "#/$defs/Case"
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Cases",
+       "type": "array"
+      },
+      "op": {
+       "const": "first_match",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "cases"
+     ],
+     "title": "FirstMatchRule",
+     "type": "object"
+    },
+    "FormulaRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "name": {
+          "const": "test.sum"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "version": {
+          "enum": [
+           1
+          ]
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "name": {
+       "enum": [
+        "test.sum"
+       ],
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "formula",
+       "title": "Op",
+       "type": "string"
+      },
+      "version": {
+       "minimum": 1,
+       "title": "Version",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "op",
+      "name",
+      "version",
+      "args"
+     ],
+     "title": "FormulaRule",
+     "type": "object"
+    },
+    "FusionRule": {
+     "additionalProperties": false,
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "op": {
+       "const": "fusion",
+       "title": "Op",
+       "type": "string"
+      },
+      "strategy": {
+       "enum": [
+        "all_true",
+        "any_true",
+        "first_healthy",
+        "latest",
+        "test_agreement"
+       ],
+       "maxLength": 128,
+       "minLength": 1,
+       "title": "Strategy",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "strategy",
+      "args"
+     ],
+     "title": "FusionRule",
+     "type": "object"
+    },
+    "InputRule": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "input",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "name"
+     ],
+     "title": "InputRule",
+     "type": "object"
+    },
+    "LiteralRule": {
+     "additionalProperties": false,
+     "properties": {
+      "op": {
+       "const": "literal",
+       "title": "Op",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      },
+      "value": {
+       "title": "Value"
+      }
+     },
+     "required": [
+      "op",
+      "schema",
+      "value"
+     ],
+     "title": "LiteralRule",
+     "type": "object"
+    },
+    "MachineDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "commands": {
+       "maxProperties": 32,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "$ref": "#/$defs/CommandDefinition"
+        }
+       },
+       "title": "Commands",
+       "type": "object"
+      },
+      "deadline_s": {
+       "anyOf": [
+        {
+         "exclusiveMinimum": 0,
+         "maximum": 31536000,
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Deadline S"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "initial": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Initial",
+       "type": "string"
+      },
+      "reinitialize_when": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Reinitialize When"
+      },
+      "sessions": {
+       "default": false,
+       "title": "Sessions",
+       "type": "boolean"
+      },
+      "states": {
+       "items": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+        "type": "string"
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "States",
+       "type": "array"
+      },
+      "transitions": {
+       "items": {
+        "$ref": "#/$defs/TransitionDefinition"
+       },
+       "maxItems": 128,
+       "title": "Transitions",
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "states",
+      "initial",
+      "transitions",
+      "reinitialize_when"
+     ],
+     "title": "MachineDefinition",
+     "type": "object"
+    },
+    "MachineRule": {
+     "additionalProperties": false,
+     "properties": {
+      "op": {
+       "const": "machine",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op"
+     ],
+     "title": "MachineRule",
+     "type": "object"
+    },
+    "MapRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "entries": {
+       "additionalProperties": true,
+       "maxProperties": 256,
+       "minProperties": 1,
+       "title": "Entries",
+       "type": "object"
+      },
+      "op": {
+       "const": "map",
+       "title": "Op",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      }
+     },
+     "required": [
+      "op",
+      "arg",
+      "schema",
+      "entries"
+     ],
+     "title": "MapRule",
+     "type": "object"
+    },
+    "NotApplicableRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "op": {
+       "const": "not_applicable",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "arg"
+     ],
+     "title": "NotApplicableRule",
+     "type": "object"
+    },
+    "ReferenceRule": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "ref",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "name"
+     ],
+     "title": "ReferenceRule",
+     "type": "object"
+    },
+    "Schema": {
+     "additionalProperties": false,
+     "properties": {
+      "available_projection": {
+       "default": [],
+       "items": {
+        "type": "string"
+       },
+       "title": "Available Projection",
+       "type": "array"
+      },
+      "fields": {
+       "additionalProperties": {
+        "$ref": "#/$defs/FieldSchema"
+       },
+       "title": "Fields",
+       "type": "object"
+      },
+      "fixture": {
+       "default": true,
+       "title": "Fixture",
+       "type": "boolean"
+      },
+      "grace_capable": {
+       "const": false,
+       "default": false,
+       "title": "Grace Capable",
+       "type": "boolean"
+      },
+      "grace_parameter": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "const": null,
+       "default": null,
+       "title": "Grace Parameter"
+      }
+     },
+     "required": [
+      "fields"
+     ],
+     "title": "Schema",
+     "type": "object"
+    },
+    "TemporalRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "else": {
+        "properties": {
+         "args": {
+          "maxItems": 1,
+          "minItems": 1
+         }
+        }
+       },
+       "if": {
+        "properties": {
+         "operation": {
+          "const": "delta"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "args": {
+          "maxItems": 2,
+          "minItems": 2
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "accepts_held": {
+       "default": false,
+       "title": "Accepts Held",
+       "type": "boolean"
+      },
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 2,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "duration_s": {
+       "exclusiveMinimum": 0,
+       "maximum": 31536000,
+       "title": "Duration S",
+       "type": "number"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "op": {
+       "const": "temporal",
+       "title": "Op",
+       "type": "string"
+      },
+      "operation": {
+       "enum": [
+        "stable_for",
+        "dwell",
+        "grace",
+        "edge",
+        "delta",
+        "age"
+       ],
+       "title": "Operation",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "id",
+      "operation",
+      "args",
+      "duration_s"
+     ],
+     "title": "TemporalRule",
+     "type": "object"
+    },
+    "TransitionDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "argument_equals": {
+       "additionalProperties": true,
+       "maxProperties": 64,
+       "title": "Argument Equals",
+       "type": "object"
+      },
+      "ends_episode": {
+       "default": false,
+       "title": "Ends Episode",
+       "type": "boolean"
+      },
+      "event": {
+       "maxLength": 64,
+       "minLength": 1,
+       "title": "Event",
+       "type": "string"
+      },
+      "guard": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Guard"
+      },
+      "new_episode": {
+       "default": false,
+       "title": "New Episode",
+       "type": "boolean"
+      },
+      "reason": {
+       "maxLength": 128,
+       "minLength": 1,
+       "title": "Reason",
+       "type": "string"
+      },
+      "source": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Source",
+       "type": "string"
+      },
+      "target": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Target",
+       "type": "string"
+      }
+     },
+     "required": [
+      "source",
+      "target",
+      "event",
+      "guard",
+      "reason"
+     ],
+     "title": "TransitionDefinition",
+     "type": "object"
+    },
+    "TypedInput": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      }
+     },
+     "required": [
+      "name",
+      "schema"
+     ],
+     "title": "TypedInput",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "description": {
+     "default": "",
+     "title": "Description",
+     "type": "string"
+    },
+    "display_name": {
+     "default": "",
+     "title": "Display Name",
+     "type": "string"
+    },
+    "inputs": {
+     "default": [],
+     "items": {
+      "$ref": "#/$defs/TypedInput"
+     },
+     "maxItems": 64,
+     "title": "Inputs",
+     "type": "array"
+    },
+    "language_version": {
+     "const": 1,
+     "default": 1,
+     "title": "Language Version",
+     "type": "integer"
+    },
+    "machine": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/MachineDefinition"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "outputs": {
+     "maxProperties": 32,
+     "minProperties": 1,
+     "patternProperties": {
+      "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ]
+      }
+     },
+     "title": "Outputs",
+     "type": "object"
+    },
+    "refresh_inputs": {
+     "default": [],
+     "items": {
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+      "type": "string"
+     },
+     "maxItems": 64,
+     "title": "Refresh Inputs",
+     "type": "array"
+    },
+    "rules": {
+     "maxProperties": 256,
+     "patternProperties": {
+      "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ]
+      }
+     },
+     "title": "Rules",
+     "type": "object"
+    },
+    "schema": {
+     "$ref": "#/$defs/Schema"
+    },
+    "type_id": {
+     "pattern": "^test\\.[a-zA-Z0-9_.-]+$",
+     "title": "Type Id",
+     "type": "string"
+    },
+    "type_version": {
+     "minimum": 1,
+     "title": "Type Version",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "type_id",
+    "type_version",
+    "schema",
+    "outputs"
+   ],
+   "title": "DeclarativeDefinition",
+   "type": "object",
+   "x-semantic-validation": {
+    "endpoint": "/api/v1/registry/validate",
+    "model_constraints": {
+     "BucketRule": [
+      "lower <= upper"
+     ],
+     "DeclarativeDefinition": [
+      "distinct inputs",
+      "outputs equal schema.fields",
+      "fixture only",
+      "refresh inputs declared",
+      "grace uses temporal rule duration"
+     ],
+     "FieldSchema": [
+      "enum requires a value catalog where used"
+     ],
+     "LiteralRule": [
+      "value matches schema"
+     ],
+     "MachineDefinition": [
+      "distinct states",
+      "initial/source/target belong to states",
+      "declared events and commands",
+      "deadline event requires deadline_s",
+      "reserved input/deadline events",
+      "typed argument_equals",
+      "no model-reserved argument names"
+     ],
+     "MapRule": [
+      "all entry values match result schema"
+     ],
+     "Schema": [
+      "nonempty fields",
+      "available_projection refers to fields",
+      "grace parameter matches capability"
+     ]
+    },
+    "rules": [
+     {
+      "code": "document_object_required",
+      "constraint": "configuration is a JSON object"
+     },
+     {
+      "code": "unsafe_document",
+      "constraint": "no secrets; finite JSON; document size and depth limits"
+     },
+     {
+      "code": "fingerprint_upgrade_required",
+      "constraint": "declarative definitions require fingerprint version 2"
+     },
+     {
+      "code": "immutable_definition_version",
+      "constraint": "published definition semantics are immutable"
+     },
+     {
+      "code": "definition_invalid",
+      "constraint": "definition resource limits and reserved package identities"
+     },
+     {
+      "code": "duplicate_identity",
+      "constraint": "identities are unique within each registry object kind"
+     },
+     {
+      "code": "ambiguous_identity",
+      "constraint": "source and contract identities are disjoint"
+     },
+     {
+      "code": "source_dependency",
+      "constraint": "sources have a known dependency and local origin"
+     },
+     {
+      "code": "liveness_reference",
+      "constraint": "liveness sources exist"
+     },
+     {
+      "code": "monitor_required",
+      "constraint": "source-monitored dependencies reference a source"
+     },
+     {
+      "code": "monitor_unsupported",
+      "constraint": "internal monitors support only known adapter kinds"
+     },
+     {
+      "code": "dependency_cycle",
+      "constraint": "dependency monitor graph is acyclic"
+     },
+     {
+      "code": "source_dependency_cycle",
+      "constraint": "source and liveness graph is acyclic and at most depth 64 in v2"
+     },
+     {
+      "code": "adapter_unsupported",
+      "constraint": "scheduler is not a source adapter"
+     },
+     {
+      "code": "duplicate_adapter",
+      "constraint": "an adapter evidence path is bound once"
+     },
+     {
+      "code": "binding_source",
+      "constraint": "bindings target distinct existing sources"
+     },
+     {
+      "code": "duplicate_evidence",
+      "constraint": "physical evidence paths are not counted twice"
+     },
+     {
+      "code": "catalog_reference",
+      "constraint": "map bindings reference an existing catalog"
+     },
+     {
+      "code": "binding_type_mismatch",
+      "constraint": "binding transform output matches source value_schema"
+     },
+     {
+      "code": "catalog_type_mismatch",
+      "constraint": "all map catalog values match source value_schema"
+     },
+     {
+      "code": "monitor_unbound",
+      "constraint": "dependency monitor sources have a binding"
+     },
+     {
+      "code": "type_reference",
+      "constraint": "contract type and version are registered"
+     },
+     {
+      "code": "grace_duration",
+      "constraint": "grace duration is positive"
+     },
+     {
+      "code": "contract_inputs",
+      "constraint": "inputs are distinct, declared and include every required input"
+     },
+     {
+      "code": "input_reference",
+      "constraint": "input references resolve unambiguously"
+     },
+     {
+      "code": "refresh_binding",
+      "constraint": "refresh inputs refer to an HA source binding"
+     },
+     {
+      "code": "source_unbound",
+      "constraint": "referenced source has a binding"
+     },
+     {
+      "code": "field_reference",
+      "constraint": "referenced contract field exists"
+     },
+     {
+      "code": "disabled_dependency",
+      "constraint": "enabled contracts cannot require disabled contracts"
+     },
+     {
+      "code": "input_type_mismatch",
+      "constraint": "input type, catalog and unit are compatible"
+     },
+     {
+      "code": "registry_evaluation_limit",
+      "constraint": "enabled definitions total at most 8192 estimated steps"
+     },
+     {
+      "code": "contract_cycle",
+      "constraint": "contract graph is acyclic"
+     },
+     {
+      "code": "contract_graph_depth",
+      "constraint": "contract graph depth is at most 64 in v2"
+     },
+     {
+      "code": "definition.rule_type_mismatch",
+      "constraint": "operator inputs and output schemas are compatible"
+     },
+     {
+      "code": "definition.unit_mismatch",
+      "constraint": "combined numeric inputs have equal units"
+     },
+     {
+      "code": "definition.internal_cycle",
+      "constraint": "internal rule references are acyclic"
+     },
+     {
+      "code": "definition.unknown_internal_reference",
+      "constraint": "internal references name a declared rule"
+     },
+     {
+      "code": "definition.unknown_rule_input",
+      "constraint": "input expressions name a declared input"
+     },
+     {
+      "code": "definition.duplicate_stateful_id",
+      "constraint": "stateful node ids are unique"
+     },
+     {
+      "code": "definition.definition_resource_limit",
+      "constraint": "expanded depth and physical node count obey limits"
+     },
+     {
+      "code": "definition.stateful_guard_requires_contract_input",
+      "constraint": "guards and reinitialization expressions are stateless"
+     },
+     {
+      "code": "definition.comparison_type_mismatch",
+      "constraint": "comparison operands have compatible types"
+     },
+     {
+      "code": "definition.unordered_comparison",
+      "constraint": "ordering applies to number, text and timestamp only"
+     },
+     {
+      "code": "definition.map_requires_scalar",
+      "constraint": "map inputs cannot have object type"
+     },
+     {
+      "code": "definition.invalid_map_key",
+      "constraint": "map keys are canonical JSON scalars matching the input type and catalog"
+     },
+     {
+      "code": "definition.unknown_formula_version",
+      "constraint": "formula name/version is registered"
+     },
+     {
+      "code": "definition.unknown_fusion_strategy",
+      "constraint": "fusion strategy is registered"
+     },
+     {
+      "code": "definition.machine_definition_required",
+      "constraint": "machine expressions require a definition"
+     },
+     {
+      "code": "definition.duplicate_transition_event",
+      "constraint": "each machine source/event pair occurs at most once"
+     },
+     {
+      "code": "definition.unreachable_machine",
+      "constraint": "a declared machine is reachable from an output through rules"
+     }
+    ],
+    "structural_code_families": [
+     "schema.*",
+     "parameter.*"
+    ]
+   }
+  },
+  "history_query": {
+   "additionalProperties": false,
+   "properties": {
+    "contract_id": {
+     "anyOf": [
+      {
+       "maxLength": 256,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Contract Id"
+    },
+    "cursor": {
+     "anyOf": [
+      {
+       "maxLength": 2048,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Cursor"
+    },
+    "limit": {
+     "default": 100,
+     "maximum": 200,
+     "minimum": 1,
+     "title": "Limit",
+     "type": "integer"
+    },
+    "since": {
+     "anyOf": [
+      {
+       "format": "date-time",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Since"
+    },
+    "source_id": {
+     "anyOf": [
+      {
+       "maxLength": 256,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source Id"
+    },
+    "until": {
+     "anyOf": [
+      {
+       "format": "date-time",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Until"
+    }
+   },
+   "title": "HistoryQuery",
+   "type": "object"
+  },
+  "registry": {
+   "$defs": {
+    "AdapterConfig": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "ha_state"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "ha_entity_id": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "ha_entity_id"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "ha_attribute"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "ha_attribute": {
+          "not": {
+           "type": "null"
+          }
+         },
+         "ha_entity_id": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "ha_entity_id",
+         "ha_attribute"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "mqtt"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "mqtt_topic": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "mqtt_topic"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "ha_attribute": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Ha Attribute"
+      },
+      "ha_entity_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Ha Entity Id"
+      },
+      "ha_time_attribute": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Ha Time Attribute"
+      },
+      "kind": {
+       "enum": [
+        "ha_state",
+        "ha_attribute",
+        "mqtt",
+        "scheduler"
+       ],
+       "title": "Kind",
+       "type": "string"
+      },
+      "mqtt_time_path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Mqtt Time Path"
+      },
+      "mqtt_topic": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Mqtt Topic"
+      },
+      "mqtt_value_path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Mqtt Value Path"
+      }
+     },
+     "required": [
+      "kind"
+     ],
+     "title": "AdapterConfig",
+     "type": "object"
+    },
+    "Binding": {
+     "additionalProperties": false,
+     "properties": {
+      "adapter": {
+       "$ref": "#/$defs/AdapterConfig"
+      },
+      "binding_id": {
+       "minLength": 1,
+       "title": "Binding Id",
+       "type": "string"
+      },
+      "display_name": {
+       "default": "",
+       "title": "Display Name",
+       "type": "string"
+      },
+      "source_id": {
+       "title": "Source Id",
+       "type": "string"
+      },
+      "transform": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/Transform"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "binding_id",
+      "source_id",
+      "adapter"
+     ],
+     "title": "Binding",
+     "type": "object"
+    },
+    "BooleanRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "op": {
+          "const": "not"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "args": {
+          "maxItems": 1,
+          "minItems": 1
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "op": {
+       "enum": [
+        "and",
+        "or",
+        "not"
+       ],
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "args"
+     ],
+     "title": "BooleanRule",
+     "type": "object"
+    },
+    "BucketRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "initial": {
+       "title": "Initial",
+       "type": "boolean"
+      },
+      "lower": {
+       "title": "Lower",
+       "type": "number"
+      },
+      "op": {
+       "const": "bucket",
+       "title": "Op",
+       "type": "string"
+      },
+      "upper": {
+       "title": "Upper",
+       "type": "number"
+      }
+     },
+     "required": [
+      "op",
+      "id",
+      "arg",
+      "initial",
+      "lower",
+      "upper"
+     ],
+     "title": "BucketRule",
+     "type": "object"
+    },
+    "Case": {
+     "additionalProperties": false,
+     "properties": {
+      "then": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Then"
+      },
+      "when": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "When"
+      }
+     },
+     "required": [
+      "when",
+      "then"
+     ],
+     "title": "Case",
+     "type": "object"
+    },
+    "Catalog": {
+     "additionalProperties": false,
+     "properties": {
+      "catalog_id": {
+       "title": "Catalog Id",
+       "type": "string"
+      },
+      "entries": {
+       "additionalProperties": true,
+       "title": "Entries",
+       "type": "object"
+      },
+      "kind": {
+       "const": "map",
+       "title": "Kind",
+       "type": "string"
+      },
+      "version": {
+       "minimum": 1,
+       "title": "Version",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "catalog_id",
+      "kind",
+      "version",
+      "entries"
+     ],
+     "title": "Catalog",
+     "type": "object"
+    },
+    "CommandDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "arguments": {
+       "maxProperties": 64,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "$ref": "#/$defs/FieldSchema"
+        }
+       },
+       "title": "Arguments",
+       "type": "object"
+      }
+     },
+     "title": "CommandDefinition",
+     "type": "object"
+    },
+    "CompareRule": {
+     "additionalProperties": false,
+     "properties": {
+      "comparison": {
+       "enum": [
+        "eq",
+        "ne",
+        "lt",
+        "le",
+        "gt",
+        "ge"
+       ],
+       "title": "Comparison",
+       "type": "string"
+      },
+      "left": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Left"
+      },
+      "op": {
+       "const": "compare",
+       "title": "Op",
+       "type": "string"
+      },
+      "right": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Right"
+      }
+     },
+     "required": [
+      "op",
+      "comparison",
+      "left",
+      "right"
+     ],
+     "title": "CompareRule",
+     "type": "object"
+    },
+    "Contract": {
+     "additionalProperties": false,
+     "properties": {
+      "contract_id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]+$",
+       "title": "Contract Id",
+       "type": "string"
+      },
+      "description": {
+       "default": "",
+       "title": "Description",
+       "type": "string"
+      },
+      "display_name": {
+       "default": "",
+       "title": "Display Name",
+       "type": "string"
+      },
+      "enabled": {
+       "title": "Enabled",
+       "type": "boolean"
+      },
+      "inputs": {
+       "items": {
+        "$ref": "#/$defs/Input"
+       },
+       "title": "Inputs",
+       "type": "array"
+      },
+      "parameters": {
+       "additionalProperties": true,
+       "title": "Parameters",
+       "type": "object"
+      },
+      "type_id": {
+       "title": "Type Id",
+       "type": "string"
+      },
+      "type_version": {
+       "minimum": 1,
+       "title": "Type Version",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "contract_id",
+      "type_id",
+      "type_version",
+      "enabled",
+      "inputs",
+      "parameters"
+     ],
+     "title": "Contract",
+     "type": "object"
+    },
+    "DeclarativeDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "description": {
+       "default": "",
+       "title": "Description",
+       "type": "string"
+      },
+      "display_name": {
+       "default": "",
+       "title": "Display Name",
+       "type": "string"
+      },
+      "inputs": {
+       "default": [],
+       "items": {
+        "$ref": "#/$defs/TypedInput"
+       },
+       "maxItems": 64,
+       "title": "Inputs",
+       "type": "array"
+      },
+      "language_version": {
+       "const": 1,
+       "default": 1,
+       "title": "Language Version",
+       "type": "integer"
+      },
+      "machine": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/MachineDefinition"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "outputs": {
+       "maxProperties": 32,
+       "minProperties": 1,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "discriminator": {
+          "mapping": {
+           "and": "#/$defs/BooleanRule",
+           "bucket": "#/$defs/BucketRule",
+           "compare": "#/$defs/CompareRule",
+           "first_match": "#/$defs/FirstMatchRule",
+           "formula": "#/$defs/FormulaRule",
+           "fusion": "#/$defs/FusionRule",
+           "input": "#/$defs/InputRule",
+           "literal": "#/$defs/LiteralRule",
+           "machine": "#/$defs/MachineRule",
+           "map": "#/$defs/MapRule",
+           "not": "#/$defs/BooleanRule",
+           "not_applicable": "#/$defs/NotApplicableRule",
+           "or": "#/$defs/BooleanRule",
+           "ref": "#/$defs/ReferenceRule",
+           "temporal": "#/$defs/TemporalRule"
+          },
+          "propertyName": "op"
+         },
+         "oneOf": [
+          {
+           "$ref": "#/$defs/InputRule"
+          },
+          {
+           "$ref": "#/$defs/ReferenceRule"
+          },
+          {
+           "$ref": "#/$defs/LiteralRule"
+          },
+          {
+           "$ref": "#/$defs/BooleanRule"
+          },
+          {
+           "$ref": "#/$defs/CompareRule"
+          },
+          {
+           "$ref": "#/$defs/MapRule"
+          },
+          {
+           "$ref": "#/$defs/FirstMatchRule"
+          },
+          {
+           "$ref": "#/$defs/BucketRule"
+          },
+          {
+           "$ref": "#/$defs/FormulaRule"
+          },
+          {
+           "$ref": "#/$defs/FusionRule"
+          },
+          {
+           "$ref": "#/$defs/TemporalRule"
+          },
+          {
+           "$ref": "#/$defs/MachineRule"
+          },
+          {
+           "$ref": "#/$defs/NotApplicableRule"
+          }
+         ]
+        }
+       },
+       "title": "Outputs",
+       "type": "object"
+      },
+      "refresh_inputs": {
+       "default": [],
+       "items": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+        "type": "string"
+       },
+       "maxItems": 64,
+       "title": "Refresh Inputs",
+       "type": "array"
+      },
+      "rules": {
+       "maxProperties": 256,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "discriminator": {
+          "mapping": {
+           "and": "#/$defs/BooleanRule",
+           "bucket": "#/$defs/BucketRule",
+           "compare": "#/$defs/CompareRule",
+           "first_match": "#/$defs/FirstMatchRule",
+           "formula": "#/$defs/FormulaRule",
+           "fusion": "#/$defs/FusionRule",
+           "input": "#/$defs/InputRule",
+           "literal": "#/$defs/LiteralRule",
+           "machine": "#/$defs/MachineRule",
+           "map": "#/$defs/MapRule",
+           "not": "#/$defs/BooleanRule",
+           "not_applicable": "#/$defs/NotApplicableRule",
+           "or": "#/$defs/BooleanRule",
+           "ref": "#/$defs/ReferenceRule",
+           "temporal": "#/$defs/TemporalRule"
+          },
+          "propertyName": "op"
+         },
+         "oneOf": [
+          {
+           "$ref": "#/$defs/InputRule"
+          },
+          {
+           "$ref": "#/$defs/ReferenceRule"
+          },
+          {
+           "$ref": "#/$defs/LiteralRule"
+          },
+          {
+           "$ref": "#/$defs/BooleanRule"
+          },
+          {
+           "$ref": "#/$defs/CompareRule"
+          },
+          {
+           "$ref": "#/$defs/MapRule"
+          },
+          {
+           "$ref": "#/$defs/FirstMatchRule"
+          },
+          {
+           "$ref": "#/$defs/BucketRule"
+          },
+          {
+           "$ref": "#/$defs/FormulaRule"
+          },
+          {
+           "$ref": "#/$defs/FusionRule"
+          },
+          {
+           "$ref": "#/$defs/TemporalRule"
+          },
+          {
+           "$ref": "#/$defs/MachineRule"
+          },
+          {
+           "$ref": "#/$defs/NotApplicableRule"
+          }
+         ]
+        }
+       },
+       "title": "Rules",
+       "type": "object"
+      },
+      "schema": {
+       "$ref": "#/$defs/Schema"
+      },
+      "type_id": {
+       "pattern": "^test\\.[a-zA-Z0-9_.-]+$",
+       "title": "Type Id",
+       "type": "string"
+      },
+      "type_version": {
+       "minimum": 1,
+       "title": "Type Version",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "type_id",
+      "type_version",
+      "schema",
+      "outputs"
+     ],
+     "title": "DeclarativeDefinition",
+     "type": "object"
+    },
+    "Dependency": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "monitor": {
+          "const": "source"
+         }
+        },
+        "required": [
+         "monitor"
+        ]
+       },
+       "then": {
+        "properties": {
+         "source_id": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "source_id"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "dependency_id": {
+       "title": "Dependency Id",
+       "type": "string"
+      },
+      "kind": {
+       "enum": [
+        "ha",
+        "mqtt",
+        "other"
+       ],
+       "title": "Kind",
+       "type": "string"
+      },
+      "monitor": {
+       "enum": [
+        "internal",
+        "source"
+       ],
+       "title": "Monitor",
+       "type": "string"
+      },
+      "source_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Source Id"
+      }
+     },
+     "required": [
+      "dependency_id",
+      "kind",
+      "monitor"
+     ],
+     "title": "Dependency",
+     "type": "object"
+    },
+    "FieldSchema": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "enum"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "value_catalog": {
+          "minItems": 1
+         }
+        },
+        "required": [
+         "value_catalog"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "physical_state": {
+       "title": "Physical State",
+       "type": "boolean"
+      },
+      "required": {
+       "title": "Required",
+       "type": "boolean"
+      },
+      "type": {
+       "enum": [
+        "bool",
+        "number",
+        "enum",
+        "text",
+        "timestamp",
+        "object"
+       ],
+       "title": "Type",
+       "type": "string"
+      },
+      "unit": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Unit"
+      },
+      "value_catalog": {
+       "default": [],
+       "items": {
+        "type": "string"
+       },
+       "title": "Value Catalog",
+       "type": "array"
+      }
+     },
+     "required": [
+      "type",
+      "required",
+      "physical_state"
+     ],
+     "title": "FieldSchema",
+     "type": "object"
+    },
+    "FirstMatchRule": {
+     "additionalProperties": false,
+     "properties": {
+      "cases": {
+       "items": {
+        "$ref": "#/$defs/Case"
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Cases",
+       "type": "array"
+      },
+      "op": {
+       "const": "first_match",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "cases"
+     ],
+     "title": "FirstMatchRule",
+     "type": "object"
+    },
+    "FormulaRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "name": {
+          "const": "test.sum"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "version": {
+          "enum": [
+           1
+          ]
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "name": {
+       "enum": [
+        "test.sum"
+       ],
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "formula",
+       "title": "Op",
+       "type": "string"
+      },
+      "version": {
+       "minimum": 1,
+       "title": "Version",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "op",
+      "name",
+      "version",
+      "args"
+     ],
+     "title": "FormulaRule",
+     "type": "object"
+    },
+    "Freshness": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "mode": {
+          "const": "report_heartbeat"
+         }
+        },
+        "required": [
+         "mode"
+        ]
+       },
+       "then": {
+        "properties": {
+         "interval_s": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "interval_s"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "mode": {
+          "const": "periodic_ttl"
+         }
+        },
+        "required": [
+         "mode"
+        ]
+       },
+       "then": {
+        "properties": {
+         "interval_s": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "interval_s"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "mode": {
+          "const": "liveness_source"
+         }
+        },
+        "required": [
+         "mode"
+        ]
+       },
+       "then": {
+        "properties": {
+         "interval_s": {
+          "not": {
+           "type": "null"
+          }
+         },
+         "liveness_source": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "interval_s",
+         "liveness_source"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "future_tolerance_s": {
+       "minimum": 0,
+       "title": "Future Tolerance S",
+       "type": "number"
+      },
+      "interval_s": {
+       "anyOf": [
+        {
+         "exclusiveMinimum": 0,
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Interval S"
+      },
+      "liveness_source": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Liveness Source"
+      },
+      "mode": {
+       "enum": [
+        "report_heartbeat",
+        "liveness_source",
+        "periodic_ttl",
+        "event_stateful"
+       ],
+       "title": "Mode",
+       "type": "string"
+      }
+     },
+     "required": [
+      "mode",
+      "future_tolerance_s"
+     ],
+     "title": "Freshness",
+     "type": "object"
+    },
+    "FusionRule": {
+     "additionalProperties": false,
+     "properties": {
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "op": {
+       "const": "fusion",
+       "title": "Op",
+       "type": "string"
+      },
+      "strategy": {
+       "enum": [
+        "all_true",
+        "any_true",
+        "first_healthy",
+        "latest",
+        "test_agreement"
+       ],
+       "maxLength": 128,
+       "minLength": 1,
+       "title": "Strategy",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "strategy",
+      "args"
+     ],
+     "title": "FusionRule",
+     "type": "object"
+    },
+    "Input": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "title": "Name",
+       "type": "string"
+      },
+      "ref": {
+       "title": "Ref",
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "ref"
+     ],
+     "title": "Input",
+     "type": "object"
+    },
+    "InputRule": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "input",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "name"
+     ],
+     "title": "InputRule",
+     "type": "object"
+    },
+    "LiteralRule": {
+     "additionalProperties": false,
+     "properties": {
+      "op": {
+       "const": "literal",
+       "title": "Op",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      },
+      "value": {
+       "title": "Value"
+      }
+     },
+     "required": [
+      "op",
+      "schema",
+      "value"
+     ],
+     "title": "LiteralRule",
+     "type": "object"
+    },
+    "MachineDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "commands": {
+       "maxProperties": 32,
+       "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$": {
+         "$ref": "#/$defs/CommandDefinition"
+        }
+       },
+       "title": "Commands",
+       "type": "object"
+      },
+      "deadline_s": {
+       "anyOf": [
+        {
+         "exclusiveMinimum": 0,
+         "maximum": 31536000,
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Deadline S"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "initial": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Initial",
+       "type": "string"
+      },
+      "reinitialize_when": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Reinitialize When"
+      },
+      "sessions": {
+       "default": false,
+       "title": "Sessions",
+       "type": "boolean"
+      },
+      "states": {
+       "items": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+        "type": "string"
+       },
+       "maxItems": 64,
+       "minItems": 1,
+       "title": "States",
+       "type": "array"
+      },
+      "transitions": {
+       "items": {
+        "$ref": "#/$defs/TransitionDefinition"
+       },
+       "maxItems": 128,
+       "title": "Transitions",
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "states",
+      "initial",
+      "transitions",
+      "reinitialize_when"
+     ],
+     "title": "MachineDefinition",
+     "type": "object"
+    },
+    "MachineRule": {
+     "additionalProperties": false,
+     "properties": {
+      "op": {
+       "const": "machine",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op"
+     ],
+     "title": "MachineRule",
+     "type": "object"
+    },
+    "MapRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "entries": {
+       "additionalProperties": true,
+       "maxProperties": 256,
+       "minProperties": 1,
+       "title": "Entries",
+       "type": "object"
+      },
+      "op": {
+       "const": "map",
+       "title": "Op",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      }
+     },
+     "required": [
+      "op",
+      "arg",
+      "schema",
+      "entries"
+     ],
+     "title": "MapRule",
+     "type": "object"
+    },
+    "NotApplicableRule": {
+     "additionalProperties": false,
+     "properties": {
+      "arg": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Arg"
+      },
+      "op": {
+       "const": "not_applicable",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "arg"
+     ],
+     "title": "NotApplicableRule",
+     "type": "object"
+    },
+    "ReferenceRule": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "op": {
+       "const": "ref",
+       "title": "Op",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "name"
+     ],
+     "title": "ReferenceRule",
+     "type": "object"
+    },
+    "Schema": {
+     "additionalProperties": false,
+     "properties": {
+      "available_projection": {
+       "default": [],
+       "items": {
+        "type": "string"
+       },
+       "title": "Available Projection",
+       "type": "array"
+      },
+      "fields": {
+       "additionalProperties": {
+        "$ref": "#/$defs/FieldSchema"
+       },
+       "title": "Fields",
+       "type": "object"
+      },
+      "fixture": {
+       "default": true,
+       "title": "Fixture",
+       "type": "boolean"
+      },
+      "grace_capable": {
+       "const": false,
+       "default": false,
+       "title": "Grace Capable",
+       "type": "boolean"
+      },
+      "grace_parameter": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "const": null,
+       "default": null,
+       "title": "Grace Parameter"
+      }
+     },
+     "required": [
+      "fields"
+     ],
+     "title": "Schema",
+     "type": "object"
+    },
+    "Source": {
+     "additionalProperties": false,
+     "properties": {
+      "dependency_id": {
+       "title": "Dependency Id",
+       "type": "string"
+      },
+      "display_name": {
+       "default": "",
+       "title": "Display Name",
+       "type": "string"
+      },
+      "freshness": {
+       "$ref": "#/$defs/Freshness"
+      },
+      "physical_source_key": {
+       "minLength": 1,
+       "title": "Physical Source Key",
+       "type": "string"
+      },
+      "source_id": {
+       "pattern": "^source\\.[a-zA-Z0-9_.-]+$",
+       "title": "Source Id",
+       "type": "string"
+      },
+      "source_origin": {
+       "title": "Source Origin",
+       "type": "string"
+      },
+      "source_type": {
+       "enum": [
+        "state",
+        "attribute",
+        "event",
+        "numeric",
+        "text",
+        "boolean"
+       ],
+       "title": "Source Type",
+       "type": "string"
+      },
+      "value_schema": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/FieldSchema"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "source_id",
+      "source_type",
+      "source_origin",
+      "freshness",
+      "dependency_id",
+      "physical_source_key"
+     ],
+     "title": "Source",
+     "type": "object"
+    },
+    "TemporalRule": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "else": {
+        "properties": {
+         "args": {
+          "maxItems": 1,
+          "minItems": 1
+         }
+        }
+       },
+       "if": {
+        "properties": {
+         "operation": {
+          "const": "delta"
+         }
+        }
+       },
+       "then": {
+        "properties": {
+         "args": {
+          "maxItems": 2,
+          "minItems": 2
+         }
+        }
+       }
+      }
+     ],
+     "properties": {
+      "accepts_held": {
+       "default": false,
+       "title": "Accepts Held",
+       "type": "boolean"
+      },
+      "args": {
+       "items": {
+        "discriminator": {
+         "mapping": {
+          "and": "#/$defs/BooleanRule",
+          "bucket": "#/$defs/BucketRule",
+          "compare": "#/$defs/CompareRule",
+          "first_match": "#/$defs/FirstMatchRule",
+          "formula": "#/$defs/FormulaRule",
+          "fusion": "#/$defs/FusionRule",
+          "input": "#/$defs/InputRule",
+          "literal": "#/$defs/LiteralRule",
+          "machine": "#/$defs/MachineRule",
+          "map": "#/$defs/MapRule",
+          "not": "#/$defs/BooleanRule",
+          "not_applicable": "#/$defs/NotApplicableRule",
+          "or": "#/$defs/BooleanRule",
+          "ref": "#/$defs/ReferenceRule",
+          "temporal": "#/$defs/TemporalRule"
+         },
+         "propertyName": "op"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/InputRule"
+         },
+         {
+          "$ref": "#/$defs/ReferenceRule"
+         },
+         {
+          "$ref": "#/$defs/LiteralRule"
+         },
+         {
+          "$ref": "#/$defs/BooleanRule"
+         },
+         {
+          "$ref": "#/$defs/CompareRule"
+         },
+         {
+          "$ref": "#/$defs/MapRule"
+         },
+         {
+          "$ref": "#/$defs/FirstMatchRule"
+         },
+         {
+          "$ref": "#/$defs/BucketRule"
+         },
+         {
+          "$ref": "#/$defs/FormulaRule"
+         },
+         {
+          "$ref": "#/$defs/FusionRule"
+         },
+         {
+          "$ref": "#/$defs/TemporalRule"
+         },
+         {
+          "$ref": "#/$defs/MachineRule"
+         },
+         {
+          "$ref": "#/$defs/NotApplicableRule"
+         }
+        ]
+       },
+       "maxItems": 2,
+       "minItems": 1,
+       "title": "Args",
+       "type": "array"
+      },
+      "duration_s": {
+       "exclusiveMinimum": 0,
+       "maximum": 31536000,
+       "title": "Duration S",
+       "type": "number"
+      },
+      "id": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Id",
+       "type": "string"
+      },
+      "op": {
+       "const": "temporal",
+       "title": "Op",
+       "type": "string"
+      },
+      "operation": {
+       "enum": [
+        "stable_for",
+        "dwell",
+        "grace",
+        "edge",
+        "delta",
+        "age"
+       ],
+       "title": "Operation",
+       "type": "string"
+      }
+     },
+     "required": [
+      "op",
+      "id",
+      "operation",
+      "args",
+      "duration_s"
+     ],
+     "title": "TemporalRule",
+     "type": "object"
+    },
+    "Transform": {
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "type_cast"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "target": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "target"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "unit_scale"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "factor": {
+          "not": {
+           "type": "null"
+          }
+         },
+         "offset": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "factor",
+         "offset"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "kind": {
+          "const": "map_ref"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       "then": {
+        "properties": {
+         "catalog_id": {
+          "not": {
+           "type": "null"
+          }
+         }
+        },
+        "required": [
+         "catalog_id"
+        ]
+       }
+      }
+     ],
+     "properties": {
+      "catalog_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Catalog Id"
+      },
+      "factor": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Factor"
+      },
+      "kind": {
+       "enum": [
+        "type_cast",
+        "unit_scale",
+        "map_ref"
+       ],
+       "title": "Kind",
+       "type": "string"
+      },
+      "offset": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Offset"
+      },
+      "target": {
+       "anyOf": [
+        {
+         "enum": [
+          "bool",
+          "number",
+          "text"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Target"
+      }
+     },
+     "required": [
+      "kind"
+     ],
+     "title": "Transform",
+     "type": "object"
+    },
+    "TransitionDefinition": {
+     "additionalProperties": false,
+     "properties": {
+      "argument_equals": {
+       "additionalProperties": true,
+       "maxProperties": 64,
+       "title": "Argument Equals",
+       "type": "object"
+      },
+      "ends_episode": {
+       "default": false,
+       "title": "Ends Episode",
+       "type": "boolean"
+      },
+      "event": {
+       "maxLength": 64,
+       "minLength": 1,
+       "title": "Event",
+       "type": "string"
+      },
+      "guard": {
+       "discriminator": {
+        "mapping": {
+         "and": "#/$defs/BooleanRule",
+         "bucket": "#/$defs/BucketRule",
+         "compare": "#/$defs/CompareRule",
+         "first_match": "#/$defs/FirstMatchRule",
+         "formula": "#/$defs/FormulaRule",
+         "fusion": "#/$defs/FusionRule",
+         "input": "#/$defs/InputRule",
+         "literal": "#/$defs/LiteralRule",
+         "machine": "#/$defs/MachineRule",
+         "map": "#/$defs/MapRule",
+         "not": "#/$defs/BooleanRule",
+         "not_applicable": "#/$defs/NotApplicableRule",
+         "or": "#/$defs/BooleanRule",
+         "ref": "#/$defs/ReferenceRule",
+         "temporal": "#/$defs/TemporalRule"
+        },
+        "propertyName": "op"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/InputRule"
+        },
+        {
+         "$ref": "#/$defs/ReferenceRule"
+        },
+        {
+         "$ref": "#/$defs/LiteralRule"
+        },
+        {
+         "$ref": "#/$defs/BooleanRule"
+        },
+        {
+         "$ref": "#/$defs/CompareRule"
+        },
+        {
+         "$ref": "#/$defs/MapRule"
+        },
+        {
+         "$ref": "#/$defs/FirstMatchRule"
+        },
+        {
+         "$ref": "#/$defs/BucketRule"
+        },
+        {
+         "$ref": "#/$defs/FormulaRule"
+        },
+        {
+         "$ref": "#/$defs/FusionRule"
+        },
+        {
+         "$ref": "#/$defs/TemporalRule"
+        },
+        {
+         "$ref": "#/$defs/MachineRule"
+        },
+        {
+         "$ref": "#/$defs/NotApplicableRule"
+        }
+       ],
+       "title": "Guard"
+      },
+      "new_episode": {
+       "default": false,
+       "title": "New Episode",
+       "type": "boolean"
+      },
+      "reason": {
+       "maxLength": 128,
+       "minLength": 1,
+       "title": "Reason",
+       "type": "string"
+      },
+      "source": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Source",
+       "type": "string"
+      },
+      "target": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Target",
+       "type": "string"
+      }
+     },
+     "required": [
+      "source",
+      "target",
+      "event",
+      "guard",
+      "reason"
+     ],
+     "title": "TransitionDefinition",
+     "type": "object"
+    },
+    "TypedInput": {
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+       "title": "Name",
+       "type": "string"
+      },
+      "schema": {
+       "$ref": "#/$defs/FieldSchema"
+      }
+     },
+     "required": [
+      "name",
+      "schema"
+     ],
+     "title": "TypedInput",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "definitions": {
+        "minItems": 1
+       }
+      },
+      "required": [
+       "definitions"
+      ]
+     },
+     "then": {
+      "properties": {
+       "fingerprint_version": {
+        "const": 2
+       }
+      },
+      "required": [
+       "fingerprint_version"
+      ]
+     }
+    }
+   ],
+   "properties": {
+    "bindings": {
+     "items": {
+      "$ref": "#/$defs/Binding"
+     },
+     "title": "Bindings",
+     "type": "array"
+    },
+    "catalogs": {
+     "items": {
+      "$ref": "#/$defs/Catalog"
+     },
+     "title": "Catalogs",
+     "type": "array"
+    },
+    "config_schema_version": {
+     "const": 1,
+     "title": "Config Schema Version",
+     "type": "integer"
+    },
+    "contracts": {
+     "items": {
+      "$ref": "#/$defs/Contract"
+     },
+     "title": "Contracts",
+     "type": "array"
+    },
+    "definitions": {
+     "default": [],
+     "items": {
+      "$ref": "#/$defs/DeclarativeDefinition"
+     },
+     "maxItems": 128,
+     "title": "Definitions",
+     "type": "array"
+    },
+    "dependencies": {
+     "items": {
+      "$ref": "#/$defs/Dependency"
+     },
+     "title": "Dependencies",
+     "type": "array"
+    },
+    "fingerprint_version": {
+     "default": 1,
+     "enum": [
+      1,
+      2
+     ],
+     "title": "Fingerprint Version",
+     "type": "integer"
+    },
+    "sources": {
+     "items": {
+      "$ref": "#/$defs/Source"
+     },
+     "title": "Sources",
+     "type": "array"
+    }
+   },
+   "required": [
+    "config_schema_version",
+    "dependencies",
+    "sources",
+    "bindings",
+    "contracts",
+    "catalogs"
+   ],
+   "title": "RegistryConfig",
+   "type": "object",
+   "x-semantic-validation": {
+    "endpoint": "/api/v1/registry/validate",
+    "model_constraints": {
+     "BucketRule": [
+      "lower <= upper"
+     ],
+     "DeclarativeDefinition": [
+      "distinct inputs",
+      "outputs equal schema.fields",
+      "fixture only",
+      "refresh inputs declared",
+      "grace uses temporal rule duration"
+     ],
+     "FieldSchema": [
+      "enum requires a value catalog where used"
+     ],
+     "LiteralRule": [
+      "value matches schema"
+     ],
+     "MachineDefinition": [
+      "distinct states",
+      "initial/source/target belong to states",
+      "declared events and commands",
+      "deadline event requires deadline_s",
+      "reserved input/deadline events",
+      "typed argument_equals",
+      "no model-reserved argument names"
+     ],
+     "MapRule": [
+      "all entry values match result schema"
+     ],
+     "Schema": [
+      "nonempty fields",
+      "available_projection refers to fields",
+      "grace parameter matches capability"
+     ]
+    },
+    "rules": [
+     {
+      "code": "document_object_required",
+      "constraint": "configuration is a JSON object"
+     },
+     {
+      "code": "unsafe_document",
+      "constraint": "no secrets; finite JSON; document size and depth limits"
+     },
+     {
+      "code": "fingerprint_upgrade_required",
+      "constraint": "declarative definitions require fingerprint version 2"
+     },
+     {
+      "code": "immutable_definition_version",
+      "constraint": "published definition semantics are immutable"
+     },
+     {
+      "code": "definition_invalid",
+      "constraint": "definition resource limits and reserved package identities"
+     },
+     {
+      "code": "duplicate_identity",
+      "constraint": "identities are unique within each registry object kind"
+     },
+     {
+      "code": "ambiguous_identity",
+      "constraint": "source and contract identities are disjoint"
+     },
+     {
+      "code": "source_dependency",
+      "constraint": "sources have a known dependency and local origin"
+     },
+     {
+      "code": "liveness_reference",
+      "constraint": "liveness sources exist"
+     },
+     {
+      "code": "monitor_required",
+      "constraint": "source-monitored dependencies reference a source"
+     },
+     {
+      "code": "monitor_unsupported",
+      "constraint": "internal monitors support only known adapter kinds"
+     },
+     {
+      "code": "dependency_cycle",
+      "constraint": "dependency monitor graph is acyclic"
+     },
+     {
+      "code": "source_dependency_cycle",
+      "constraint": "source and liveness graph is acyclic and at most depth 64 in v2"
+     },
+     {
+      "code": "adapter_unsupported",
+      "constraint": "scheduler is not a source adapter"
+     },
+     {
+      "code": "duplicate_adapter",
+      "constraint": "an adapter evidence path is bound once"
+     },
+     {
+      "code": "binding_source",
+      "constraint": "bindings target distinct existing sources"
+     },
+     {
+      "code": "duplicate_evidence",
+      "constraint": "physical evidence paths are not counted twice"
+     },
+     {
+      "code": "catalog_reference",
+      "constraint": "map bindings reference an existing catalog"
+     },
+     {
+      "code": "binding_type_mismatch",
+      "constraint": "binding transform output matches source value_schema"
+     },
+     {
+      "code": "catalog_type_mismatch",
+      "constraint": "all map catalog values match source value_schema"
+     },
+     {
+      "code": "monitor_unbound",
+      "constraint": "dependency monitor sources have a binding"
+     },
+     {
+      "code": "type_reference",
+      "constraint": "contract type and version are registered"
+     },
+     {
+      "code": "grace_duration",
+      "constraint": "grace duration is positive"
+     },
+     {
+      "code": "contract_inputs",
+      "constraint": "inputs are distinct, declared and include every required input"
+     },
+     {
+      "code": "input_reference",
+      "constraint": "input references resolve unambiguously"
+     },
+     {
+      "code": "refresh_binding",
+      "constraint": "refresh inputs refer to an HA source binding"
+     },
+     {
+      "code": "source_unbound",
+      "constraint": "referenced source has a binding"
+     },
+     {
+      "code": "field_reference",
+      "constraint": "referenced contract field exists"
+     },
+     {
+      "code": "disabled_dependency",
+      "constraint": "enabled contracts cannot require disabled contracts"
+     },
+     {
+      "code": "input_type_mismatch",
+      "constraint": "input type, catalog and unit are compatible"
+     },
+     {
+      "code": "registry_evaluation_limit",
+      "constraint": "enabled definitions total at most 8192 estimated steps"
+     },
+     {
+      "code": "contract_cycle",
+      "constraint": "contract graph is acyclic"
+     },
+     {
+      "code": "contract_graph_depth",
+      "constraint": "contract graph depth is at most 64 in v2"
+     },
+     {
+      "code": "definition.rule_type_mismatch",
+      "constraint": "operator inputs and output schemas are compatible"
+     },
+     {
+      "code": "definition.unit_mismatch",
+      "constraint": "combined numeric inputs have equal units"
+     },
+     {
+      "code": "definition.internal_cycle",
+      "constraint": "internal rule references are acyclic"
+     },
+     {
+      "code": "definition.unknown_internal_reference",
+      "constraint": "internal references name a declared rule"
+     },
+     {
+      "code": "definition.unknown_rule_input",
+      "constraint": "input expressions name a declared input"
+     },
+     {
+      "code": "definition.duplicate_stateful_id",
+      "constraint": "stateful node ids are unique"
+     },
+     {
+      "code": "definition.definition_resource_limit",
+      "constraint": "expanded depth and physical node count obey limits"
+     },
+     {
+      "code": "definition.stateful_guard_requires_contract_input",
+      "constraint": "guards and reinitialization expressions are stateless"
+     },
+     {
+      "code": "definition.comparison_type_mismatch",
+      "constraint": "comparison operands have compatible types"
+     },
+     {
+      "code": "definition.unordered_comparison",
+      "constraint": "ordering applies to number, text and timestamp only"
+     },
+     {
+      "code": "definition.map_requires_scalar",
+      "constraint": "map inputs cannot have object type"
+     },
+     {
+      "code": "definition.invalid_map_key",
+      "constraint": "map keys are canonical JSON scalars matching the input type and catalog"
+     },
+     {
+      "code": "definition.unknown_formula_version",
+      "constraint": "formula name/version is registered"
+     },
+     {
+      "code": "definition.unknown_fusion_strategy",
+      "constraint": "fusion strategy is registered"
+     },
+     {
+      "code": "definition.machine_definition_required",
+      "constraint": "machine expressions require a definition"
+     },
+     {
+      "code": "definition.duplicate_transition_event",
+      "constraint": "each machine source/event pair occurs at most once"
+     },
+     {
+      "code": "definition.unreachable_machine",
+      "constraint": "a declared machine is reachable from an output through rules"
+     }
+    ],
+    "structural_code_families": [
+     "schema.*",
+     "parameter.*"
+    ]
+   }
+  }
+ },
+ "state_machine": {
+  "command_effect": "guarded_transition_only",
+  "episodes": true,
+  "guard_rules": "stateless; temporal truths can be supplied through contract inputs",
+  "max_parallel_deadlines": 1,
+  "schema_ref": "#/$defs/MachineDefinition",
+  "sessions": true
+ },
+ "temporal": [
+  {
+   "arguments": 1,
+   "operation": "stable_for",
+   "restores_absolute_deadlines": true,
+   "stateful": true
+  },
+  {
+   "arguments": 1,
+   "operation": "dwell",
+   "restores_absolute_deadlines": true,
+   "stateful": true
+  },
+  {
+   "arguments": 1,
+   "operation": "grace",
+   "restores_absolute_deadlines": true,
+   "stateful": true
+  },
+  {
+   "arguments": 1,
+   "operation": "edge",
+   "restores_absolute_deadlines": true,
+   "stateful": true
+  },
+  {
+   "arguments": 2,
+   "operation": "delta",
+   "restores_absolute_deadlines": true,
+   "stateful": false
+  },
+  {
+   "arguments": 1,
+   "operation": "age",
+   "restores_absolute_deadlines": true,
+   "stateful": true
+  }
+ ],
+ "types": [
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "EchoParameters",
+    "type": "object"
+   },
+   "producer": "resolver",
+   "restore": [],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.echo",
+   "type_version": 1
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "EchoParameters",
+    "type": "object"
+   },
+   "producer": "resolver",
+   "restore": [],
+   "schema": {
+    "available_projection": [
+     "value",
+     "flag"
+    ],
+    "fields": {
+     "flag": {
+      "physical_state": false,
+      "required": true,
+      "type": "bool",
+      "unit": null,
+      "value_catalog": []
+     },
+     "label": {
+      "physical_state": false,
+      "required": false,
+      "type": "enum",
+      "unit": null,
+      "value_catalog": [
+       "a",
+       "b"
+      ]
+     },
+     "value": {
+      "physical_state": true,
+      "required": true,
+      "type": "number",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.multi",
+   "type_version": 1
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "operator": {
+         "const": "compare"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "comparison": {
+         "not": {
+          "type": "null"
+         }
+        }
+       },
+       "required": [
+        "comparison"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "operator": {
+         "const": "map"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "mapping": {
+         "not": {
+          "type": "null"
+         }
+        }
+       },
+       "required": [
+        "mapping"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "operator": {
+         "const": "bucket"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "initial": {
+         "not": {
+          "type": "null"
+         }
+        },
+        "lower": {
+         "not": {
+          "type": "null"
+         }
+        },
+        "upper": {
+         "not": {
+          "type": "null"
+         }
+        }
+       },
+       "required": [
+        "initial",
+        "lower",
+        "upper"
+       ]
+      }
+     }
+    ],
+    "properties": {
+     "comparison": {
+      "anyOf": [
+       {
+        "enum": [
+         "eq",
+         "ne",
+         "lt",
+         "le",
+         "gt",
+         "ge"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Comparison"
+     },
+     "initial": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Initial"
+     },
+     "lower": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Lower"
+     },
+     "mapping": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Mapping"
+     },
+     "operator": {
+      "enum": [
+       "and",
+       "or",
+       "not",
+       "compare",
+       "map",
+       "bucket",
+       "first_match",
+       "not_applicable",
+       "formula"
+      ],
+      "title": "Operator",
+      "type": "string"
+     },
+     "upper": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Upper"
+     }
+    },
+    "required": [
+     "operator"
+    ],
+    "title": "BooleanParameters",
+    "type": "object"
+   },
+   "producer": "resolver",
+   "restore": [
+    "baseline"
+   ],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.boolean",
+   "type_version": 1
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "strategy": {
+      "enum": [
+       "first_healthy",
+       "latest",
+       "any_true",
+       "all_true",
+       "test_agreement"
+      ],
+      "title": "Strategy",
+      "type": "string"
+     }
+    },
+    "required": [
+     "strategy"
+    ],
+    "title": "FusionParameters",
+    "type": "object"
+   },
+   "producer": "fusion",
+   "restore": [],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.fusion",
+   "type_version": 1
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "accepts_held": {
+      "title": "Accepts Held",
+      "type": "boolean"
+     },
+     "duration_s": {
+      "exclusiveMinimum": 0,
+      "title": "Duration S",
+      "type": "number"
+     },
+     "operation": {
+      "enum": [
+       "stable_for",
+       "dwell",
+       "grace",
+       "edge",
+       "delta",
+       "age"
+      ],
+      "title": "Operation",
+      "type": "string"
+     }
+    },
+    "required": [
+     "operation",
+     "duration_s",
+     "accepts_held"
+    ],
+    "title": "TemporalParameters",
+    "type": "object"
+   },
+   "producer": "resolver",
+   "restore": [
+    "temporal"
+   ],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": true,
+    "grace_parameter": "duration_s"
+   },
+   "type_id": "test.temporal",
+   "type_version": 1
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "deadline_s": {
+      "exclusiveMinimum": 0,
+      "title": "Deadline S",
+      "type": "number"
+     },
+     "sessions": {
+      "title": "Sessions",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "deadline_s",
+     "sessions"
+    ],
+    "title": "MachineParameters",
+    "type": "object"
+   },
+   "producer": "state_machine",
+   "restore": [
+    "state",
+    "episode",
+    "deadline"
+   ],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.state_machine",
+   "type_version": 1
+  },
+  {
+   "commands": {
+    "request_b": {
+     "additionalProperties": false,
+     "properties": {},
+     "title": "EchoParameters",
+     "type": "object"
+    },
+    "request_b_if": {
+     "additionalProperties": false,
+     "properties": {
+      "confirm": {
+       "title": "Confirm",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "confirm"
+     ],
+     "title": "RequestArguments",
+     "type": "object"
+    }
+   },
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "deadline_s": {
+      "exclusiveMinimum": 0,
+      "title": "Deadline S",
+      "type": "number"
+     },
+     "sessions": {
+      "title": "Sessions",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "deadline_s",
+     "sessions"
+    ],
+    "title": "MachineParameters",
+    "type": "object"
+   },
+   "producer": "state_machine",
+   "restore": [
+    "state",
+    "episode",
+    "deadline"
+   ],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.state_machine",
+   "type_version": 2
+  },
+  {
+   "inputs": [
+    {
+     "name": "a",
+     "required": true
+    },
+    {
+     "name": "b",
+     "required": false
+    },
+    {
+     "name": "c",
+     "required": false
+    },
+    {
+     "name": "d",
+     "required": false
+    }
+   ],
+   "parameter_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "EchoParameters",
+    "type": "object"
+   },
+   "producer": "resolver",
+   "refresh_inputs": [
+    "a"
+   ],
+   "restore": [],
+   "schema": {
+    "available_projection": [
+     "value"
+    ],
+    "fields": {
+     "value": {
+      "physical_state": false,
+      "required": true,
+      "type": "object",
+      "unit": null,
+      "value_catalog": []
+     }
+    },
+    "fixture": true,
+    "grace_capable": false,
+    "grace_parameter": null
+   },
+   "type_id": "test.echo",
+   "type_version": 2
+  }
+ ]
+}

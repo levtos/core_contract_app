@@ -1,0 +1,530 @@
+{
+  "config_schema_version": 1,
+  "dependencies": [
+    {
+      "dependency_id": "dep.test",
+      "kind": "ha",
+      "monitor": "internal"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "source.a",
+      "source_type": "boolean",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1
+      },
+      "dependency_id": "dep.test",
+      "physical_source_key": "physical.a"
+    },
+    {
+      "source_id": "source.b",
+      "source_type": "boolean",
+      "source_origin": "local",
+      "freshness": {
+        "mode": "event_stateful",
+        "future_tolerance_s": 1
+      },
+      "dependency_id": "dep.test",
+      "physical_source_key": "physical.b"
+    }
+  ],
+  "bindings": [
+    {
+      "binding_id": "binding.a",
+      "source_id": "source.a",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "sensor.example_1"
+      }
+    },
+    {
+      "binding_id": "binding.b",
+      "source_id": "source.b",
+      "adapter": {
+        "kind": "ha_state",
+        "ha_entity_id": "input_boolean.cc_alpha_test_b"
+      }
+    }
+  ],
+  "contracts": [
+    {
+      "contract_id": "fixture.left",
+      "type_id": "test.truth",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.a"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "fixture.right",
+      "type_id": "test.truth",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "source.b"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "fixture.either",
+      "type_id": "test.either",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "fixture.left"
+        },
+        {
+          "name": "b",
+          "ref": "fixture.right"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "fixture.condition",
+      "type_id": "test.condition",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "fixture.either"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "fixture.timed",
+      "type_id": "test.timed",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "fixture.condition"
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "contract_id": "fixture.flow",
+      "type_id": "test.flow",
+      "type_version": 1,
+      "enabled": true,
+      "inputs": [
+        {
+          "name": "a",
+          "ref": "fixture.timed"
+        }
+      ],
+      "parameters": {}
+    }
+  ],
+  "catalogs": [],
+  "fingerprint_version": 2,
+  "definitions": [
+    {
+      "type_id": "test.truth",
+      "type_version": 1,
+      "inputs": [
+        {
+          "name": "a",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      ],
+      "schema": {
+        "fields": {
+          "value": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "available_projection": [
+          "value"
+        ]
+      },
+      "outputs": {
+        "value": {
+          "op": "input",
+          "name": "a"
+        }
+      }
+    },
+    {
+      "type_id": "test.either",
+      "type_version": 1,
+      "inputs": [
+        {
+          "name": "a",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        {
+          "name": "b",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      ],
+      "schema": {
+        "fields": {
+          "value": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "available_projection": [
+          "value"
+        ]
+      },
+      "outputs": {
+        "value": {
+          "op": "fusion",
+          "strategy": "any_true",
+          "args": [
+            {
+              "op": "input",
+              "name": "a"
+            },
+            {
+              "op": "input",
+              "name": "b"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type_id": "test.condition",
+      "type_version": 1,
+      "inputs": [
+        {
+          "name": "a",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      ],
+      "schema": {
+        "fields": {
+          "value": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "available_projection": [
+          "value"
+        ]
+      },
+      "outputs": {
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "input",
+              "name": "a"
+            },
+            {
+              "op": "not",
+              "args": [
+                {
+                  "op": "literal",
+                  "value": false,
+                  "schema": {
+                    "type": "bool",
+                    "required": true,
+                    "physical_state": false
+                  }
+                }
+              ]
+            },
+            {
+              "op": "compare",
+              "comparison": "gt",
+              "left": {
+                "op": "formula",
+                "name": "test.sum",
+                "version": 1,
+                "args": [
+                  {
+                    "op": "literal",
+                    "value": 1,
+                    "schema": {
+                      "type": "number",
+                      "required": true,
+                      "physical_state": false
+                    }
+                  },
+                  {
+                    "op": "literal",
+                    "value": 2,
+                    "schema": {
+                      "type": "number",
+                      "required": true,
+                      "physical_state": false
+                    }
+                  }
+                ]
+              },
+              "right": {
+                "op": "literal",
+                "value": 2,
+                "schema": {
+                  "type": "number",
+                  "required": true,
+                  "physical_state": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type_id": "test.timed",
+      "type_version": 1,
+      "inputs": [
+        {
+          "name": "a",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      ],
+      "schema": {
+        "fields": {
+          "value": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "available_projection": [
+          "value"
+        ]
+      },
+      "outputs": {
+        "value": {
+          "op": "ref",
+          "name": "stable"
+        }
+      },
+      "rules": {
+        "grace": {
+          "op": "temporal",
+          "id": "grace",
+          "operation": "grace",
+          "duration_s": 10,
+          "args": [
+            {
+              "op": "input",
+              "name": "a"
+            }
+          ]
+        },
+        "stable": {
+          "op": "temporal",
+          "id": "stable",
+          "operation": "stable_for",
+          "duration_s": 2,
+          "accepts_held": true,
+          "args": [
+            {
+              "op": "ref",
+              "name": "grace"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type_id": "test.flow",
+      "type_version": 1,
+      "inputs": [
+        {
+          "name": "a",
+          "schema": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      ],
+      "schema": {
+        "fields": {
+          "value": {
+            "type": "enum",
+            "required": true,
+            "physical_state": false,
+            "value_catalog": [
+              "idle",
+              "active",
+              "done"
+            ]
+          },
+          "truth": {
+            "type": "bool",
+            "required": true,
+            "physical_state": false
+          },
+          "count": {
+            "type": "number",
+            "required": true,
+            "physical_state": false
+          },
+          "label": {
+            "type": "text",
+            "required": true,
+            "physical_state": false
+          },
+          "stamp": {
+            "type": "timestamp",
+            "required": true,
+            "physical_state": false
+          },
+          "metadata": {
+            "type": "object",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "available_projection": [
+          "value"
+        ]
+      },
+      "outputs": {
+        "value": {
+          "op": "machine"
+        },
+        "truth": {
+          "op": "input",
+          "name": "a"
+        },
+        "count": {
+          "op": "literal",
+          "value": 2,
+          "schema": {
+            "type": "number",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "label": {
+          "op": "literal",
+          "value": "synthetic",
+          "schema": {
+            "type": "text",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "stamp": {
+          "op": "literal",
+          "value": "2026-01-01T12:00:00+00:00",
+          "schema": {
+            "type": "timestamp",
+            "required": true,
+            "physical_state": false
+          }
+        },
+        "metadata": {
+          "op": "literal",
+          "value": {
+            "fixture": true
+          },
+          "schema": {
+            "type": "object",
+            "required": true,
+            "physical_state": false
+          }
+        }
+      },
+      "machine": {
+        "id": "lifecycle",
+        "states": [
+          "idle",
+          "active",
+          "done"
+        ],
+        "initial": "idle",
+        "deadline_s": 10,
+        "sessions": true,
+        "reinitialize_when": {
+          "op": "input",
+          "name": "a"
+        },
+        "commands": {
+          "start": {
+            "arguments": {
+              "confirm": {
+                "type": "bool",
+                "required": true,
+                "physical_state": false
+              }
+            }
+          }
+        },
+        "transitions": [
+          {
+            "source": "idle",
+            "target": "active",
+            "event": "start",
+            "guard": {
+              "op": "input",
+              "name": "a"
+            },
+            "argument_equals": {
+              "confirm": true
+            },
+            "reason": "requested"
+          },
+          {
+            "source": "active",
+            "target": "done",
+            "event": "deadline",
+            "guard": {
+              "op": "literal",
+              "value": true,
+              "schema": {
+                "type": "bool",
+                "required": true,
+                "physical_state": false
+              }
+            },
+            "reason": "elapsed",
+            "ends_episode": true
+          }
+        ]
+      }
+    }
+  ]
+}

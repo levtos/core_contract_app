@@ -1,5 +1,6 @@
 import ast
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -123,3 +124,12 @@ def test_bridge_has_no_domain_or_await_in_subscription():
 def test_client_supports_declared_python_minimum():
     for path in (ROOT / "client/core_contracts_client").glob("*.py"):
         ast.parse(path.read_text(), feature_version=(3, 12))
+
+
+def test_frontend_example_fixture_matches_documented_registry():
+    """The Docker frontend stage only contains frontend/; its tests use this verbatim copy."""
+    documented = (ROOT / "docs/alpha4/example-registry.json").read_bytes()
+    assert (ROOT / "frontend/test/fixtures/example-registry.json").read_bytes() == documented
+    for path in (ROOT / "frontend/src").rglob("*.ts*"):
+        text = path.read_text(encoding="utf-8")
+        assert not re.search(r"from '[./]+/docs/", text), path

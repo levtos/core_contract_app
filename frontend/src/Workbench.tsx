@@ -1,0 +1,60 @@
+import { lazy, Suspense, useState } from 'react';
+import { createHashRouter, RouterProvider, type RouteObject } from 'react-router';
+import { RouteError } from '@/components/RouteError';
+import { Shell } from '@/components/Shell';
+import { Spinner } from '@/components/ui/layout';
+import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
+import type { LiveStore } from '@/lib/live';
+import { LiveProvider } from '@/lib/live-context';
+import { CapabilitySchemaProvider } from '@/lib/schema-context';
+import { SetupContext } from '@/lib/setup-context';
+import { OverviewPage } from '@/features/overview/OverviewPage';
+
+const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
+  const Page = lazy(load);
+  return (
+    <Suspense fallback={<Spinner />}>
+      <Page />
+    </Suspense>
+  );
+};
+
+/** Hash routing: the static Ingress server has no SPA fallback and an unknown URL prefix. */
+export function workbenchRoutes(onSetup: () => void): RouteObject[] {
+  return [
+    {
+      path: '/',
+      element: <Shell onSetup={onSetup} />,
+      errorElement: <RouteError />,
+      children: [
+        { index: true, element: <OverviewPage /> },
+        { path: 'contracts', element: lazyPage(() => import('@/features/contracts/ContractsPage')) },
+        { path: 'contracts/:contractId', element: lazyPage(() => import('@/features/contracts/ContractDetailPage')) },
+        { path: 'definitions', element: lazyPage(() => import('@/features/contracts/DefinitionsPage')) },
+        { path: 'definitions/:typeId/:version', element: lazyPage(() => import('@/features/contracts/DefinitionDetailPage')) },
+        { path: 'sources', element: lazyPage(() => import('@/features/sources/SourcesPage')) },
+        { path: 'registry', element: lazyPage(() => import('@/features/registry/RegistryPage')) },
+        { path: 'registry/drafts/:draftId', element: lazyPage(() => import('@/features/registry/DraftPage')) },
+        { path: 'graph', element: lazyPage(() => import('@/features/graph/GraphPage')) },
+        { path: 'diagnostics', element: lazyPage(() => import('@/features/diagnostics/DiagnosticsPage')) },
+        { path: 'admin', element: lazyPage(() => import('@/features/admin/AdminPage')) },
+        { path: '*', element: <OverviewPage /> },
+      ],
+    },
+  ];
+}
+
+export function Workbench({ onSetup, live }: { onSetup: () => void; live?: LiveStore }) {
+  const [router] = useState(() => createHashRouter(workbenchRoutes(onSetup)));
+  return (
+    <LiveProvider store={live}>
+      <SetupContext.Provider value={onSetup}>
+        <CapabilitySchemaProvider>
+          <WorkingDocumentProvider>
+            <RouterProvider router={router} />
+          </WorkingDocumentProvider>
+        </CapabilitySchemaProvider>
+      </SetupContext.Provider>
+    </LiveProvider>
+  );
+}

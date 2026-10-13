@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.0a5 — Terra Workbench (2026-10-14)
+
+- New React 19 / TypeScript / Vite 8 / Tailwind 4 administration UI replacing the Svelte engineering UI:
+  manual-first, capability-driven editors for all Alpha-4 definitions, rules, state machines, sources,
+  bindings, catalogs and contracts; Registry Studio (drafts, validation, diff/impact, activation,
+  rollback, OCC conflict handling); graph; diagnostics, history, explain, commands; administration.
+- First-run assistant ported without functional or security changes.
+- Frontend only: no backend, API, schema or legacy change. `dev/workbench_demo.py` is a local review aid.
+- Independent review fixes T1B-01 through T1B-07 and UX-01: packaged frontend fixtures,
+  safe draft selection, exact validated activation candidates, typed nested JSON values and
+  catalogs, dynamic/recursive schemas, token cache isolation and direct text-catalog authoring.
+- Additional corrections C1–C8: preserve edits across delayed saves; bind activation to draft
+  version and active revision; shared request budget and 429 handling without write retries;
+  typed enums/ref/allOf/null/open-object editing; honest incomplete explain data; sequenced
+  live/resync/unknown states; member order/unknown metadata/node-ID preservation; saved freshness defaults.
+- Flexible panels: collapsible fixed navigation, drag-and-drop and keyboard ordering, panel widths,
+  installation-scoped layout persistence and reset without losing editor state or writing registry data.
+- Release authorized by Benni; publication evidence is recorded in the GitHub Alpha pre-release.
+  Visible Firefox/Touch, real HA-Ingress/Supervisor embedding, real discovery, accessibility and
+  Live acceptance remain **not verified**. No automatic installation or registry activation.
+- [Workbench evidence](docs/workbench/codex-review-fix.md) and [Alpha 5 release notes](docs/releases/1.0.0a5.md).
+
 ## 1.0.0a4 — Declarative Platform (prepared, 2026-10-12)
 
 - Declarative Core Platform: closed, versioned rule language on the existing engines
