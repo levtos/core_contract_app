@@ -3,7 +3,7 @@ on:
   workflow_call:
   pull_request:
   push:
-    branches: [agent/platform-alpha1]
+    branches: [main, agent/platform-alpha1]
 permissions:
   contents: read
 jobs:
@@ -81,18 +81,27 @@ jobs:
       - run: uv sync --frozen
       - run: npm ci
         working-directory: frontend
-      - name: Start the isolated engine
+      - name: Workbench end-to-end
         run: |
-          uv run python dev/workbench_demo.py --feed --interval 1 --port 8123 > /tmp/workbench-demo.log 2>&1 &
+          port="${TERRA_E2E_PORT:-8123}"
+          .venv/bin/python dev/workbench_demo.py --feed --interval 1 --port "$port" > /tmp/workbench-demo.log 2>&1 &
+          engine_pid=$!
+          cleanup() {
+            kill "$engine_pid" 2>/dev/null || true
+            wait "$engine_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=false
           for attempt in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:8123/api/v1/registry/drafts && break
+            if curl -fsS "http://127.0.0.1:$port/api/v1/registry/drafts"; then
+              ready=true
+              break
+            fi
+            kill -0 "$engine_pid" 2>/dev/null || break
             sleep 1
           done
-      - name: Workbench end-to-end
-        working-directory: frontend
-        env:
-          TERRA_E2E_URL: http://127.0.0.1:8123
-        run: npm run test:e2e
+          test "$ready" = true
+          TERRA_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
       - name: Engine log
         if: failure()
         run: tail -n 80 /tmp/workbench-demo.log
