@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Checkbox } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
 import { FIELD_TYPES, FIELD_TYPE_LABELS, type FieldSchema, type FieldType } from '@/features/authoring/model';
 import { join, type Json } from '@/lib/json';
 import { Fld, StringListEditor } from './common';
+import { Extras } from './Extras';
 
 /** Type, required/physical flags, unit and (for enums) the value catalog of one typed value. */
 export function FieldSchemaEditor({
@@ -20,6 +22,7 @@ export function FieldSchemaEditor({
   compact?: boolean;
   idPrefix?: string;
 }) {
+  const [restricted, setRestricted] = useState(false);
   const catalog = Array.isArray(value.value_catalog) ? (value.value_catalog as string[]) : [];
   const set = (patch: Record<string, Json | undefined>) => {
     const next: Record<string, Json> = { ...value };
@@ -58,14 +61,18 @@ export function FieldSchemaEditor({
           <Checkbox checked={value.physical_state} onCheckedChange={(physical_state) => set({ physical_state })} label="Physischer Zustand" />
         </div>
       </div>
-      {(value.type === 'enum' || catalog.length > 0) && (
+      {value.type === 'text' && catalog.length === 0 && !restricted && (
+        <Checkbox checked={false} onCheckedChange={setRestricted} label="Auf feste Textwerte einschränken (Wertekatalog)" />
+      )}
+      {(value.type === 'enum' || catalog.length > 0 || (value.type === 'text' && restricted)) && (
         <StringListEditor
           label={value.type === 'enum' ? 'Wertekatalog (Pflicht für Enum)' : 'Wertekatalog (schränkt Werte ein)'}
           pointer={join(pointer, 'value_catalog')}
           value={catalog}
-          onChange={(next) => set({ value_catalog: next })}
+          onChange={(next) => set({ value_catalog: next.length === 0 && value.type !== 'enum' ? undefined : next })}
         />
       )}
+      <Extras def="FieldSchema" value={value} pointer={pointer} onChange={(next) => onChange(next as FieldSchema)} />
     </div>
   );
 }

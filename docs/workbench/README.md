@@ -68,7 +68,7 @@ Bestätigungen portiert (`src/setup/`), inkl. der sieben Alt-Tests.
 | Bindings: `ha_state`, `ha_attribute`, `mqtt`, Transformationen, Entity-Picker | `BindingEditor`, `EntityPicker` | `build-registry.test`; Picker nur manuell |
 | Catalogs | `CatalogEditor` | `rules.test` |
 | Definition: Metadaten, Eingänge, Ausgabeschema, Projektion, `refresh_inputs` | `DefinitionEditor` | `build-example.test` |
-| Regeln: input, ref, literal, and/or/not, compare, map, first_match, bucket, formula, fusion, temporal (stable_for/dwell/grace/edge/delta/age), machine, not_applicable | `RuleEditor` (rekursiv) | `build-example.test`: `test.condition/either/timed/flow` werden nur per GUI nachgebaut = Beispiel; `rules.test`: map, first_match, bucket, not_applicable, eindeutige Stateful-IDs, unbekannter Operator, zustandslose Guards, Sperre (dwell/edge/delta/age nur über dieselbe Temporal-Maske, nicht einzeln getestet) |
+| Regeln: input, ref, literal (inkl. Objekt-/Listenwerte über den `ValueEditor`), and/or/not, compare, map, first_match, bucket, formula, fusion, temporal (stable_for/dwell/grace/edge/delta/age), machine, not_applicable | `RuleEditor` (rekursiv) | `build-example.test`: `test.condition/either/timed/flow` werden nur per GUI nachgebaut = Beispiel; `rules.test`: map, first_match, bucket, not_applicable, eindeutige Stateful-IDs, unbekannter Operator, zustandslose Guards, Sperre (dwell/edge/delta/age nur über dieselbe Temporal-Maske, nicht einzeln getestet) |
 | State Machine: Zustände, Transitionen, Guards, Befehle/Argumente, `argument_equals`, Episoden, Sessions, Deadline, Reinit | `MachineEditor` | `build-example.test` (`test.flow`) |
 | Contract-Instanzen, Referenzen, Paket-Typ-Parameter (Schema-Formular) | `ContractEditor`, `SchemaForm` | `build-registry.test` |
 | Unveränderliche Versionen | Sperre + „Neue Version“ | `versioning.test` |
@@ -88,12 +88,23 @@ cd frontend
 npm ci && npm run check && npm test && npm run build && npm run verify:dist
 ```
 
-Zusätzlich (Review-Hilfe, ohne HA/PostgreSQL): `dev/workbench_demo.py` startet die **echte** API
-und Engine auf dem In-Memory-Store und liefert `frontend/dist` aus
-(`uv run python dev/workbench_demo.py --seed`). Es aktiviert nichts in einer echten Installation.
+Engine-End-to-End (isolierte In-Memory-Instanz, nie gegen eine Installation):
 
-## Offene Punkte
+```
+uv run python dev/workbench_demo.py --feed --interval 1 --port 8123   # frische, leere Instanz
+cd frontend && TERRA_E2E_URL=http://127.0.0.1:8123 npm run test:e2e
+```
 
-Siehe die Abschlusslieferung im PR; kurz: keine Browser-Abnahme in Firefox, keine
-HA-Ingress-/Supervisor-Prüfung, Graph-Layout nicht in einem sichtbaren Browser verifiziert,
-keine automatisierte Barrierefreiheits-Messung, HA-Entity-Picker nur gegen den Fake geprüft.
+`dev/workbench_demo.py` startet die **echte** API und Engine auf dem In-Memory-Store und liefert
+`frontend/dist` aus (`--seed` aktiviert die Beispielregistry, `--feed` speist `source.a`/`source.b`).
+Es aktiviert nichts in einer echten Installation und hebt das Ingress-Rate-Limit nur für Skriptläufe an.
+
+Werte (`ValueEditor`): Text, Zahl, Wahrheitswert, Null, Objekte und Listen, beliebig verschachtelt; JSON ist nur
+eine optionale Zusatzansicht. Dynamische Schemas: `SchemaForm` + `Extras` (siehe
+[review-resolution.md](review-resolution.md)).
+
+## Review und offene Punkte
+
+Befunde T1B-01…07 und UX-01 des Codex-Reviews sind mit Ursache, Korrektur, Test und Restrisiko in
+[review-resolution.md](review-resolution.md) dokumentiert. Offen: Firefox, echte HA-Ingress-/Supervisor-Einbettung,
+reale Discovery-Größe, Barrierefreiheits-Messung, menschliche Live-Abnahme, CI-Nachweis beider Supervisor-Images.

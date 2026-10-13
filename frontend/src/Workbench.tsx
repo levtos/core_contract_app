@@ -4,7 +4,9 @@ import { RouteError } from '@/components/RouteError';
 import { Shell } from '@/components/Shell';
 import { Spinner } from '@/components/ui/layout';
 import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
+import type { LiveStore } from '@/lib/live';
 import { LiveProvider } from '@/lib/live-context';
+import { CapabilitySchemaProvider } from '@/lib/schema-context';
 import { SetupContext } from '@/lib/setup-context';
 import { OverviewPage } from '@/features/overview/OverviewPage';
 
@@ -42,14 +44,16 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
   ];
 }
 
-export function Workbench({ onSetup }: { onSetup: () => void }) {
+export function Workbench({ onSetup, live }: { onSetup: () => void; live?: LiveStore }) {
   const [router] = useState(() => createHashRouter(workbenchRoutes(onSetup)));
   return (
-    <LiveProvider>
+    <LiveProvider store={live}>
       <SetupContext.Provider value={onSetup}>
-        <WorkingDocumentProvider>
-          <RouterProvider router={router} />
-        </WorkingDocumentProvider>
+        <CapabilitySchemaProvider>
+          <WorkingDocumentProvider>
+            <RouterProvider router={router} />
+          </WorkingDocumentProvider>
+        </CapabilitySchemaProvider>
       </SetupContext.Provider>
     </LiveProvider>
   );

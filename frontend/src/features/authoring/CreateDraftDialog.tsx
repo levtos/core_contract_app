@@ -61,7 +61,8 @@ export function CreateDraftDialog({
     }
     try {
       const draft = await create.mutateAsync({ config, ...(display ? { display_name: display } : {}) });
-      doc.open(draft);
+      // A just-created draft is opened without silently discarding edits of the draft that is open.
+      doc.requestOpen(draft);
       onCreated?.(draft);
       onOpenChange(false);
     } catch (e) {

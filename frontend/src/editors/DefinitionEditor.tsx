@@ -26,6 +26,7 @@ import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { MachineEditor } from './MachineEditor';
 import { operatorDefaults, RuleEditor, RuleEnvProvider } from './RuleEditor';
 import { SchemaEditor } from './SchemaEditor';
+import { Extras } from './Extras';
 
 const TYPE_ID = /^test\.[a-zA-Z0-9_.-]+$/;
 
@@ -145,6 +146,9 @@ export function DefinitionEditor({
             })}
             <IssuesAt pointer={join(pointer, 'refresh_inputs')} />
           </fieldset>
+          <fieldset disabled={locked}>
+            <Extras def="DeclarativeDefinition" value={value} pointer={pointer} onChange={onChange} />
+          </fieldset>
         </div>
       ),
     },
@@ -205,6 +209,7 @@ export function DefinitionEditor({
                     )}
                   </Fld>
                   <FieldSchemaEditor pointer={join(ip, 'schema')} value={asObject(input.schema) as FieldSchema} onChange={(schema) => set({ inputs: inputs.map((x, j) => (j === i ? { ...x, schema } : x)) })} />
+                  <Extras def="TypedInput" value={input} pointer={ip} onChange={(next) => set({ inputs: inputs.map((x, j) => (j === i ? next : x)) })} />
                 </div>
               </Collapsible>
             );

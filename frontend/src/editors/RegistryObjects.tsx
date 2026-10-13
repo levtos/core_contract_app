@@ -13,7 +13,9 @@ import { join, type Json, type JsonObject } from '@/lib/json';
 import { useHaEntities } from '@/lib/queries';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
+import { ValueEditor } from './ValueEditor';
 import { SchemaForm } from './SchemaForm';
+import { Extras } from './Extras';
 
 function patcher(value: JsonObject, onChange: (next: JsonObject) => void) {
   return (patch: Record<string, Json | undefined>) => {
@@ -54,6 +56,7 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
           </Select>
         )}
       </Fld>
+      <div className="sm:col-span-2"><Extras def="Dependency" value={value} pointer={pointer} onChange={onChange} /></div>
       {needsSource && (
         <Fld label="Überwachende Quelle" pointer={join(pointer, 'source_id')}>
           {(p) => (
@@ -154,6 +157,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
           </Fld>
         )}
         {mode === 'event_stateful' && <p className="text-xs text-muted">Zustandsbasiert: gilt, bis ein neues Ereignis eintrifft; kein Intervall nötig.</p>}
+        <Extras def="Freshness" value={freshness} pointer={fp} onChange={(next) => onChange({ ...value, freshness: next })} />
       </section>
 
       <section className="flex flex-col gap-2">
@@ -161,6 +165,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <p className="text-xs text-muted">Quellen der Typen boolean/numeric/text haben ihren Eingangstyp bereits; andere benötigen ein Wertschema, bevor sie einen typisierten Eingang speisen.</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
       </section>
+      <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
 }
@@ -255,6 +260,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
             </Fld>
           </div>
         )}
+        <Extras def="AdapterConfig" value={adapter} pointer={ap} onChange={(next) => onChange({ ...value, adapter: next })} />
         {kind === 'scheduler' && <p className="text-xs text-muted">Der Scheduler ist kein Quellen-Adapter und wird vom Server abgelehnt, sofern er als Binding verwendet wird.</p>}
       </section>
 
@@ -308,7 +314,9 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
             )}
           </Fld>
         )}
+        {transform && <Extras def="Transform" value={transform} pointer={tp} onChange={(next) => setTransform(next)} />}
       </section>
+      <Extras def="Binding" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
 }
@@ -372,11 +380,6 @@ export function EntityPicker({ open, onOpenChange, onPick }: { open: boolean; on
 
 /* ─────────────────────────────── Catalog ────────────────────────────── */
 
-type ScalarKind = 'text' | 'number' | 'bool';
-function scalarKind(value: Json): ScalarKind {
-  return typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'bool' : 'text';
-}
-
 export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string }) {
   const set = patcher(value, onChange);
   const entries = Object.entries(asObject(value.entries));
@@ -410,57 +413,31 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
       </SectionTitle>
       <p className="text-xs text-muted">Schlüssel sind die Rohwerte der Quelle als Text (z. B. <code>on</code>); Werte werden per „map_ref“ eingesetzt.</p>
       <IssuesAt pointer={join(pointer, 'entries')} />
-      {entries.map(([key, entry], i) => {
-        const kind = scalarKind(entry);
-        return (
-          <div key={i} className="grid items-start gap-2 rounded-[var(--radius-md)] border border-line p-2 sm:grid-cols-[1fr_9rem_1fr_auto]">
-            <Fld label="Rohwert" pointer={join(pointer, 'entries', key)}>
-              {(p) => (
-                <Input
-                  {...p}
-                  defaultValue={key}
-                  key={key}
-                  onBlur={(e) => {
-                    const to = e.target.value;
-                    if (to === key || keys.has(to)) return void (e.target.value = key);
-                    setEntries(entries.map(([k, v], j) => (j === i ? [to, v] : [k, v])));
-                  }}
-                />
-              )}
-            </Fld>
-            <Fld label="Werttyp" pointer={join(pointer, 'entries', key)}>
-              {(p) => (
-                <Select {...p} aria-invalid={false} value={kind} onChange={(e) => setEntries(entries.map(([k, v], j) => (j === i ? [k, e.target.value === 'bool' ? true : e.target.value === 'number' ? 0 : ''] : [k, v])))}>
-                  <option value="text">Text</option>
-                  <option value="number">Zahl</option>
-                  <option value="bool">Wahrheitswert</option>
-                </Select>
-              )}
-            </Fld>
-            {kind === 'bool' ? (
-              <Fld label="Wert" pointer={join(pointer, 'entries', key)}>
-                {(p) => (
-                  <Select {...p} aria-invalid={false} value={String(entry)} onChange={(e) => setEntries(entries.map(([k, v], j) => (j === i ? [k, e.target.value === 'true'] : [k, v])))}>
-                    <option value="true">wahr</option>
-                    <option value="false">falsch</option>
-                  </Select>
-                )}
-              </Fld>
-            ) : kind === 'number' ? (
-              <NumberField label="Wert" pointer={join(pointer, 'entries', key)} value={Number(entry)} onChange={(n) => setEntries(entries.map(([k, v], j) => (j === i ? [k, n] : [k, v])))} />
-            ) : (
-              <Fld label="Wert" pointer={join(pointer, 'entries', key)}>
-                {(p) => <Input {...p} aria-invalid={false} value={String(entry)} onChange={(e) => setEntries(entries.map(([k, v], j) => (j === i ? [k, e.target.value] : [k, v])))} />}
-              </Fld>
+      {entries.map(([key, entry], i) => (
+        <div key={i} className="grid items-start gap-2 rounded-[var(--radius-md)] border border-line p-2 sm:grid-cols-[minmax(10rem,16rem)_1fr_auto]">
+          <Fld label="Rohwert" pointer={join(pointer, 'entries', key)}>
+            {(p) => (
+              <Input
+                {...p}
+                defaultValue={key}
+                key={`${i}:${key}`}
+                onBlur={(e) => {
+                  const to = e.target.value;
+                  if (to === key || keys.has(to)) return void (e.target.value = key);
+                  setEntries(entries.map(([k, v], j) => (j === i ? [to, v] : [k, v])));
+                }}
+              />
             )}
-            <div className="pt-5">
-              <IconButton label="Eintrag entfernen" tone="danger" onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
-                <Trash2 size={14} />
-              </IconButton>
-            </div>
+          </Fld>
+          <ValueEditor label={`Wert für ${key || '(leer)'}`} pointer={join(pointer, 'entries', key)} value={entry} onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))} />
+          <div className="pt-5">
+            <IconButton label="Eintrag entfernen" tone="danger" onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
+              <Trash2 size={14} />
+            </IconButton>
           </div>
-        );
-      })}
+        </div>
+      ))}
+      <Extras def="Catalog" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
 }
@@ -568,6 +545,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
         )}
         <IssuesAt pointer={join(pointer, 'parameters')} />
       </section>
+      <Extras def="Contract" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
 }

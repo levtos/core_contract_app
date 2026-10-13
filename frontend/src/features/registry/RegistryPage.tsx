@@ -1,5 +1,5 @@
 import { Copy, Download, FilePlus2, FolderOpen, GitCompare, History, Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,20 @@ function DraftsTab() {
   const [copyOf, setCopyOf] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<Draft | null>(null);
   const [opening, setOpening] = useState<Draft | null>(null);
+  // After the switch dialog confirms, follow into the draft's page.
+  useEffect(() => {
+    if (opening && doc.draft?.draft_id === opening.draft_id) {
+      setOpening(null);
+      navigate(`/registry/drafts/${encodeURIComponent(opening.draft_id)}`);
+    } else if (opening && doc.switchRequest === null && doc.draft?.draft_id !== opening.draft_id) setOpening(null);
+  }, [opening, doc.draft?.draft_id, doc.switchRequest, navigate]);
   const [error, setError] = useState('');
   const list = drafts.data ?? [];
 
-  const open = (draft: Draft) => (doc.dirty && doc.draft?.draft_id !== draft.draft_id ? setOpening(draft) : (doc.open(draft), navigate(`/registry/drafts/${encodeURIComponent(draft.draft_id)}`)));
+  const open = (draft: Draft) => {
+    if (doc.requestOpen(draft) !== 'pending') navigate(`/registry/drafts/${encodeURIComponent(draft.draft_id)}`);
+    else setOpening(draft);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,21 +105,6 @@ function DraftsTab() {
           });
         }}
       />
-      <ConfirmDialog
-        open={opening !== null}
-        onOpenChange={(o) => !o && setOpening(null)}
-        title="Ungespeicherte Änderungen verwerfen?"
-        description="Der aktuell geöffnete Draft hat ungespeicherte Änderungen."
-        confirmLabel="Verwerfen und wechseln"
-        tone="danger"
-        onConfirm={() => {
-          if (opening) {
-            doc.open(opening);
-            navigate(`/registry/drafts/${encodeURIComponent(opening.draft_id)}`);
-          }
-          setOpening(null);
-        }}
-      />
     </div>
   );
 }
@@ -172,7 +167,7 @@ function RevisionsTab() {
           <pre className="max-h-[60vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{canonicalJson(viewing.config)}</pre>
         </Dialog>
       )}
-      {rolling && <RollbackDialog revision={rolling} open onOpenChange={(o) => !o && setRolling(null)} />}
+      {rolling && <RollbackDialog key={rolling.revision} revision={rolling} open onOpenChange={(o) => !o && setRolling(null)} />}
       {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: `Revision ${copyOf.revision}` }} onCreated={(d) => navigate(`/registry/drafts/${encodeURIComponent(d.draft_id)}`)} />}
       {comparing && pair && (
         <Dialog open onOpenChange={(o) => !o && setComparing(false)} size="lg" title={`Revision ${pair[0]!.revision} ↔ ${pair[1]!.revision}`} description="Strukturelle Differenz der Konfigurationsdokumente (nur geänderte JSON-Pfade). Die semantische Auswirkungsanalyse liefert der Server beim Aktivieren oder Zurückrollen.">

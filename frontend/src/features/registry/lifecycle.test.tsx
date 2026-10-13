@@ -1,12 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { ConflictDialog } from '@/features/authoring/DraftBar';
 import { useWorkingDocument, WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import type { Draft } from '@/lib/types';
+import { LiveStore, type SocketLike } from '@/lib/live';
+import { LiveProvider } from '@/lib/live-context';
 import { installFakeApi, makeDraft, sampleConfig, type FakeApi } from '../../../test/fakeApi';
+import { idleLive } from '../../../test/harness';
 import { ActivateDialog, RollbackDialog } from './ActivationDialogs';
 
 const user = userEvent.setup();
@@ -145,7 +149,13 @@ describe('draft lifecycle: working document and OCC', () => {
 });
 
 function renderDialog(ui: React.ReactNode) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        <LiveProvider store={idleLive()}>{ui}</LiveProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 describe('activation requires an explicit, version-checked confirmation', () => {
@@ -212,5 +222,100 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     await user.click(screen.getByRole('button', { name: 'Zurückrollen' }));
     await screen.findByText('Konflikt – nichts wurde aktiviert');
     expect(api.revisions).toHaveLength(2);
+  });
+});
+
+describe('T1B-03: the check, the diff and the activation always concern the same draft version', () => {
+  function Switcher({ api }: { api: FakeApi }) {
+    const [id, setId] = useState('a');
+    const [open, setOpen] = useState(false);
+    const draft = api.drafts.get(id) as unknown as Draft;
+    return (
+      <div>
+        <button onClick={() => setId('b')}>zu B</button>
+        <button onClick={() => setId('a')}>zu A</button>
+        <button onClick={() => setOpen(true)}>öffnen</button>
+        {/* One instance for the whole test: no remount when the draft changes. */}
+        <ActivateDialog draft={draft} open={open} onOpenChange={setOpen} />
+      </div>
+    );
+  }
+  const two = () => installFakeApi({ drafts: [makeDraft('a', sampleConfig({ marker: 'A' }), { display_name: 'Alpha' }), makeDraft('b', sampleConfig({ marker: 'B' }), { display_name: 'Beta' })] });
+  const validated = (api: FakeApi) => api.calls.filter((c) => c.path.endsWith('/validate')).map((c) => c.path);
+
+  it('A → B without remount validates B, names B and activates B (never the validation of A)', async () => {
+    const api = two();
+    renderDialog(<Switcher api={api} />);
+    await user.click(screen.getByText('zu B'));
+    await user.click(screen.getByText('öffnen'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Statische Analyse/);
+    expect(within(dialog).getByText(/Beta/)).toBeInTheDocument();
+    expect(validated(api)).toEqual(['registry/drafts/b/validate']);
+    await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' }));
+    await within(dialog).findByText(/ist aktiv/);
+    expect(api.calls.find((c) => c.path.endsWith('/activate'))!.path).toBe('registry/drafts/b/activate');
+    expect(api.revisions[0]!.config).toMatchObject({ marker: 'B' });
+  });
+
+  it('switching the draft while the dialog is open drops the old result and the old confirmation', async () => {
+    const api = two();
+    renderDialog(<Switcher api={api} />);
+    await user.click(screen.getByText('öffnen'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Statische Analyse/);
+    await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    expect(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' })).toBeEnabled();
+
+    await user.click(screen.getByText('zu B', { selector: 'button' }));
+    // A's confirmation is gone and B must be checked and confirmed on its own
+    await waitFor(() => expect(validated(api)).toContain('registry/drafts/b/validate'));
+    await within(dialog).findByText(/Beta/);
+    await waitFor(() => expect(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ })).not.toBeChecked());
+    expect(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' }));
+    await within(dialog).findByText(/ist aktiv/);
+    expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
+  });
+
+  it('refuses to vouch for a version that is no longer the saved one', async () => {
+    const api = two();
+    const stale = { ...(api.drafts.get('a') as unknown as Draft) }; // what the user has open: v1
+    api.touchDraft('a', { config: sampleConfig({ marker: 'andere Sitzung' }) }); // server is now v2
+    renderDialog(<ActivateDialog draft={stale} open onOpenChange={() => {}} />);
+    await screen.findByText('Prüfergebnis veraltet');
+    expect(screen.queryByRole('checkbox', { name: /Auswirkungen geprüft/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(api.calls.some((c) => c.path.endsWith('/validate'))).toBe(false);
+  });
+
+  it('a newer active revision (seen on the live channel) invalidates a finished check', async () => {
+    const api = installFakeApi({ drafts: [makeDraft('a', sampleConfig())], revisions: [{ revision: 1, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
+    const sockets: { onmessage: ((e: { data: string }) => void) | null; onopen: (() => void) | null }[] = [];
+    const store = new LiveStore({
+      createSocket: () => {
+        const socket = { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} };
+        sockets.push(socket);
+        return socket as unknown as SocketLike;
+      },
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <LiveProvider store={store}>
+            <ActivateDialog draft={api.drafts.get('a') as unknown as Draft} open onOpenChange={() => {}} />
+          </LiveProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Statische Analyse/);
+    await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeEnabled();
+    act(() => sockets[0]!.onmessage!({ data: JSON.stringify({ type: 'snapshot', epoch_id: 'e', publication_seq: 9, registry_revision: 2, publication_confirmed: true, contracts: {} }) }));
+    await screen.findByText('Prüfergebnis veraltet');
+    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.queryByRole('checkbox', { name: /Auswirkungen geprüft/ })).toBeNull();
   });
 });

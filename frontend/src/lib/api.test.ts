@@ -56,3 +56,12 @@ describe('api client', () => {
     expect(String(error.message)).not.toContain('password');
   });
 });
+
+describe('rate limiting', () => {
+  it('is its own, transient error kind with an actionable message', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('429: Too Many Requests', { status: 429 })));
+    const error = (await api('registry/validate').catch((e) => e)) as ApiError;
+    expect(error.kind).toBe('rate_limited');
+    expect(describeError(error)).toContain('Zu viele Anfragen');
+  });
+});

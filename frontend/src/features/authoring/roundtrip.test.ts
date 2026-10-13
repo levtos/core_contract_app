@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import example from '../../../../docs/alpha4/example-registry.json';
+import example from '../../../test/fixtures/example-registry.json';
 import { canonicalJson, clone, deepEqual, getAt, setAt, type JsonObject } from '@/lib/json';
 import { changedPaths, locateIssue } from './locate';
 import { exportRegistry, parseRegistryJson } from './importExport';

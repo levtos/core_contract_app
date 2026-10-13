@@ -18,6 +18,7 @@ import { join, type Json, type JsonObject } from '@/lib/json';
 import { AddButton, Fld, IconButton, IssueCount, IssuesAt, NumberField, RowActions, SectionTitle, TypedValueEditor } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { operatorDefaults, RuleEditor, RuleEnvProvider } from './RuleEditor';
+import { Extras } from './Extras';
 
 const RESERVED_EVENTS = ['input', 'deadline'];
 
@@ -83,6 +84,7 @@ export function MachineEditor({
     <RuleEnvProvider value={{ ...env, locked }}>
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-6">
         <IssuesAt pointer={pointer} />
+        <Extras def="MachineDefinition" value={value} pointer={pointer} onChange={onChange} />
         <section className="grid gap-3 sm:grid-cols-4">
           <Fld label="Maschinen-ID" pointer={join(pointer, 'id')}>
             {(p) => <Input {...p} value={str(value.id)} onChange={(e) => set({ id: e.target.value })} />}
@@ -145,6 +147,7 @@ export function MachineEditor({
                 }
               >
                 <div className="flex flex-col gap-3">
+                  <Extras def="CommandDefinition" value={asObject(raw)} pointer={join(pointer, 'commands', name)} onChange={(next) => set({ commands: { ...commands, [name]: next } })} />
                   <Fld label="Befehlsname" pointer={join(pointer, 'commands', name)}>
                     {(p) => <Input {...p} defaultValue={name} key={name} onBlur={(e) => (e.target.value.trim() !== name ? renameCommand(name, e.target.value.trim()) : undefined)} />}
                   </Fld>
@@ -286,6 +289,7 @@ export function MachineEditor({
                       {(p) => <Input {...p} value={str(transition.reason)} onChange={(e) => patch({ reason: e.target.value })} />}
                     </Fld>
                   </div>
+                  <Extras def="TransitionDefinition" value={transition} pointer={tp} onChange={(next) => setTransitions(transitions.map((t, j) => (j === i ? next : t)))} />
                   <div className="flex flex-wrap gap-5">
                     <Checkbox checked={transition.new_episode === true} onCheckedChange={(on) => patch({ new_episode: on || undefined })} label="Beginnt neue Episode" />
                     <Checkbox checked={transition.ends_episode === true} onCheckedChange={(on) => patch({ ends_episode: on || undefined })} label="Beendet Episode" />

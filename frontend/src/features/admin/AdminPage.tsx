@@ -11,7 +11,7 @@ import { HistoryTable, itemTime } from '@/features/diagnostics/HistoryTab';
 import { api, describeError } from '@/lib/api';
 import { formatTime, shortId } from '@/lib/format';
 import { useLive } from '@/lib/live-context';
-import { useActiveRevision, useDiagnostics, useHistory, useInfo, useRotateToken } from '@/lib/queries';
+import { useActiveRevision, useDiagnostics, useHistory, useInfo, rotateToken } from '@/lib/queries';
 import { useOpenSetup } from '@/lib/setup-context';
 import { classifySystem, REASON_LABELS } from '@/lib/status';
 import { BRIDGE_LABELS } from '@/setup/SetupWizard';
@@ -47,7 +47,7 @@ function InstallationPanel() {
 
 function ReadinessPanel() {
   const live = useLive();
-  const diagnostics = useDiagnostics(5000);
+  const diagnostics = useDiagnostics();
   const active = useActiveRevision();
   const service = live.service ?? diagnostics.data?.service ?? null;
   const conditions = classifySystem({ service, connection: live.connection, hasActiveRegistry: active.data === undefined ? undefined : active.data !== null, apiFailure: diagnostics.isError ? 'unavailable' : null });
@@ -116,7 +116,8 @@ function BridgePanel() {
 
 function TokensPanel() {
   const roles = useQuery({ queryKey: ['tokens'], queryFn: () => api<{ roles: string[]; tokens_visible: boolean }>('tokens') });
-  const rotate = useRotateToken();
+  const [rotating, setRotating] = useState(false);
+  const [rotateError, setRotateError] = useState<unknown>(null);
   const [pending, setPending] = useState<'admin' | 'consumer' | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [result, setResult] = useState<TokenRotation | null>(null);
@@ -131,7 +132,17 @@ function TokensPanel() {
     const role = pending;
     if (!role) return;
     setPending(null);
-    rotate.mutate(role, { onSuccess: (r) => { setResult(r); setRevealed(false); setCopied(false); } });
+    setRotating(true);
+    setRotateError(null);
+    // Never retried automatically; the response lives only in this component's state.
+    rotateToken(role)
+      .then((r) => {
+        setResult(r);
+        setRevealed(false);
+        setCopied(false);
+      })
+      .catch((error: unknown) => setRotateError(error))
+      .finally(() => setRotating(false));
   };
   return (
     <Panel>
@@ -142,14 +153,14 @@ function TokensPanel() {
             {(roles.data?.roles ?? []).map((role) => (
               <li key={role} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-line px-3 py-2">
                 <span className="flex items-center gap-2 text-sm"><KeyRound size={14} className="text-accent" /> <strong className="font-medium">{role === 'admin' ? 'Admin' : 'Consumer'}</strong><Badge>{role}</Badge></span>
-                <Button size="sm" variant="danger" disabled={rotate.isPending} onClick={() => setPending(role as 'admin' | 'consumer')}>Token rotieren …</Button>
+                <Button size="sm" variant="danger" disabled={rotating} onClick={() => setPending(role as 'admin' | 'consumer')}>Token rotieren …</Button>
               </li>
             ))}
           </ul>
         )}
-        {rotate.isError && (
+        {rotateError !== null && (
           <Notice tone="bad" title="Rotation nicht bestätigt">
-            {describeError(rotate.error)} Das Ergebnis ist unbestimmt, falls die Antwort verloren ging: die Rotation <strong>nicht automatisch wiederholen</strong>. Zugriff prüfen und ggf. über die vertrauenswürdige lokale Administration wiederherstellen.
+            {describeError(rotateError)} Das Ergebnis ist unbestimmt, falls die Antwort verloren ging: die Rotation <strong>nicht automatisch wiederholen</strong>. Zugriff prüfen und ggf. über die vertrauenswürdige lokale Administration wiederherstellen.
           </Notice>
         )}
         {result && (
@@ -161,7 +172,7 @@ function TokensPanel() {
               <Button size="sm" onClick={async () => { await navigator.clipboard?.writeText(result.token); setCopied(true); }}><Copy size={13} /> {copied ? 'Kopiert' : 'Kopieren'}</Button>
             </div>
             <p className="mt-2 text-xs">Rotations-ID <code>{result.rotation_id}</code> · Audit: {result.audit_status === 'complete' ? 'vollständig' : 'Abschluss unbestätigt – Token trotzdem sichern'}</p>
-            <div className="mt-2"><Button size="sm" variant="primary" onClick={() => setResult(null)}>Ich habe das Token gesichert – ausblenden</Button></div>
+            <div className="mt-2"><Button size="sm" variant="primary" onClick={() => { setResult(null); setRevealed(false); setCopied(false); }}>Ich habe das Token gesichert – ausblenden</Button></div>
           </Notice>
         )}
       </div>

@@ -20,10 +20,9 @@ export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChang
   const doc = useWorkingDocument();
   const drafts = useDrafts();
   const [creating, setCreating] = useState(false);
-  const [pending, setPending] = useState<Draft | null>(null);
   const pick = (draft: Draft) => {
-    if (doc.dirty && doc.draft?.draft_id !== draft.draft_id) return setPending(draft);
-    doc.open(draft);
+    // Re-selecting the open draft is a no-op; another draft asks first if edits would be lost.
+    doc.requestOpen(draft);
     onOpenChange(false);
   };
   return (
@@ -42,7 +41,7 @@ export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChang
                     <span className="block truncate font-medium">{draftLabel(draft)}</span>
                     <span className="block text-xs text-muted">v{draft.draft_version} · Basis-Revision {draft.base_revision ?? '–'} · {formatTime(draft.updated_at)}</span>
                   </span>
-                  {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">geöffnet</Badge>}
+                  {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">{doc.dirty ? 'geöffnet · ungespeichert' : 'geöffnet'}</Badge>}
                 </button>
               </li>
             ))}
@@ -50,20 +49,24 @@ export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChang
         )}
       </Dialog>
       <CreateDraftDialog open={creating} onOpenChange={setCreating} onCreated={() => onOpenChange(false)} />
-      <ConfirmDialog
-        open={pending !== null}
-        onOpenChange={(o) => !o && setPending(null)}
-        title="Ungespeicherte Änderungen verwerfen?"
-        description="Der geöffnete Draft hat Änderungen, die noch nicht gespeichert sind. Sie gehen beim Wechsel verloren."
-        confirmLabel="Verwerfen und wechseln"
-        tone="danger"
-        onConfirm={() => {
-          if (pending) doc.open(pending);
-          setPending(null);
-          onOpenChange(false);
-        }}
-      />
     </>
+  );
+}
+
+/** Asks before unsaved changes of the open draft are dropped by opening another one. */
+export function SwitchDialog() {
+  const doc = useWorkingDocument();
+  const target = doc.switchRequest;
+  return (
+    <ConfirmDialog
+      open={target !== null}
+      onOpenChange={(o) => !o && doc.cancelSwitch()}
+      title="Ungespeicherte Änderungen verwerfen?"
+      description={<>„{doc.draft ? draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName }) : ''}“ hat ungespeicherte Änderungen. Beim Wechsel zu „{target ? draftLabel(target) : ''}“ gehen sie samt Rückgängig-Verlauf verloren.</>}
+      confirmLabel="Verwerfen und wechseln"
+      tone="danger"
+      onConfirm={doc.confirmSwitch}
+    />
   );
 }
 
@@ -159,6 +162,7 @@ export function DraftBar() {
       )}
       <DraftPicker open={picker} onOpenChange={setPicker} />
       <ConflictDialog />
+      <SwitchDialog />
       <ConfirmDialog open={closing} onOpenChange={setClosing} title="Draft schließen?" description="Es gibt ungespeicherte Änderungen. Sie gehen verloren." confirmLabel="Verwerfen und schließen" tone="danger" onConfirm={() => { setClosing(false); doc.close(); }} />
       {doc.saveError && <span role="alert" className="text-xs text-bad">{doc.saveError}</span>}
     </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import example from '../../../../docs/alpha4/example-registry.json';
+import example from '../../../test/fixtures/example-registry.json';
 import { clone, type JsonObject } from '@/lib/json';
 import { buildGraph, neighborhood, nodeId, reach } from './buildGraph';
 

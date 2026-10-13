@@ -8,6 +8,7 @@ import { explain, useIssues, useIssuesUnder } from '@/features/authoring/issues'
 import type { FieldSchema } from '@/features/authoring/model';
 import { isObject, type Json } from '@/lib/json';
 import { cn } from '@/lib/utils';
+import { ValueEditor } from './ValueEditor';
 
 /** Label + control with the server findings for exactly this JSON Pointer shown at the input. */
 export function Fld({
@@ -204,7 +205,8 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = 'We
         </Fld>
       );
     case 'object':
-      return <JsonValueEditor label={label} pointer={pointer} value={value} onChange={onChange} />;
+      // Object-typed values are any JSON value except null: structured, graphical editing.
+      return <ValueEditor label={label} pointer={pointer} value={value} onChange={onChange} allowedKinds={['string', 'number', 'boolean', 'object', 'array']} />;
     default:
       return (
         <Fld label={label} pointer={pointer}>

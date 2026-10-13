@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import example from '../../../../docs/alpha4/example-registry.json';
+import example from '../../../test/fixtures/example-registry.json';
 import { useWorkingDocument, WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import { clone, type JsonObject } from '@/lib/json';
 import type { Draft } from '@/lib/types';

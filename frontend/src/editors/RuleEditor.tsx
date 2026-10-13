@@ -22,6 +22,7 @@ import { AddButton, Fld, IconButton, IssueCount, IssuesAt, NumberField, RowActio
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { SchemaForm } from './SchemaForm';
 import { defaultLiteralValue } from '@/features/authoring/model';
+import { Extras, HANDLED } from './Extras';
 
 /**
  * Recursive editor for the closed, tagged rule union. Operators, formulas,
@@ -154,6 +155,7 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
   const available = knownOps.filter((op) => !(env.ctx.stateless && STATEFUL_OPS.has(op)));
   const op = value.op;
   const known = knownOps.includes(op);
+  const ruleDef = env.caps?.operators.find((o) => o.op === op)?.schema_ref.split('/').pop();
 
   const switchOp = (next: string) => onChange(convertRule(value, next, env.ctx, defaults));
   const wrap = (wrapper: 'not' | 'and' | 'or') => onChange({ op: wrapper, args: wrapper === 'not' ? [value] : [value, newRule('input', env.ctx, defaults)] });
@@ -218,6 +220,15 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
           <IssuesAt pointer={pointer} />
           <fieldset disabled={env.locked} className="contents">
             <Body value={value} onChange={onChange} pointer={pointer} depth={depth} />
+            {ruleDef && ruleDef in HANDLED && (
+              <Extras
+                def={ruleDef}
+                value={value}
+                pointer={pointer}
+                onChange={(next) => onChange(next as Rule)}
+                renderRule={({ value: v, onChange: c, pointer: p, label: l }) => <RuleEditor value={v as Rule} onChange={(n) => c(n)} pointer={p} label={l} depth={depth + 1} />}
+              />
+            )}
           </fieldset>
         </div>
       )}

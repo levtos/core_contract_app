@@ -86,13 +86,31 @@ describe('operators beyond the example', () => {
 });
 
 describe('catalog editor', () => {
-  it('edits keys and typed values', async () => {
+  it('edits keys and values of every JSON type without JSON text', async () => {
     let current: JsonObject = { catalog_id: 'catalog.neu', kind: 'map', version: 1, entries: { an: true } };
     wrap(<Stateful initial={current} onValue={(v) => (current = v)}>{(v, set) => <CatalogEditor value={v} onChange={set} pointer="/catalogs/0" />}</Stateful>);
     await user.clear(screen.getByLabelText('Katalog-ID'));
     await user.type(screen.getByLabelText('Katalog-ID'), 'catalog.modus');
-    await user.selectOptions(screen.getAllByLabelText('Werttyp')[0]!, 'text');
-    await user.type(screen.getByLabelText('Wert'), 'ein');
+    await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'string');
+    await user.clear(screen.getByLabelText('Wert für an'));
+    await user.type(screen.getByLabelText('Wert für an'), 'ein');
     expect(current).toEqual({ catalog_id: 'catalog.modus', kind: 'map', version: 1, entries: { an: 'ein' } });
+    // structured values keep their type
+    await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'object');
+    await user.click(screen.getByRole('button', { name: 'Wert für an: Eigenschaft hinzufügen' }));
+    expect(current.entries).toEqual({ an: { schluessel1: '' } });
+    await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'array');
+    expect(current.entries).toEqual({ an: [{ schluessel1: '' }] }); // the structure is kept, wrapped in a list
+    await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'null');
+    expect(current.entries).toEqual({ an: null });
+  });
+
+  it('shows imported object, array and null values with their real type', () => {
+    wrap(<CatalogEditor value={{ catalog_id: 'c', kind: 'map', version: 1, entries: { o: { fixture: true }, l: [1, 'x'], n: null } }} onChange={() => {}} pointer="/catalogs/0" />);
+    expect(screen.getByLabelText('Wert für o: Typ')).toHaveValue('object');
+    expect(screen.getByLabelText('Wert für l: Typ')).toHaveValue('array');
+    expect(screen.getByLabelText('Wert für n: Typ')).toHaveValue('null');
+    expect(document.body.textContent).not.toContain('[object Object]');
+    expect(screen.getByLabelText('Wert für o.fixture')).toHaveValue('true');
   });
 });

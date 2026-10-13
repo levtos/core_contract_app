@@ -15,6 +15,7 @@ export type ErrorKind =
   | 'persistence'
   | 'not_found'
   | 'unavailable'
+  | 'rate_limited'
   | 'network'
   | 'request';
 
@@ -37,6 +38,7 @@ function classify(status: number, code: string, issues: Issue[]): ErrorKind {
   if (status === 0) return 'network';
   if (issues.length > 0) return 'validation';
   if (status === 409 || code.endsWith('conflict')) return 'conflict';
+  if (status === 429) return 'rate_limited';
   if (status === 401 || status === 403) return 'auth';
   if (code === 'persistence_unavailable') return 'persistence';
   if (status === 404) return 'not_found';
@@ -108,11 +110,13 @@ const MESSAGES: Record<string, string> = {
   evidence_not_found: 'Zu dieser Referenz liegt keine aufgezeichnete Evidenz vor.',
   invalid_request: 'Die Anfrage ist ungültig.',
   network_error: 'Der Dienst ist nicht erreichbar.',
+  rate_limited: 'Zu viele Anfragen in kurzer Zeit. Die Oberfläche versucht es automatisch später erneut.',
 };
 
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.kind === 'auth') return 'Keine Berechtigung für diese Aktion.';
+    if (error.kind === 'rate_limited') return MESSAGES.rate_limited!;
     return MESSAGES[error.code] ?? `Anfrage fehlgeschlagen: ${error.message}`;
   }
   return error instanceof Error ? error.message : 'Unbekannter Fehler.';

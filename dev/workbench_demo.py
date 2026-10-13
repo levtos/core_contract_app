@@ -11,7 +11,10 @@ nothing after it stops.
     # open http://127.0.0.1:8099/
 
 ``--seed`` activates docs/alpha4/example-registry.json through the public
-draft/activate path and feeds two boolean sources so the cascade changes live.
+draft/activate path. ``--feed`` alternately sets the boolean sources ``source.a`` and
+``source.b`` (every ``--interval`` seconds) so an activated cascade changes live; it
+works on its own, for registries built in the UI. The Workbench end-to-end test
+(``npm run test:e2e``) runs against a fresh, empty instance started with ``--feed``.
 """
 
 import argparse
@@ -83,6 +86,8 @@ async def main() -> None:
     )
     parser.add_argument("--port", type=int, default=8099)
     parser.add_argument("--seed", action="store_true", help="activate the Alpha-4 example registry")
+    parser.add_argument("--feed", action="store_true", help="feed source.a / source.b periodically")
+    parser.add_argument("--interval", type=float, default=8.0, help="feed period in seconds")
     parser.add_argument("--frontend", type=Path, default=ROOT / "frontend" / "dist")
     args = parser.parse_args()
 
@@ -99,6 +104,9 @@ async def main() -> None:
         frontend=args.frontend,
         setup=FinishedSetup(data, None),
     )
+    # The production limiter allows 120 requests/minute for the whole Ingress; scripted end-to-end
+    # runs are far faster than a person, so the review harness lifts it (it is not under test here).
+    api.limiter.limit = 1_000_000
     runner = web.AppRunner(api.application(ingress=True), access_log=None)
     await runner.setup()
     await web.TCPSite(runner, "127.0.0.1", args.port).start()
@@ -115,6 +123,9 @@ async def main() -> None:
         await runtime.submit("activate", {**draft, "expected_active_revision": 0})
         runtime.first_snapshot = True
 
+    if args.feed:
+        runtime.first_snapshot = True
+
         async def feed() -> None:
             seq = 0
             flip = False
@@ -123,7 +134,7 @@ async def main() -> None:
                 flip = not flip
                 await runtime.submit("observation", observation(runtime, "a", flip, seq))
                 await runtime.submit("observation", observation(runtime, "b", not flip, seq + 1))
-                await clock.sleep(8)
+                await clock.sleep(args.interval)
 
         tasks.append(asyncio.create_task(feed()))
     print(f"Workbench demo: http://127.0.0.1:{args.port}/  (in-memory, not a real installation)")

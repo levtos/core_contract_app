@@ -129,6 +129,7 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       fitView
+      fitViewOptions={{ padding: 0.06, maxZoom: 1 }}
       minZoom={0.2}
       maxZoom={1.6}
       nodesDraggable={false}

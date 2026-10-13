@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import example from '../../../docs/alpha4/example-registry.json';
+import example from '../../test/fixtures/example-registry.json';
 import { refOptions, typeCatalog } from '@/features/authoring/catalog';
 import type { JsonObject } from '@/lib/json';
 import { caps, Stateful, wrap } from '../../test/harness';

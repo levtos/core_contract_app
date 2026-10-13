@@ -82,7 +82,7 @@ export default function DraftPage() {
             <Button size="sm" variant="danger" onClick={() => setSwitching(true)}>Verwerfen und wechseln</Button>
           </div>
         </Notice>
-        <ConfirmDialog open={switching} onOpenChange={setSwitching} title="Änderungen verwerfen?" description="Die ungespeicherten Änderungen des geöffneten Drafts gehen verloren." confirmLabel="Verwerfen" tone="danger" onConfirm={() => { setSwitching(false); if (server.data) doc.open(server.data); }} />
+        <ConfirmDialog open={switching} onOpenChange={setSwitching} title="Änderungen verwerfen?" description="Die ungespeicherten Änderungen des geöffneten Drafts gehen verloren." confirmLabel="Verwerfen" tone="danger" onConfirm={() => { setSwitching(false); if (server.data) { doc.close(); doc.open(server.data); } }} />
       </>
     );
   }
@@ -166,7 +166,7 @@ export default function DraftPage() {
           </Panel>
         </div>
       </div>
-      <ActivateDialog draft={draft} open={activating} onOpenChange={setActivating} />
+      {activating && <ActivateDialog key={`${draft.draft_id}@${draft.draft_version}`} draft={draft} open onOpenChange={setActivating} />}
     </>
   );
 }

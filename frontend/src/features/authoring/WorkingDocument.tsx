@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api, ApiError, type Issue } from '@/lib/api';
+import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import { clone, deepEqual, getAt, setAt, type Json } from '@/lib/json';
 import { keys, useDraftMutations, validateConfig } from '@/lib/queries';
 import { IssuesProvider } from './issues';
@@ -44,7 +44,13 @@ export interface WorkingDocument {
   validation: ValidationView;
   autoValidate: boolean;
   setAutoValidate: (value: boolean) => void;
-  open: (draft: Draft) => void;
+  /** Replaces the working document. Re-opening the draft that is already open is a no-op unless `reload`. */
+  open: (draft: Draft, options?: { reload?: boolean }) => void;
+  /** Opens a draft, asking before unsaved changes of another draft would be discarded. */
+  requestOpen: (draft: Draft) => 'opened' | 'noop' | 'pending';
+  switchRequest: Draft | null;
+  confirmSwitch: () => void;
+  cancelSwitch: () => void;
   close: () => void;
   edit: (updater: (config: Registry) => Registry) => void;
   setAt: (pointer: string, value: Json | undefined) => void;
@@ -87,7 +93,7 @@ interface Snapshot {
 
 const IDLE: ValidationView = { state: 'idle', result: null, issues: [], stale: false, error: null };
 
-export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }: { children: ReactNode; validateDebounceMs?: number }) {
+export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }: { children: ReactNode; validateDebounceMs?: number }) {
   const client = useQueryClient();
   const { create, update } = useDraftMutations();
   const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, name: '', past: [], future: [] });
@@ -98,25 +104,55 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
   const [autoValidate, setAutoValidate] = useState(true);
   const validatedFor = useRef<Registry | null>(null);
   const runId = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latest = useRef(snap);
   latest.current = snap;
 
   const dirty = snap.draft !== null && snap.config !== null && (!deepEqual(snap.config, snap.draft.config) || snap.name !== (snap.draft.display_name ?? ''));
 
-  const open = useCallback((draft: Draft) => {
+  const open = useCallback((draft: Draft, options?: { reload?: boolean }) => {
+    // Selecting the draft that is already open must never drop its local edits or undo history.
+    if (latest.current.draft?.draft_id === draft.draft_id && !options?.reload) return;
     rememberDraftId(draft.draft_id);
     validatedFor.current = null;
+    runId.current += 1;
     setValidation(IDLE);
     setSaveError(null);
     setConflict(null);
     setSnap({ draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] });
   }, []);
 
+  const [switchRequest, setSwitchRequest] = useState<Draft | null>(null);
+  const requestOpen = useCallback(
+    (draft: Draft) => {
+      const current = latest.current;
+      if (current.draft?.draft_id === draft.draft_id) return 'noop' as const;
+      const isDirty = current.draft !== null && current.config !== null && (!deepEqual(current.config, current.draft.config) || current.name !== (current.draft.display_name ?? ''));
+      if (isDirty) {
+        setSwitchRequest(draft);
+        return 'pending' as const;
+      }
+      open(draft);
+      return 'opened' as const;
+    },
+    [open],
+  );
+  const confirmSwitch = useCallback(() => {
+    setSwitchRequest((target) => {
+      if (target) open(target);
+      return null;
+    });
+  }, [open]);
+  const cancelSwitch = useCallback(() => setSwitchRequest(null), []);
+
   const close = useCallback(() => {
     rememberDraftId(null);
     validatedFor.current = null;
+    runId.current += 1;
+    clearTimeout(retryTimer.current);
     setValidation(IDLE);
     setConflict(null);
+    setSwitchRequest(null);
     setSnap({ draft: null, config: null, name: '', past: [], future: [] });
   }, []);
 
@@ -175,7 +211,10 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       if (error instanceof ApiError && error.kind === 'validation') {
         setValidation({ state: 'done', result: { valid: false, issues: error.issues }, issues: error.issues, stale: latest.current.config !== config, error: null });
       } else {
-        setValidation({ state: 'failed', result: null, issues: [], stale: false, error: error instanceof Error ? error.message : 'Validierung fehlgeschlagen' });
+        const limited = error instanceof ApiError && error.kind === 'rate_limited';
+        setValidation({ state: 'failed', result: null, issues: [], stale: false, error: limited ? describeError(error) : error instanceof Error ? error.message : 'Validierung fehlgeschlagen' });
+        // Too many requests is transient: look again later instead of leaving the document unchecked.
+        if (limited) retryTimer.current = setTimeout(() => void validateNow(), 10_000);
       }
     }
   }, []);
@@ -190,6 +229,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
     const timer = setTimeout(() => void validateNow(), validateDebounceMs);
     return () => clearTimeout(timer);
   }, [snap.config, autoValidate, validateNow, validateDebounceMs]);
+
+  useEffect(() => () => clearTimeout(retryTimer.current), []);
 
   // Unsaved changes: warn on leaving the page.
   useEffect(() => {
@@ -236,7 +277,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       if (choice === 'cancel') return setConflict(null);
       if (choice === 'take-server') {
         setConflict(null);
-        return open(current.server);
+        return open(current.server, { reload: true });
       }
       if (choice === 'keep-local-as-new') {
         const created = await create.mutateAsync({ config, display_name: `${draft.display_name || draft.draft_id} (lokale Änderungen)` });
@@ -276,6 +317,10 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       autoValidate,
       setAutoValidate,
       open,
+      requestOpen,
+      switchRequest,
+      confirmSwitch,
+      cancelSwitch,
       close,
       edit,
       setAt: setAtPointer,
@@ -287,7 +332,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 1200 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, conflict, validation, autoValidate, open, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, conflict, validation, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (

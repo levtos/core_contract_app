@@ -23,6 +23,12 @@ import type {
   ValidationResult,
 } from './types';
 
+/**
+ * Live values arrive over the WebSocket; HTTP polling is only a slow safety net. The Ingress
+ * listener rate-limits to 120 requests per minute for all browser tabs together.
+ */
+export const POLL_MS = 15_000;
+
 export const keys = {
   info: ['info'] as const,
   capabilities: ['capabilities'] as const,
@@ -80,14 +86,14 @@ export const useRevisions = () =>
 export const useDrafts = () =>
   useQuery({ queryKey: keys.drafts, queryFn: () => api<Draft[]>('registry/drafts') });
 
-export const useDiagnostics = (refetchMs: number | false = 5000) =>
+export const useDiagnostics = (refetchMs: number | false = POLL_MS) =>
   useQuery({
     queryKey: keys.diagnostics,
     queryFn: () => api<Diagnostics>('diagnostics'),
     refetchInterval: refetchMs,
   });
 
-export const useProblems = (refetchMs: number | false = 5000) =>
+export const useProblems = (refetchMs: number | false = POLL_MS) =>
   useQuery({
     queryKey: keys.problems,
     queryFn: () => api<Problems>('diagnostics/problems'),
@@ -99,7 +105,7 @@ export const useContractDiagnosis = (contractId: string | undefined) =>
     queryKey: keys.diagnosis(contractId ?? ''),
     queryFn: () => api<ContractDiagnosis>(`diagnostics/contracts/${encodeURIComponent(contractId!)}`),
     enabled: !!contractId,
-    refetchInterval: 5000,
+    refetchInterval: POLL_MS,
     retry: (count, error) => !(error instanceof ApiError && error.kind === 'not_found') && count < 2,
   });
 
@@ -219,11 +225,12 @@ export function useActivation() {
   };
 }
 
-export const useRotateToken = () =>
-  useMutation({
-    mutationFn: (role: 'admin' | 'consumer') =>
-      api<TokenRotation>('tokens/rotate', { method: 'POST', body: { role } }),
-  });
+/**
+ * Deliberately NOT a react-query mutation: mutation results are retained in the
+ * client's mutation cache, which would keep the one-time credential alive after
+ * it was dismissed. The caller holds the response in component state only.
+ */
+export const rotateToken = (role: 'admin' | 'consumer') => api<TokenRotation>('tokens/rotate', { method: 'POST', body: { role } });
 
 export const useSubmitCommand = () =>
   useMutation({

@@ -5,6 +5,7 @@ import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { asArray, asObject, newFieldSchema, renameKey, type FieldSchema } from '@/features/authoring/model';
 import { join, type Json, type JsonObject } from '@/lib/json';
 import { Trash2 } from 'lucide-react';
+import { Extras } from './Extras';
 
 /** Output schema of a definition: independently typed fields + the fields that define "available". */
 export function SchemaEditor({
@@ -83,6 +84,7 @@ export function SchemaEditor({
           </Collapsible>
         );
       })}
+      <Extras def="Schema" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
 }

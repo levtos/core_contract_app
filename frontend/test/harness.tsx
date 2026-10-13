@@ -4,15 +4,29 @@ import { useState, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import type { Capabilities } from '@/lib/capabilities';
 import type { JsonObject } from '@/lib/json';
+import { LiveStore, type SocketLike } from '@/lib/live';
+import { LiveProvider } from '@/lib/live-context';
+import { SchemaProvider } from '@/lib/schema-context';
 import capabilitiesFixture from './fixtures/capabilities.json';
 
 export const caps = capabilitiesFixture as unknown as Capabilities;
 
-export function wrap(ui: ReactNode) {
+/** A live store that never connects: dialogs that read the live revision need a provider. */
+export function idleLive(): LiveStore {
+  return new LiveStore({ createSocket: () => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} }) as SocketLike });
+}
+
+export function wrap(ui: ReactNode, options: { caps?: Capabilities; live?: LiveStore } = {}) {
+  const schema = (options.caps ?? caps).schemas.registry;
+  const liveStore = options.live;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <SchemaProvider schema={schema}>
+        <MemoryRouter>
+          {liveStore ? <LiveProvider store={liveStore}>{ui}</LiveProvider> : ui}
+        </MemoryRouter>
+      </SchemaProvider>
     </QueryClientProvider>,
   );
 }

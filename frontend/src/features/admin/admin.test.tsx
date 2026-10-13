@@ -105,3 +105,36 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     expect(screen.getAllByText('ingress', { exact: false }).length).toBeGreaterThan(0);
   });
 });
+
+describe('T1B-07: the one-time credential is held nowhere but the visible component state', () => {
+  const dump = (client: QueryClient) => JSON.stringify([client.getMutationCache().getAll().map((m) => ({ s: m.state, o: m.options.mutationKey })), client.getQueryCache().getAll().map((q) => q.state.data)]);
+
+  it.each([['complete'], ['completion_unconfirmed']])('no query/mutation cache holds the token (%s), neither while shown nor after hiding or unmount', async (audit) => {
+    const api = adminApi();
+    api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => reply(200, { role: 'consumer', token: 'SYNTHETIC-TOKEN-123', status: 'rotated', rotation_id: 'rot-9', audit_status: audit }) });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <LiveProvider store={new LiveStore({ createSocket: idleSocket })}>
+            <AdminPage />
+          </LiveProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await user.click((await screen.findAllByRole('button', { name: /Token rotieren/ }))[0]!);
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
+    await screen.findByLabelText('Neues Token');
+    expect((screen.getByLabelText('Neues Token') as HTMLInputElement).value).toBe('SYNTHETIC-TOKEN-123'); // still usable for the user
+    expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');
+    if (audit === 'completion_unconfirmed') expect(screen.getByText(/Abschluss unbestätigt/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /ausblenden/ }));
+    expect(screen.queryByLabelText('Neues Token')).toBeNull();
+    expect(document.body.textContent).not.toContain('SYNTHETIC-TOKEN-123');
+    expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');
+    view.unmount();
+    expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');
+  });
+});
