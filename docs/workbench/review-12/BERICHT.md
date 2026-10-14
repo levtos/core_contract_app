@@ -375,8 +375,10 @@ keine JS-Fehler. Netzwerk: 147 API-Aufrufe, 142 × 200, 5 × 400 (alle aus provo
    Integrationsänderung von der Berechtigungsprüfung abgelehnt.
 4. **Firefox-Test** nachholen (Darstellung, Selects, Dialoge, Drag & Drop „Layout anpassen“).
 5. **Produktentscheidungen** (vor Umsetzung, Benni):
-   - **(a)** Sollen `numeric`/`boolean`-Quellen HA-Text automatisch umwandeln? Alternative: Die
-     Validierung lehnt fehlende Typumwandlung ab.
+   - **(a)** ~~Sollen `numeric`/`boolean`-Quellen HA-Text automatisch umwandeln?~~ **Beschlossen
+     14.10.2026:** Typ und Einheit sind ab dem ersten Übernehmen gesperrt, die Umwandlung folgt fest aus
+     dem Typ und steht ausdrücklich in der Verknüpfung, ein Typwechsel heißt neue Quelle plus Umzug
+     (Details: Issue #17, Codex-Paket B2).
    - **(b)** Wie kommt ein Ablauf nach einer Fingerprint-Änderung wieder in einen Zustand: Startzustand,
      Befehl „neu starten“ oder Pflicht-Reinit?
 6. Barrierefreiheit (Tastatur, Kontrast „unbekannt“, Screenreader) messen.
@@ -405,13 +407,23 @@ B1 Status-Wahrheit HA/Bridge (BUG-01)
 - Akzeptanz: leere Registry + geladene Bridge → keine Warnung; Rollback auf Registry ohne HA-Quelle →
   kein „connected“. Tests: runtime/adapter-Unit + Frontend-Statuskarte.
 
-B2 Typumwandlung numeric/boolean (BUG-02) [ENTSCHEID (a) vorher einholen]
-- Variante A (empfohlen): Quellentyp numeric/boolean normalisiert HA-State wie type_cast number/bool
-  (on/off/true/false), ungültiger Text → unknown invalid_value mit Detail.
-- Variante B: Validierung meldet Fehler „Quelle X liefert Text, Eingang Y erwartet Zahl – Typumwandlung
-  setzen“; Typumwandlung-Zieltyp wird aus dem Quellentyp vorbelegt.
-- Akzeptanz: Testszenario aus testdaten/ux12-komplett.json ohne manuelle Transformation → alle
-  Verträge gültig (A) bzw. Validierung rot mit Hinweis (B). Tests: Adapter-Unit, Validierungs-Test, E2E.
+B2 Typ-Sperre und Umwandlung (BUG-02) [ENTSCHEID (a) BESCHLOSSEN, Benni 14.10.2026 – Issue #17]
+- Nutzer-Typen einer Quelle: Zahl, Ja/Nein, Text, Auswahl (technische Unterarten unter „Erweitert“).
+- Bis zum ersten Übernehmen sind Typ, Einheit und Werteliste frei. Ab dem ersten Übernehmen sind Typ und
+  Einheit gesperrt (Server-Validierung gegen die Historie aktiver Revisionen, nicht nur UI); die Werteliste
+  darf nur ergänzt werden. Anzeigename/Beschreibung frei; HA-Gerät der Verknüpfung tauschbar, nur mit passendem Typ.
+- Die Umwandlung folgt fest aus dem Typ (Zahl → type_cast number; Ja/Nein → type_cast bool on/off/true/false).
+  Die Oberfläche schreibt sie beim Anlegen der Verknüpfung ausdrücklich in die Konfiguration (sichtbar in
+  Export/Diff); keine implizite Laufzeit-Umwandlung.
+- Die Validierung lehnt ab, wenn Quellentyp, Umwandlung und Vorlagen-Eingang nicht zusammenpassen, mit Text
+  „Quelle X liefert …, Eingang Y erwartet …“ und Feldmarkierung. Ein Knopf „Umwandlung ergänzen“ für Altbestand.
+- Typwechsel = neue Quelle + geführter Umzug (Dialog wie „Neue Version“ mit Häkchen je Vertrag); alte Quelle
+  bleibt mit Historie, bis keine Referenz mehr besteht.
+- Akzeptanz: (1) ux12-komplett.json über den geführten Weg angelegt → alle Verträge gültig ohne manuelle
+  Transformation; (2) Typ/Einheit einer übernommenen Quelle ändern → Validierung rot, Server lehnt ab;
+  (3) Werteliste ergänzen ok, entfernen/umbenennen abgelehnt; (4) Umzug stellt alle gewählten Verträge
+  um, alte Historie bleibt lesbar. Tests: Validierung (Server) inkl. Sperre, Adapter-Unit type_cast,
+  Frontend Binding-Anlage + Umzugsdialog, Engine-E2E.
 
 B3 Ablauf-Editor reinitialize_when (BUG-03)
 - Editor zeigt nie einen Wert, der nicht im Dokument steht; fehlendes Pflichtfeld wird als leer + Fehler
