@@ -169,7 +169,7 @@ function ObjectRows({ value, onChange, pointer, label, depth }: { value: JsonObj
               set(entries.map(([k, v], i) => (i === index ? [to, v] : [k, v])));
             }}
           />
-          <ValueEditor value={entry} pointer={join(pointer, key)} label={uiText("editors.ValueEditor.v0_v1_a30df1", { v0: (label), v1: (key || '(leer)') })} allowedKinds={inner} expert={false} depth={depth + 1} onChange={(next) => set(entries.map(([k, v], i) => (i === index ? [k, next] : [k, v])))} />
+          <ValueEditor value={entry} pointer={join(pointer, key)} label={uiText("editors.ValueEditor.v0_v1_a30df1", { v0: (label), v1: (key || uiText("editors.ValueEditor.leer_ac5c66")) })} allowedKinds={inner} expert={false} depth={depth + 1} onChange={(next) => set(entries.map(([k, v], i) => (i === index ? [k, next] : [k, v])))} />
           <SmallButton label={uiText("editors.ValueEditor.eigenschaft_v0_entfernen_7fded9", { v0: (key || index + 1) })} onClick={() => set(entries.filter((_, i) => i !== index))}>
             <Trash2 size={14} />
           </SmallButton>

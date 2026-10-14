@@ -31,7 +31,7 @@ export function locateIssue(path: string, config: JsonObject | null | undefined)
   if (collection && COLLECTIONS[collection] && Number.isInteger(i)) {
     const item = asArray(config?.[collection]).filter(isObject)[i];
     const idKey = collection === 'sources' ? 'source_id' : collection === 'bindings' ? 'binding_id' : collection === 'catalogs' ? 'catalog_id' : 'dependency_id';
-    return { to: `/sources?tab=${COLLECTIONS[collection]!.tab}&item=${i}`, label: uiText("features.authoring.locate.v0_v1_24a420", { v0: (COLLECTIONS[collection]!.singular), v1: (item ? str(item[idKey]) : `#${i}`) }) };
+    return { to: `/sources?tab=${COLLECTIONS[collection]!.tab}&item=${i}`, label: uiText("features.authoring.locate.v0_v1_24a420", { v0: (COLLECTIONS[collection]!.singular), v1: (item ? str(item[idKey]) : uiText("features.authoring.locate.v0_cdb96d", { v0: (i) })) }) };
   }
   if (collection === 'contracts' && Number.isInteger(i)) {
     const contract = asArray(config?.contracts).filter(isObject)[i];

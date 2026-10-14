@@ -221,7 +221,7 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
               onClick={() =>
                 action(async () => {
                   const result = await setupRequest<{ tls_available: boolean }>('reachability', { ...connection, password: undefined }, csrf);
-                  setNotice(uiText("setup.SetupWizard.postgresql_erreichbar_tls_v0_version_und_zertifi_e4a728", { v0: (result.tls_available ? 'angeboten' : uiText("setup.SetupWizard.nicht_angeboten_4730a6")) }));
+                  setNotice(uiText("setup.SetupWizard.postgresql_erreichbar_tls_v0_version_und_zertifi_e4a728", { v0: (result.tls_available ? uiText("setup.SetupWizard.angeboten_b7e201") : uiText("setup.SetupWizard.nicht_angeboten_4730a6")) }));
                 })
               }
             >

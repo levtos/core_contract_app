@@ -18,3 +18,8 @@ test('protocol values, types, CSS and translated copy are excluded', () => {
 test('visible values are scanned while tab and option identities stay stable', () => {
   assert.deepEqual(candidates('const items = [{label: t("key"), value: "keine"}]; const tabs = [{label: t("key"), value: "state", content: <C />}]; const options = [{label: t("key"), value: "active", hint: t("hint")}];', 'screen.tsx').map(f => f.value), ['keine']);
 });
+
+test('single words in visible interpolation branches are scanned', () => {
+  const text = 'const message = uiText("key", { v0: (result.mode === "off" ? "angeboten" : codeLabel("unknown")) });';
+  assert.deepEqual(candidates(text, 'screen.tsx').map(f => f.value), ['angeboten']);
+});

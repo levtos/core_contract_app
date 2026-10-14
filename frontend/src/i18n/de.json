@@ -1825,5 +1825,13 @@
   "editors.SchemaForm.leer_null_ce1303": "leer (null)",
   "features.contracts.DefinitionDetailPage.deklarative_definition_07f53d": "Deklarative Vorlage",
   "features.sources.SourcesPage.neu_391955": "(neu)",
-  "draft.copyName": "{name} (Kopie)"
+  "draft.copyName": "{name} (Kopie)",
+  "editors.RegistryObjects.leer_ac5c66": "(leer)",
+  "editors.RuleEditor.v0_37b56e": " ({v0})",
+  "editors.RuleEditor.v0_8b43bb": " · {v0}",
+  "editors.ValueEditor.leer_ac5c66": "(leer)",
+  "features.authoring.locate.v0_cdb96d": "#{v0}",
+  "features.contracts.ContractDetailPage.contract_instanz_cda79d": "Vertrag",
+  "features.registry.DraftPage.veraltet_14c672": " (veraltet)",
+  "setup.SetupWizard.angeboten_b7e201": "angeboten"
 }

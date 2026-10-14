@@ -449,7 +449,7 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
               />
             )}
           </Fld>
-          <ValueEditor label={uiText("editors.RegistryObjects.wert_fur_v0_a5063f", { v0: (key || '(leer)') })} pointer={join(pointer, 'entries', key)} value={entry} onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))} />
+          <ValueEditor label={uiText("editors.RegistryObjects.wert_fur_v0_a5063f", { v0: (key || uiText("editors.RegistryObjects.leer_ac5c66")) })} pointer={join(pointer, 'entries', key)} value={entry} onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))} />
           <div className="pt-5">
             <IconButton label={uiText("editors.RegistryObjects.eintrag_entfernen_706a15")} tone="danger" onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
               <Trash2 size={14} />

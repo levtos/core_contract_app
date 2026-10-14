@@ -70,6 +70,8 @@ export function candidates(text, file = 'screen.tsx', jsxOnly = false) {
       if (jsxOnly) return;
       if (ts.isPropertyAssignment(context)) {
         const name = context.name.getText(source).replace(/['"]/g, '');
+        const call = context.parent.parent;
+        if (/^v\d+$/.test(name) && ts.isCallExpression(call) && ts.isIdentifier(call.expression) && ['t', 'uiText'].includes(call.expression.text)) { add(node, value, 'interpolation'); return; }
         if (name === 'error' && /^[a-z][a-z0-9]*_[a-z0-9_]+$/.test(value)) return; // response discriminator; translated when displayed
         if (name === 'value' && ts.isObjectLiteralExpression(context.parent) && context.parent.properties.every((p) => ts.isPropertyAssignment(p) && ['label', 'value'].includes(p.name.getText(source))) && context.parent.properties.some((p) => ts.isPropertyAssignment(p) && p.name.getText(source) === 'label')) { add(node, value, 'property'); return; }
         if (technicalAttributes.has(name) || ['kind', 'op', 'source_type', 'source_id', 'contract_id', 'binding_id', 'type_id', 'unit', 'reason', 'event', 'state', 'ref', 'target'].includes(name)) return;

@@ -66,7 +66,7 @@ export default function ContractDetailPage() {
       <BackLink />
       <PageHeader
         title={<span className="font-mono">{contractId}</span>}
-        description={uiText("features.contracts.ContractDetailPage.v0_v1_v_v2_610089", { v0: (str(contract.display_name) || 'Contract-Instanz'), v1: (str(contract.type_id)), v2: (String(contract.type_version)) })}
+        description={uiText("features.contracts.ContractDetailPage.v0_v1_v_v2_610089", { v0: (str(contract.display_name) || uiText("features.contracts.ContractDetailPage.contract_instanz_cda79d")), v1: (str(contract.type_id)), v2: (String(contract.type_version)) })}
         actions={
           <>
             <Badge tone={enabled ? 'accent' : 'neutral'}>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>

@@ -170,7 +170,7 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
         </button>
         {label && <span className="text-xs font-medium text-muted">{label}</span>}
         <Select
-          aria-label={uiText("editors.RuleEditor.operator_v0_e1f310", { v0: (label ? ` (${label})` : '') })}
+          aria-label={uiText("editors.RuleEditor.operator_v0_e1f310", { v0: (label ? uiText("editors.RuleEditor.v0_37b56e", { v0: (label) }) : '') })}
           className="h-8 w-auto min-w-44 text-xs"
           value={op}
           disabled={env.locked}
@@ -312,7 +312,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       const current = str(value.name);
       const declared = ctx.inputs.find((i) => i.name === current);
       return (
-        <Fld label={uiText("editors.RuleEditor.eingang_d8af5e")} pointer={join(pointer, 'name')} hint={declared ? uiText("editors.RuleEditor.typ_v0_v1_e5ef47", { v0: (declared.schema.type), v1: (declared.schema.unit ? ` · ${String(declared.schema.unit)}` : '') }) : uiText("editors.RuleEditor.dieser_name_ist_in_der_definition_nicht_als_eing_bd4b8c")}>
+        <Fld label={uiText("editors.RuleEditor.eingang_d8af5e")} pointer={join(pointer, 'name')} hint={declared ? uiText("editors.RuleEditor.typ_v0_v1_e5ef47", { v0: (declared.schema.type), v1: (declared.schema.unit ? uiText("editors.RuleEditor.v0_8b43bb", { v0: (String(declared.schema.unit)) }) : '') }) : uiText("editors.RuleEditor.dieser_name_ist_in_der_definition_nicht_als_eing_bd4b8c")}>
           {(p) => (
             <Select {...p} value={current} onChange={(e) => set({ name: e.target.value })}>
               {!names.includes(current) && <option value={current}>{current || uiText("editors.RuleEditor.wahlen_602246")}</option>}
@@ -440,7 +440,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       return (
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Fld label={uiText("editors.RuleEditor.formel_244289")} pointer={join(pointer, 'name')} hint={selected ? uiText("editors.RuleEditor.eingange_v0_v1_v2_cd9f97", { v0: (selected.input_schema.type), v1: (selected.input_schema.unit ? ` (${String(selected.input_schema.unit)})` : ''), v2: (selected.output_schema.type) }) : undefined}>
+            <Fld label={uiText("editors.RuleEditor.formel_244289")} pointer={join(pointer, 'name')} hint={selected ? uiText("editors.RuleEditor.eingange_v0_v1_v2_cd9f97", { v0: (selected.input_schema.type), v1: (selected.input_schema.unit ? uiText("editors.RuleEditor.v0_37b56e", { v0: (String(selected.input_schema.unit)) }) : ''), v2: (selected.output_schema.type) }) : undefined}>
               {(p) => (
                 <Select
                   {...p}

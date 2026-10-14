@@ -123,7 +123,7 @@ export default function DraftPage() {
               {validation.state === 'done' && validation.issues.length === 0 && <Notice tone="ok" title={uiText("features.registry.DraftPage.keine_fehler_gefunden_0d9c76")}>{uiText("features.registry.DraftPage.der_stand_ist_strukturell_und_semantisch_gultig_a85b70")}{validation.stale ? uiText("features.registry.DraftPage.prufung_vor_der_letzten_anderung_5a34c1") : ''}.</Notice>}
               {validation.issues.length > 0 && (
                 <>
-                  <Notice tone="bad" title={uiText("features.registry.DraftPage.v0_fehler_v1_bffe5e", { v0: (validation.issues.length), v1: (validation.stale ? ' (veraltet)' : '') })}>{uiText("features.registry.DraftPage.jeder_eintrag_verweist_auf_das_betroffene_objekt_8d552f")}</Notice>
+                  <Notice tone="bad" title={uiText("features.registry.DraftPage.v0_fehler_v1_bffe5e", { v0: (validation.issues.length), v1: (validation.stale ? uiText("features.registry.DraftPage.veraltet_14c672") : '') })}>{uiText("features.registry.DraftPage.jeder_eintrag_verweist_auf_das_betroffene_objekt_8d552f")}</Notice>
                   <IssueList issues={validation.issues} config={config} />
                 </>
               )}
