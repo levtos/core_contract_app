@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0a6 — UX12-Korrekturen (vorbereitet, 2026-10-15)
+
+- Korrekte HA-/Bridge-Statusanzeige, historische Typ-/Einheitssperre und ausdrückliche
+  HA-Typumwandlung samt Reparaturknopf und Prüfung.
+- Datengestützte Ablauf-Wiederherstellung und verständliche Diagnose; manueller Neustart
+  ausschließlich als ADR-Entwurf, keine Implementierung.
+- Dialoge, Entwurfskonflikte, Assistent, Grenzwerte, Meldungen, Logs und Zahlenanzeige korrigiert.
+- Deutsche Oberfläche über de.json, Terra/Einstellungen und Sprachprüfungen in CI.
+- [Alpha-6-Notiz](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a6.md).
+  Kein Merge/Release/Publishing/Deployment/DB-Reset ohne Bennis Go; Live-Abnahme offen.
+
 ## 1.0.0a5 — Terra Workbench (2026-10-14)
 
 - React 19 administration UI with graphical Alpha-4 editors, Registry Studio, graph, diagnostics and administration.

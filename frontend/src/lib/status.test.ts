@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { classifySystem, displayValue, overallState } from './status';
+import { classifySystem, connectionLabel, displayValue, overallState } from './status';
 import type { FieldValue, ServiceState } from './types';
 
 const healthy: ServiceState = { ready: true, publication_confirmed: true, persistence: 'available', ha: 'connected', bridge: 'connected', mqtt: 'disabled', reasons: [] };
 const kinds = (input: Parameters<typeof classifySystem>[0]) => classifySystem(input).map((c) => c.kind);
 
 describe('system conditions are named separately', () => {
+  it('does not warn about an unneeded HA connection', () => {
+    const service = { ...healthy, ha: 'not_needed', bridge: 'not_needed' };
+    expect(kinds({ service, connection: 'open', hasActiveRegistry: true })).toEqual([]);
+    expect(connectionLabel(service.ha)).toBe('wird nicht gebraucht');
+  });
   it('empty configuration is informational, not a fault', () => {
     const result = classifySystem({ service: { ...healthy, ready: false, reasons: ['no_active_registry'] }, connection: 'open', hasActiveRegistry: false });
     expect(result.map((c) => c.kind)).toEqual(['empty_configuration']);
@@ -34,7 +39,7 @@ describe('system conditions are named separately', () => {
 
 describe('field presentation', () => {
   const base: FieldValue = { status: 'valid', value: false, quality: 'healthy', reasons: [], evidence: [] };
-  it('shows a real false as false', () => expect(displayValue(base)).toBe('false'));
+  it('shows a real false as Nein', () => expect(displayValue(base)).toBe('Nein'));
   it('never renders unknown as false/off', () => {
     expect(displayValue({ ...base, status: 'unknown', value: null, quality: 'degraded' })).toBe('unbekannt');
     expect(displayValue({ ...base, status: 'unresolved', value: null, quality: 'degraded' })).toBe('ungelöst');

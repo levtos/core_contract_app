@@ -1,7 +1,7 @@
-name: Core Contracts
-version: 1.0.0a5
+name: Terra
+version: 1.0.0a6
 slug: core_contracts
-description: Generic contract platform, Platform Alpha 1
+description: Generische Vertragsplattform, Alpha 6
 url: https://github.com/Levtos/core_contract_app
 arch: [amd64, aarch64]
 startup: services

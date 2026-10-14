@@ -135,7 +135,7 @@ async def test_chain_revision_rollback_disabled_and_multistage_cycle(runtime, co
     assert runtime.snapshot() == before
     cyclic = copy.deepcopy(config)
     cyclic["contracts"][0]["inputs"][0]["ref"] = "fixture.stable"
-    with pytest.raises(ValueError, match="cycle"):
+    with pytest.raises(ValueError, match="Kreis"):
         validate(cyclic, runtime.types)
     config["contracts"][1]["parameters"] = dict(operator="or")
     await activate(runtime, config)
@@ -729,6 +729,9 @@ def test_generic_transforms(config, transform, value, expected):
     from core_contracts.adapters.ha import transform as apply
 
     config["bindings"][0]["transform"] = transform
+    config["sources"][0]["source_type"] = {"bool": "boolean", "number": "numeric", "text": "text"}[
+        transform.get("target", "number")
+    ]
     document = validate(config, type_registry())
     assert apply(value, document.bindings[0], document) == expected
 
@@ -825,6 +828,7 @@ def test_numeric_transform_rejects_nonfinite_json_values(config, raw):
     from core_contracts.adapters.ha import transform
 
     config["bindings"][0]["transform"] = dict(kind="type_cast", target="number")
+    config["sources"][0]["source_type"] = "numeric"
     parsed = validate(config, type_registry())
     with pytest.raises(ValueError, match="non-finite"):
         transform(raw, parsed.bindings[0], parsed)

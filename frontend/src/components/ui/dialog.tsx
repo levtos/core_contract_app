@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { AlertDialog } from '@base-ui/react/alert-dialog';
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
@@ -28,19 +29,19 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
             widths[size],
           )}
         >
-          <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+          <header className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-5 py-4">
             <div className="min-w-0">
               <BaseDialog.Title className="text-base font-semibold">{title}</BaseDialog.Title>
               {description && (
                 <BaseDialog.Description className="mt-1 text-sm text-muted">{description}</BaseDialog.Description>
               )}
             </div>
-            <BaseDialog.Close render={<Button variant="ghost" size="icon" aria-label="Schließen" />}>
+            <BaseDialog.Close render={<Button variant="ghost" size="icon" aria-label={uiText("components.ui.dialog.schlie_en_b808f6")} />}>
               <X size={16} />
             </BaseDialog.Close>
           </header>
           <div className="min-h-0 flex-1 overflow-auto px-5 py-4">{children}</div>
-          {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</footer>}
+          {footer && <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-line bg-panel px-5 py-3">{footer}</footer>}
         </BaseDialog.Popup>
       </BaseDialog.Portal>
     </BaseDialog.Root>
@@ -87,8 +88,7 @@ export function ConfirmDialog({
           </div>
           <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
             <AlertDialog.Close render={<Button variant="secondary" />} autoFocus>
-              Abbrechen
-            </AlertDialog.Close>
+              {uiText("components.ui.dialog.abbrechen_f7ff11")}</AlertDialog.Close>
             <Button variant={tone === 'danger' ? 'danger' : 'primary'} disabled={busy || confirmDisabled} onClick={onConfirm}>
               {confirmLabel}
             </Button>

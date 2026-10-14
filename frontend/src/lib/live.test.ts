@@ -127,7 +127,7 @@ describe('live protocol', () => {
     current().open();
     current().receive({ type: 'welcome' });
     current().receive(snapshot(9, 'e2'));
-    expect(store.getSnapshot()).toMatchObject({ connection: 'open', stale: false, publicationSeq: 9, epochId: 'e2' });
+    expect(store.getSnapshot()).toMatchObject({ connection: 'open', stale: false, publicationSeq: 9, epochId: 'e2', resyncCount: 1 });
   });
 
   it('backs off progressively while the service stays down', () => {

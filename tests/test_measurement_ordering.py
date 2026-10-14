@@ -75,7 +75,7 @@ async def test_new_device_observation_after_ha_unavailable_is_accepted(runtime, 
         [fresh] if kind == "snapshot" else fresh,
     )
     assert field(runtime)["status"] == "valid"
-    assert field(runtime)["value"] == "on"
+    assert field(runtime)["value"] is True
     assert field(runtime)["measured_at"] == fresh.model_dump(mode="json")["device_time"]
     assert runtime.state.tables["source_observation_current"]["binding.a"] == (
         fresh.storage_document()

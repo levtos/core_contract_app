@@ -48,7 +48,17 @@ def definition(rule=None):
 def registry(config, data):
     config["fingerprint_version"] = 2
     config["definitions"] = [data]
-    config["sources"][0]["value_schema"] = schema()
+    input_schema = data["inputs"][0]["schema"]
+    config["sources"][0]["value_schema"] = input_schema.copy()
+    config["sources"][0]["source_type"] = {
+        "bool": "boolean",
+        "number": "numeric",
+        "text": "text",
+    }.get(input_schema["type"], "state")
+    if input_schema["type"] in {"bool", "number", "text"}:
+        config["bindings"][0]["transform"] = dict(kind="type_cast", target=input_schema["type"])
+    else:
+        config["bindings"][0].pop("transform", None)
     config["contracts"][0].update(type_id=data["type_id"], type_version=data["type_version"])
     return config
 
@@ -92,6 +102,7 @@ def test_liveness_fingerprint_propagation_and_cycle_rejection(config):
             "binding_id": "binding.monitor",
             "source_id": "source.monitor",
             "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.monitor"},
+            "transform": {"kind": "type_cast", "target": "bool"},
         }
     )
     config["sources"][0]["freshness"] = {
@@ -307,6 +318,8 @@ async def test_remaining_temporal_and_bucket_operations(runtime, config):
         ),
     }
     registry(config, data)["sources"][0]["value_schema"] = schema("number")
+    config["sources"][0]["source_type"] = "numeric"
+    config["bindings"][0]["transform"] = dict(kind="type_cast", target="number")
     await activate(runtime, config)
     await runtime.submit("observation", observation(runtime, 6))
     assert field(runtime)["value"] is True
@@ -431,8 +444,11 @@ def test_registry_types_isolated_and_legacy_fingerprints(config):
     validate(registry(config, definition()), types)
     assert ("test.declarative", 1) not in types.types
     config["sources"][0]["value_schema"] = schema("number")
-    with pytest.raises(ValueError, match="input_type_mismatch"):
+    from core_contracts.validation import RegistryValidationError
+
+    with pytest.raises(RegistryValidationError) as error:
         validate(config, types)
+    assert "input_type_mismatch" in {issue.code for issue in error.value.issues}
 
 
 def test_released_alpha3_acceptance_registry_fingerprint_vectors():

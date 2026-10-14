@@ -1,8 +1,10 @@
+import { codeLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/controls';
+import { Collapsible, Switch } from '@/components/ui/controls';
 import { Dialog } from '@/components/ui/dialog';
 import { Input, Select, Textarea } from '@/components/ui/form';
 import { Notice, Spinner } from '@/components/ui/layout';
@@ -35,33 +37,33 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
   const needsSource = requiredWhen(schema, 'Dependency', 'monitor', str(value.monitor)).includes('source_id') || value.monitor === 'source';
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Fld label="Dependency-ID" pointer={join(pointer, 'dependency_id')}>
+      <Fld label={uiText("editors.RegistryObjects.dependency_id_62578d")} pointer={join(pointer, 'dependency_id')}>
         {(p) => <Input {...p} value={str(value.dependency_id)} onChange={(e) => set({ dependency_id: e.target.value })} />}
       </Fld>
-      <Fld label="Art" pointer={join(pointer, 'kind')}>
+      <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(pointer, 'kind')}>
         {(p) => (
           <Select {...p} value={str(value.kind)} onChange={(e) => set({ kind: e.target.value })}>
             {enumAt(schema, 'Dependency', 'kind', ['ha', 'mqtt', 'other']).map((k) => (
-              <option key={k} value={k}>{k}</option>
+              <option key={k} value={k}>{codeLabel(k)}</option>
             ))}
           </Select>
         )}
       </Fld>
-      <Fld label="Überwachung" pointer={join(pointer, 'monitor')} hint="internal: die App überwacht selbst; source: eine Quelle meldet die Erreichbarkeit.">
+      <Fld label={uiText("editors.RegistryObjects.uberwachung_93542e")} pointer={join(pointer, 'monitor')} hint={uiText("editors.RegistryObjects.internal_die_app_uberwacht_selbst_source_eine_qu_135fdc")}>
         {(p) => (
           <Select {...p} value={str(value.monitor)} onChange={(e) => set({ monitor: e.target.value, ...(e.target.value === 'internal' ? { source_id: undefined } : {}) })}>
             {enumAt(schema, 'Dependency', 'monitor', ['internal', 'source']).map((k) => (
-              <option key={k} value={k}>{k}</option>
+              <option key={k} value={k}>{codeLabel(k)}</option>
             ))}
           </Select>
         )}
       </Fld>
       <div className="sm:col-span-2"><Extras def="Dependency" value={value} pointer={pointer} onChange={onChange} /></div>
       {needsSource && (
-        <Fld label="Überwachende Quelle" pointer={join(pointer, 'source_id')}>
+        <Fld label={uiText("editors.RegistryObjects.uberwachende_quelle_4f9c7d")} pointer={join(pointer, 'source_id')}>
           {(p) => (
             <Select {...p} value={str(value.source_id)} onChange={(e) => set({ source_id: e.target.value })}>
-              <option value="">— wählen —</option>
+              <option value="">{uiText("editors.RegistryObjects.wahlen_602246")}</option>
               {sourceIds.map((id) => (
                 <option key={id} value={id}>{id}</option>
               ))}
@@ -75,7 +77,7 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
 
 /* ─────────────────────────────── Source ─────────────────────────────── */
 
-export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; schema?: JsonSchema }) {
+export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; schema?: JsonSchema }) {
   const set = patcher(value, onChange);
   const freshness = asObject(value.freshness);
   const mode = str(freshness.mode);
@@ -89,35 +91,39 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
     onChange({ ...value, freshness: next });
   };
   const hasSchema = value.value_schema !== undefined && value.value_schema !== null;
+  const userType = asObject(value.value_schema).type === 'enum' ? 'selection' : str(value.source_type);
   const fp = join(pointer, 'freshness');
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Fld label="Source-ID" pointer={join(pointer, 'source_id')} hint="Beginnt mit „source.“">
+        <Fld label={uiText("editors.RegistryObjects.source_id_a3a484")} pointer={join(pointer, 'source_id')} hint={uiText("editors.RegistryObjects.beginnt_mit_source_ea3ff7")}>
           {(p) => <Input {...p} value={str(value.source_id)} onChange={(e) => set({ source_id: e.target.value })} />}
         </Fld>
-        <Fld label="Anzeigename" pointer={join(pointer, 'display_name')}>
+        <Fld label={uiText("editors.RegistryObjects.anzeigename_3ab2ea")} pointer={join(pointer, 'display_name')}>
           {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value })} />}
         </Fld>
-        <Fld label="Typ" pointer={join(pointer, 'source_type')}>
+        <Fld label={uiText("editors.RegistryObjects.typ_1b0241")} pointer={join(pointer, 'source_type')}>
           {(p) => (
-            <Select {...p} value={str(value.source_type)} onChange={(e) => set({ source_type: e.target.value })}>
-              {enumAt(schema, 'Source', 'source_type', ['state', 'attribute', 'event', 'numeric', 'text', 'boolean']).map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
+            <Select {...p} value={userType} onChange={(e) => {
+              const type = e.target.value;
+              const fieldType = ({ numeric: 'number', boolean: 'bool', text: "text", selection: 'enum' } as const)[type as 'numeric' | 'boolean' | 'text' | 'selection'];
+              set({ source_type: type === 'selection' ? 'state' : type, ...(hasSchema || type === 'selection' ? { value_schema: { ...asObject(value.value_schema), ...newFieldSchema(fieldType) } } : {}) });
+            }}>
+              <option value="numeric">{uiText("editors.RegistryObjects.zahl_654eb4")}</option><option value="boolean">{uiText("editors.RegistryObjects.ja_nein_0d2c61")}</option><option value="text">{uiText("editors.RegistryObjects.text_71988c")}</option><option value="selection">{uiText("editors.RegistryObjects.auswahl_e8b7ad")}</option>
+              {!['numeric', 'boolean', 'text', 'selection'].includes(userType) && <option value={userType}>{codeLabel(userType)}</option>}
             </Select>
           )}
         </Fld>
-        <Fld label="Herkunft" pointer={join(pointer, 'source_origin')} hint="z. B. local">
+        <Fld label={uiText("editors.RegistryObjects.herkunft_514fce")} pointer={join(pointer, 'source_origin')} hint={uiText("editors.RegistryObjects.z_b_local_f170b9")}>
           {(p) => <Input {...p} value={str(value.source_origin)} onChange={(e) => set({ source_origin: e.target.value })} />}
         </Fld>
-        <Fld label="Physischer Schlüssel" pointer={join(pointer, 'physical_source_key')} hint="Identität der physischen Messung; verhindert doppelte Evidenz.">
+        <Fld label={uiText("editors.RegistryObjects.physischer_schlussel_36a2c7")} pointer={join(pointer, 'physical_source_key')} hint={uiText("editors.RegistryObjects.identitat_der_physischen_messung_verhindert_dopp_afdbad")}>
           {(p) => <Input {...p} value={str(value.physical_source_key)} onChange={(e) => set({ physical_source_key: e.target.value })} />}
         </Fld>
-        <Fld label="Dependency" pointer={join(pointer, 'dependency_id')}>
+        <Fld label={uiText("editors.RegistryObjects.dependency_711595")} pointer={join(pointer, 'dependency_id')}>
           {(p) => (
             <Select {...p} value={str(value.dependency_id)} onChange={(e) => set({ dependency_id: e.target.value })}>
-              {!dependencyIds.includes(str(value.dependency_id)) && <option value={str(value.dependency_id)}>{str(value.dependency_id) || '— wählen —'}</option>}
+              {!dependencyIds.includes(str(value.dependency_id)) && <option value={str(value.dependency_id)}>{str(value.dependency_id) || uiText("editors.RegistryObjects.wahlen_602246")}</option>}
               {dependencyIds.map((id) => (
                 <option key={id} value={id}>{id}</option>
               ))}
@@ -126,11 +132,17 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         </Fld>
       </div>
 
+      <Collapsible title={uiText("editors.RegistryObjects.erweitert_25e56e")}>
+        <Fld label={uiText("editors.RegistryObjects.technische_quellenart_e949b0")} pointer={join(pointer, 'source_type')}>
+          {(p) => <Select {...p} value={str(value.source_type)} onChange={(e) => set({ source_type: e.target.value })}>{enumAt(schema, 'Source', 'source_type', ['state', 'attribute', 'event', 'numeric', 'text', 'boolean']).map((k) => <option key={k} value={k}>{codeLabel(k)}</option>)}</Select>}
+        </Fld>
+      </Collapsible>
+
       <section className="flex flex-col gap-3">
-        <SectionTitle>Frische (Freshness)</SectionTitle>
+        <SectionTitle>{uiText("editors.RegistryObjects.frische_freshness_be29ab")}</SectionTitle>
         <IssuesAt pointer={fp} />
         <div className="grid gap-3 sm:grid-cols-4">
-          <Fld label="Modus" pointer={join(fp, 'mode')} className="sm:col-span-2">
+          <Fld label={uiText("editors.RegistryObjects.modus_45517c")} pointer={join(fp, 'mode')} className="sm:col-span-2">
             {(p) => (
                <Select {...p} value={mode} onChange={(e) => {
                  const nextMode = e.target.value;
@@ -138,35 +150,35 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
                  setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s === undefined ? { interval_s: 60 } : {}) });
                }}>
                 {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).map((k) => (
-                  <option key={k} value={k}>{k}</option>
+                  <option key={k} value={k}>{codeLabel(k)}</option>
                 ))}
               </Select>
             )}
           </Fld>
-          <NumberField label="Zukunftstoleranz (s)" pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
+          <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
           {(required.includes('interval_s') || freshness.interval_s !== undefined) && (
-            <NumberField label={`Intervall (s)${required.includes('interval_s') ? ' *' : ''}`} pointer={join(fp, 'interval_s')} min={0} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
+            <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: (required.includes('interval_s') ? ' *' : '') })} pointer={join(fp, 'interval_s')} min={0} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
           )}
         </div>
         {(required.includes('liveness_source') || freshness.liveness_source !== undefined) && (
-          <Fld label="Liveness-Quelle *" pointer={join(fp, 'liveness_source')}>
+          <Fld label={uiText("editors.RegistryObjects.liveness_quelle_66259e")} pointer={join(fp, 'liveness_source')}>
             {(p) => (
               <Select {...p} value={str(freshness.liveness_source)} onChange={(e) => setFreshness({ liveness_source: e.target.value })}>
-                <option value="">— wählen —</option>
-                {sourceIds.filter((id) => id !== str(value.source_id)).map((id) => (
+                <option value="">{uiText("editors.RegistryObjects.wahlen_602246")}</option>
+                {livenessSourceIds.filter((id) => id !== str(value.source_id)).map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
               </Select>
             )}
           </Fld>
         )}
-        {mode === 'event_stateful' && <p className="text-xs text-muted">Zustandsbasiert: gilt, bis ein neues Ereignis eintrifft; kein Intervall nötig.</p>}
+        {mode === 'event_stateful' && <p className="text-xs text-muted">{uiText("editors.RegistryObjects.zustandsbasiert_gilt_bis_ein_neues_ereignis_eint_8c5c3d")}</p>}
         <Extras def="Freshness" value={freshness} pointer={fp} onChange={(next) => onChange({ ...value, freshness: next })} />
       </section>
 
       <section className="flex flex-col gap-2">
-        <Switch checked={hasSchema} onCheckedChange={(on) => set({ value_schema: on ? newFieldSchema('number') : undefined })} label="Eigenes Wertschema deklarieren (value_schema)" />
-        <p className="text-xs text-muted">Quellen der Typen boolean/numeric/text haben ihren Eingangstyp bereits; andere benötigen ein Wertschema, bevor sie einen typisierten Eingang speisen.</p>
+        <Switch checked={hasSchema} onCheckedChange={(on) => set({ value_schema: on ? newFieldSchema(value.source_type === 'boolean' ? 'bool' : value.source_type === 'text' ? 'text' : 'number') : undefined })} label={uiText("editors.RegistryObjects.eigenes_wertschema_deklarieren_value_schema_82fd15")} />
+        <p className="text-xs text-muted">{uiText("editors.RegistryObjects.quellen_der_typen_boolean_numeric_text_haben_ihr_e970bc")}</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
       </section>
       <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
@@ -176,10 +188,17 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
 
 /* ─────────────────────────────── Binding ────────────────────────────── */
 
-export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds, schema, onPickEntity }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; sourceIds: string[]; catalogIds: string[]; schema?: JsonSchema; onPickEntity: (apply: (entityId: string, attributes: string[]) => void) => void }) {
+export function sourceCast(source: JsonObject | undefined): JsonObject | undefined {
+  const type = str(asObject(source?.value_schema).type) || ({ numeric: 'number', boolean: 'bool', text: "text" } as Record<string, string>)[str(source?.source_type)];
+  return type === 'number' || type === 'bool' || type === 'text' ? { kind: 'type_cast', target: type } : undefined;
+}
+
+export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [], catalogIds, schema, onPickEntity }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; sourceIds: string[]; sources?: JsonObject[]; catalogIds: string[]; schema?: JsonSchema; onPickEntity: (apply: (entityId: string, attributes: string[]) => void) => void }) {
   const set = patcher(value, onChange);
   const adapter = asObject(value.adapter);
   const kind = str(adapter.kind);
+  const castFor = (id: string) => sourceCast(sources.find((s) => s.source_id === id));
+  const cast = castFor(str(value.source_id));
   const required = requiredWhen(schema, 'AdapterConfig', 'kind', kind);
   const ap = join(pointer, 'adapter');
   const setAdapter = (patch: Record<string, Json | undefined>) => {
@@ -199,79 +218,79 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Fld label="Binding-ID" pointer={join(pointer, 'binding_id')}>
+        <Fld label={uiText("editors.RegistryObjects.binding_id_45ba45")} pointer={join(pointer, 'binding_id')}>
           {(p) => <Input {...p} value={str(value.binding_id)} onChange={(e) => set({ binding_id: e.target.value })} />}
         </Fld>
-        <Fld label="Quelle" pointer={join(pointer, 'source_id')}>
+        <Fld label={uiText("editors.RegistryObjects.quelle_037889")} pointer={join(pointer, 'source_id')}>
           {(p) => (
-            <Select {...p} value={str(value.source_id)} onChange={(e) => set({ source_id: e.target.value })}>
-              {!sourceIds.includes(str(value.source_id)) && <option value={str(value.source_id)}>{str(value.source_id) || '— wählen —'}</option>}
+            <Select {...p} value={str(value.source_id)} onChange={(e) => set({ source_id: e.target.value, ...(kind.startsWith('ha_') ? { transform: castFor(e.target.value) } : {}) })}>
+              {!sourceIds.includes(str(value.source_id)) && <option value={str(value.source_id)}>{str(value.source_id) || uiText("editors.RegistryObjects.wahlen_602246")}</option>}
               {sourceIds.map((id) => (
                 <option key={id} value={id}>{id}</option>
               ))}
             </Select>
           )}
         </Fld>
-        <Fld label="Anzeigename" pointer={join(pointer, 'display_name')}>
+        <Fld label={uiText("editors.RegistryObjects.anzeigename_3ab2ea")} pointer={join(pointer, 'display_name')}>
           {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value })} />}
         </Fld>
       </div>
 
       <section className="flex flex-col gap-3">
-        <SectionTitle>Adapter</SectionTitle>
+        <SectionTitle>{uiText("editors.RegistryObjects.adapter_0252b8")}</SectionTitle>
         <IssuesAt pointer={ap} />
-        <Fld label="Art" pointer={join(ap, 'kind')} className="max-w-xs">
+        <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(ap, 'kind')} className="max-w-xs">
           {(p) => (
             <Select {...p} value={kind} onChange={(e) => setAdapter({ kind: e.target.value })}>
-              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'mqtt', 'scheduler']).map((k) => (
-                <option key={k} value={k}>{k}</option>
+              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'mqtt']).filter((k) => k !== 'scheduler').map((k) => (
+                <option key={k} value={k}>{codeLabel(k)}</option>
               ))}
             </Select>
           )}
         </Fld>
         {ha && (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Fld label="HA-Entität *" pointer={join(ap, 'ha_entity_id')} hint="Auswahl über die schreibgeschützte HA-Erkennung oder direkte Eingabe.">
+            <Fld label={uiText("editors.RegistryObjects.ha_entitat_96b970")} pointer={join(ap, 'ha_entity_id')} hint={uiText("editors.RegistryObjects.auswahl_uber_die_schreibgeschutzte_ha_erkennung__c0d877")}>
               {(p) => (
                 <div className="flex gap-2">
-                  <Input {...p} className="font-mono text-xs" value={str(adapter.ha_entity_id)} placeholder="sensor.beispiel" onChange={(e) => setAdapter({ ha_entity_id: e.target.value })} />
-                  <Button variant="outline" aria-label="HA-Entität auswählen" onClick={() => onPickEntity((entity, attributes) => setAdapter({ ha_entity_id: entity, ...(kind === 'ha_attribute' && attributes.length && !attributes.includes(str(adapter.ha_attribute)) ? { ha_attribute: undefined } : {}) }))}>
-                    <Search size={14} /> Wählen
-                  </Button>
+                  <Input {...p} className="font-mono text-xs" value={str(adapter.ha_entity_id)} placeholder={uiText("editors.RegistryObjects.sensor_beispiel_be295b")} onChange={(e) => setAdapter({ ha_entity_id: e.target.value })} />
+                  <Button variant="outline" aria-label={uiText("editors.RegistryObjects.ha_entitat_auswahlen_bed2ae")} onClick={() => onPickEntity((entity, attributes) => setAdapter({ ha_entity_id: entity, ...(kind === 'ha_attribute' && attributes.length && !attributes.includes(str(adapter.ha_attribute)) ? { ha_attribute: undefined } : {}) }))}>
+                    <Search size={14} /> {uiText("editors.RegistryObjects.wahlen_eda09c")}</Button>
                 </div>
               )}
             </Fld>
             {(kind === 'ha_attribute' || required.includes('ha_attribute')) && (
-              <Fld label="Attribut *" pointer={join(ap, 'ha_attribute')}>
+              <Fld label={uiText("editors.RegistryObjects.attribut_ac1f2f")} pointer={join(ap, 'ha_attribute')}>
                 {(p) => <Input {...p} className="font-mono text-xs" value={str(adapter.ha_attribute)} onChange={(e) => setAdapter({ ha_attribute: e.target.value })} />}
               </Fld>
             )}
-            <Fld label="Zeit-Attribut (optional)" pointer={join(ap, 'ha_time_attribute')} hint="Attribut mit dem Messzeitpunkt, falls vorhanden.">
+            <Fld label={uiText("editors.RegistryObjects.zeit_attribut_optional_6aedff")} pointer={join(ap, 'ha_time_attribute')} hint={uiText("editors.RegistryObjects.attribut_mit_dem_messzeitpunkt_falls_vorhanden_296ae8")}>
               {(p) => <Input {...p} className="font-mono text-xs" value={str(adapter.ha_time_attribute)} onChange={(e) => setAdapter({ ha_time_attribute: e.target.value })} />}
             </Fld>
           </div>
         )}
         {kind === 'mqtt' && (
           <div className="grid gap-3 sm:grid-cols-3">
-            <Fld label="Topic *" pointer={join(ap, 'mqtt_topic')}>
+            <Fld label={uiText("editors.RegistryObjects.topic_7b08c3")} pointer={join(ap, 'mqtt_topic')}>
               {(p) => <Input {...p} className="font-mono text-xs" value={str(adapter.mqtt_topic)} onChange={(e) => setAdapter({ mqtt_topic: e.target.value })} />}
             </Fld>
-            <Fld label="Wertpfad (optional)" pointer={join(ap, 'mqtt_value_path')} hint="Pfad im JSON-Payload">
+            <Fld label={uiText("editors.RegistryObjects.wertpfad_optional_bf35e4")} pointer={join(ap, 'mqtt_value_path')} hint={uiText("editors.RegistryObjects.pfad_im_json_payload_5eecf1")}>
               {(p) => <Input {...p} className="font-mono text-xs" value={str(adapter.mqtt_value_path)} onChange={(e) => setAdapter({ mqtt_value_path: e.target.value })} />}
             </Fld>
-            <Fld label="Zeitpfad (optional)" pointer={join(ap, 'mqtt_time_path')}>
+            <Fld label={uiText("editors.RegistryObjects.zeitpfad_optional_790a47")} pointer={join(ap, 'mqtt_time_path')}>
               {(p) => <Input {...p} className="font-mono text-xs" value={str(adapter.mqtt_time_path)} onChange={(e) => setAdapter({ mqtt_time_path: e.target.value })} />}
             </Fld>
           </div>
         )}
         <Extras def="AdapterConfig" value={adapter} pointer={ap} onChange={(next) => onChange({ ...value, adapter: next })} />
-        {kind === 'scheduler' && <p className="text-xs text-muted">Der Scheduler ist kein Quellen-Adapter und wird vom Server abgelehnt, sofern er als Binding verwendet wird.</p>}
+        {kind === 'scheduler' && <p className="text-xs text-muted">{uiText("editors.RegistryObjects.der_scheduler_ist_kein_quellen_adapter_und_wird__39b766")}</p>}
       </section>
 
       <section className="flex flex-col gap-3">
-        <SectionTitle>Transformation</SectionTitle>
+        <SectionTitle>{uiText("editors.RegistryObjects.transformation_cf2a63")}</SectionTitle>
+        {ha && !transform && cast && <Button size="sm" onClick={() => setTransform(cast)}>{uiText("editors.RegistryObjects.umwandlung_erganzen_bb9be5")}</Button>}
         <IssuesAt pointer={tp} />
-        <Fld label="Transformation" pointer={join(tp, 'kind')} className="max-w-xs">
+        <Fld label={uiText("editors.RegistryObjects.transformation_cf2a63")} pointer={join(tp, 'kind')} className="max-w-xs">
           {(p) => (
             <Select
               {...p}
@@ -279,22 +298,22 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
               onChange={(e) => {
                 const k = e.target.value;
                 if (!k) return setTransform(undefined);
-                setTransform({ ...transform, ...(k === 'type_cast' ? { kind: k, target: 'number' } : k === 'unit_scale' ? { kind: k, factor: 1, offset: 0 } : { kind: k, catalog_id: catalogIds[0] ?? '' }) });
+                setTransform({ ...transform, ...(k === 'type_cast' ? (cast ?? { kind: k, target: 'text' }) : k === 'unit_scale' ? { kind: k, factor: 1, offset: 0 } : { kind: k, catalog_id: catalogIds[0] ?? '' }) });
               }}
             >
-              <option value="">keine</option>
+              <option value="">{uiText("editors.RegistryObjects.keine_db028e")}</option>
               {enumAt(schema, 'Transform', 'kind', ['type_cast', 'unit_scale', 'map_ref']).map((k) => (
-                <option key={k} value={k}>{k === 'type_cast' ? 'Typumwandlung' : k === 'unit_scale' ? 'Einheit skalieren' : 'Katalog-Zuordnung'}</option>
+                <option key={k} value={k}>{k === 'type_cast' ? uiText("editors.RegistryObjects.typumwandlung_8e7b19") : k === 'unit_scale' ? uiText("editors.RegistryObjects.einheit_skalieren_f57b15") : uiText("editors.RegistryObjects.katalog_zuordnung_b96c20")}</option>
               ))}
             </Select>
           )}
         </Fld>
         {transform && transformKind === 'type_cast' && (
-          <Fld label="Zieltyp" pointer={join(tp, 'target')} className="max-w-xs">
+          <Fld label={uiText("editors.RegistryObjects.zieltyp_46a669")} pointer={join(tp, 'target')} className="max-w-xs">
             {(p) => (
               <Select {...p} value={str(transform.target)} onChange={(e) => setTransform({ ...transform, target: e.target.value })}>
                 {enumAt(schema, 'Transform', 'target', ['bool', 'number', 'text']).map((k) => (
-                  <option key={k} value={k}>{k}</option>
+                  <option key={k} value={k}>{codeLabel(k)}</option>
                 ))}
               </Select>
             )}
@@ -302,15 +321,15 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, catalogIds,
         )}
         {transform && transformKind === 'unit_scale' && (
           <div className="grid max-w-md gap-3 sm:grid-cols-2">
-            <NumberField label="Faktor" pointer={join(tp, 'factor')} value={Number(transform.factor ?? 1)} onChange={(n) => setTransform({ ...transform, factor: n })} hint="wert × Faktor + Offset" />
-            <NumberField label="Offset" pointer={join(tp, 'offset')} value={Number(transform.offset ?? 0)} onChange={(n) => setTransform({ ...transform, offset: n })} />
+            <NumberField label={uiText("editors.RegistryObjects.faktor_105199")} pointer={join(tp, 'factor')} value={Number(transform.factor ?? 1)} onChange={(n) => setTransform({ ...transform, factor: n })} hint={uiText("editors.RegistryObjects.wert_faktor_offset_d0477e")} />
+            <NumberField label={uiText("editors.RegistryObjects.offset_b1a1e8")} pointer={join(tp, 'offset')} value={Number(transform.offset ?? 0)} onChange={(n) => setTransform({ ...transform, offset: n })} />
           </div>
         )}
         {transform && transformKind === 'map_ref' && (
-          <Fld label="Katalog" pointer={join(tp, 'catalog_id')} className="max-w-xs">
+          <Fld label={uiText("editors.RegistryObjects.katalog_1c58e0")} pointer={join(tp, 'catalog_id')} className="max-w-xs">
             {(p) => (
               <Select {...p} value={str(transform.catalog_id)} onChange={(e) => setTransform({ ...transform, catalog_id: e.target.value })}>
-                {!catalogIds.includes(str(transform.catalog_id)) && <option value={str(transform.catalog_id)}>{str(transform.catalog_id) || '— wählen —'}</option>}
+                {!catalogIds.includes(str(transform.catalog_id)) && <option value={str(transform.catalog_id)}>{str(transform.catalog_id) || uiText("editors.RegistryObjects.wahlen_602246")}</option>}
                 {catalogIds.map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
@@ -342,11 +361,11 @@ export function EntityPicker({ open, onOpenChange, onPick }: { open: boolean; on
   const shown = (needle ? all.filter((e) => e.entity_id.toLowerCase().includes(needle) || e.display_name.toLowerCase().includes(needle)) : all).slice(0, 300);
   const unavailable = query.isError;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} size="lg" title="Home-Assistant-Entität wählen" description="Schreibgeschützte Erkennung: es werden nur Kennungen und Attributnamen gelesen, keine Werte; in Home Assistant wird nichts angelegt oder geändert.">
+    <Dialog open={open} onOpenChange={onOpenChange} size="lg" title={uiText("editors.RegistryObjects.home_assistant_entitat_wahlen_6ad8d6")} description={uiText("editors.RegistryObjects.schreibgeschutzte_erkennung_es_werden_nur_kennun_776d6f")}>
       <div className="flex flex-col gap-3">
-        <Input autoFocus aria-label="Entitäten durchsuchen" placeholder="Suchen nach Name oder entity_id …" value={search} onChange={(e) => setSearch(e.target.value)} />
-        {query.isPending && <Spinner label="Entitäten werden gelesen …" />}
-        {unavailable && <Notice tone="warn" title="Erkennung derzeit nicht verfügbar">Die Entitäten-ID kann trotzdem direkt im Feld eingegeben werden.</Notice>}
+        <Input autoFocus aria-label={uiText("editors.RegistryObjects.entitaten_durchsuchen_4437b8")} placeholder={uiText("editors.RegistryObjects.suchen_nach_name_oder_entity_id_61f175")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        {query.isPending && <Spinner label={uiText("editors.RegistryObjects.entitaten_werden_gelesen_c2b17f")} />}
+        {unavailable && <Notice tone="warn" title={uiText("editors.RegistryObjects.erkennung_derzeit_nicht_verfugbar_521c30")}>{uiText("editors.RegistryObjects.die_entitaten_id_kann_trotzdem_direkt_im_feld_ei_6ffc69")}</Notice>}
         <ul className="max-h-[50vh] divide-y divide-line overflow-auto rounded-[var(--radius-md)] border border-line">
           {shown.map((entity) => (
             <li key={entity.entity_id}>
@@ -364,17 +383,16 @@ export function EntityPicker({ open, onOpenChange, onPick }: { open: boolean; on
                   {entity.device_class && <Badge tone="info">{entity.device_class}</Badge>}
                 </span>
                 {entity.display_name !== entity.entity_id && <span className="text-xs text-muted">{entity.display_name}</span>}
-                {entity.attributes.length > 0 && <span className="line-clamp-1 text-[11px] text-faint">Attribute: {entity.attributes.slice(0, 12).join(', ')}{entity.attributes.length > 12 ? ' …' : ''}</span>}
+                {entity.attributes.length > 0 && <span className="line-clamp-1 text-[11px] text-faint">{uiText("editors.RegistryObjects.attribute_8a0a7a")}{entity.attributes.slice(0, 12).join(', ')}{entity.attributes.length > 12 ? ' …' : ''}</span>}
               </button>
             </li>
           ))}
-          {!query.isPending && shown.length === 0 && !unavailable && <li className="px-3 py-6 text-center text-sm text-muted">Keine Treffer{query.hasNextPage ? ' (weitere Seiten werden geladen)' : ''}.</li>}
+          {!query.isPending && shown.length === 0 && !unavailable && <li className="px-3 py-6 text-center text-sm text-muted">{uiText("editors.RegistryObjects.keine_treffer_6df7e9")}{query.hasNextPage ? uiText("editors.RegistryObjects.weitere_seiten_werden_geladen_f45e5e") : ''}.</li>}
         </ul>
         {!needle && query.hasNextPage && (
           <div>
             <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
-              Weitere laden
-            </Button>
+              {uiText("editors.RegistryObjects.weitere_laden_f77bb3")}</Button>
           </div>
         )}
       </div>
@@ -392,13 +410,13 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Fld label="Katalog-ID" pointer={join(pointer, 'catalog_id')}>
+        <Fld label={uiText("editors.RegistryObjects.katalog_id_e6aea3")} pointer={join(pointer, 'catalog_id')}>
           {(p) => <Input {...p} value={str(value.catalog_id)} onChange={(e) => set({ catalog_id: e.target.value })} />}
         </Fld>
-        <Fld label="Art" pointer={join(pointer, 'kind')}>
+        <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(pointer, 'kind')}>
           {(p) => <Input {...p} readOnly disabled value="map" />}
         </Fld>
-        <NumberField label="Version" pointer={join(pointer, 'version')} min={1} step={1} value={Number(value.version ?? 1)} onChange={(n) => set({ version: Math.max(1, Math.trunc(n)) })} />
+        <NumberField label={uiText("editors.RegistryObjects.version_dd1679")} pointer={join(pointer, 'version')} min={1} step={1} value={Number(value.version ?? 1)} onChange={(n) => set({ version: Math.max(1, Math.trunc(n)) })} />
       </div>
       <SectionTitle
         aside={
@@ -409,17 +427,15 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
               setEntries([...entries, [`schluessel${n}`, '']]);
             }}
           >
-            Eintrag
-          </AddButton>
+            {uiText("editors.RegistryObjects.eintrag_99b925")}</AddButton>
         }
       >
-        Zuordnungen (Rohwert → Wert)
-      </SectionTitle>
-      <p className="text-xs text-muted">Schlüssel sind die Rohwerte der Quelle als Text (z. B. <code>on</code>); Werte werden per „map_ref“ eingesetzt.</p>
+        {uiText("editors.RegistryObjects.zuordnungen_rohwert_wert_656ea9")}</SectionTitle>
+      <p className="text-xs text-muted">{uiText("editors.RegistryObjects.schlussel_sind_die_rohwerte_der_quelle_als_text__256b6c")}<code>{uiText("editors.RegistryObjects.on_b8d31e")}</code>{uiText("editors.RegistryObjects.werte_werden_per_map_ref_eingesetzt_1dbcfa")}</p>
       <IssuesAt pointer={join(pointer, 'entries')} />
       {entries.map(([key, entry], i) => (
         <div key={i} className="grid items-start gap-2 rounded-[var(--radius-md)] border border-line p-2 sm:grid-cols-[minmax(10rem,16rem)_1fr_auto]">
-          <Fld label="Rohwert" pointer={join(pointer, 'entries', key)}>
+          <Fld label={uiText("editors.RegistryObjects.rohwert_a3deeb")} pointer={join(pointer, 'entries', key)}>
             {(p) => (
               <Input
                 {...p}
@@ -433,9 +449,9 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
               />
             )}
           </Fld>
-          <ValueEditor label={`Wert für ${key || '(leer)'}`} pointer={join(pointer, 'entries', key)} value={entry} onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))} />
+          <ValueEditor label={uiText("editors.RegistryObjects.wert_fur_v0_a5063f", { v0: (key || '(leer)') })} pointer={join(pointer, 'entries', key)} value={entry} onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))} />
           <div className="pt-5">
-            <IconButton label="Eintrag entfernen" tone="danger" onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
+            <IconButton label={uiText("editors.RegistryObjects.eintrag_entfernen_706a15")} tone="danger" onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
               <Trash2 size={14} />
             </IconButton>
           </div>
@@ -463,13 +479,13 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Fld label="Contract-ID" pointer={join(pointer, 'contract_id')} hint="z. B. wohnzimmer.licht">
+        <Fld label={uiText("editors.RegistryObjects.contract_id_f9f7ff")} pointer={join(pointer, 'contract_id')} hint={uiText("editors.RegistryObjects.z_b_wohnzimmer_licht_807245")}>
           {(p) => <Input {...p} value={str(value.contract_id)} onChange={(e) => set({ contract_id: e.target.value })} />}
         </Fld>
-        <Fld label="Anzeigename" pointer={join(pointer, 'display_name')}>
+        <Fld label={uiText("editors.RegistryObjects.anzeigename_3ab2ea")} pointer={join(pointer, 'display_name')}>
           {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value })} />}
         </Fld>
-        <Fld label="Typ & Version" pointer={join(pointer, 'type_id')} hint={entry ? undefined : 'Dieser Typ ist weder als Paket-Typ noch als Definition bekannt.'}>
+        <Fld label={uiText("editors.RegistryObjects.typ_version_1b7183")} pointer={join(pointer, 'type_id')} hint={entry ? undefined : uiText("editors.RegistryObjects.dieser_typ_ist_weder_als_paket_typ_noch_als_defi_0b1092")}>
           {(p) => (
             <Select
               {...p}
@@ -481,48 +497,49 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
             >
               {!entry && <option value={key}>{key}</option>}
               {types.map((t) => (
-                <option key={t.key} value={t.key}>{t.type_id} · v{t.type_version}{t.origin === 'draft-definition' ? ' (Draft-Definition)' : t.declarative ? ' (Definition)' : ' (Paket)'}</option>
+                <option key={t.key} value={t.key}>{t.type_id} {uiText("editors.RegistryObjects.v_0bb917")}{t.type_version}{t.origin === 'draft-definition' ? uiText("editors.RegistryObjects.draft_definition_fd7330") : t.declarative ? uiText("editors.RegistryObjects.definition_96ce96") : uiText("editors.RegistryObjects.paket_92cb87")}</option>
               ))}
             </Select>
           )}
         </Fld>
         <div className="flex items-end pb-1.5">
-          <Switch checked={value.enabled !== false} onCheckedChange={(on) => set({ enabled: on })} label="Aktiviert" />
+          <Switch checked={value.enabled !== false} onCheckedChange={(on) => set({ enabled: on })} label={uiText("editors.RegistryObjects.aktiviert_10639c")} />
         </div>
       </div>
-      <Fld label="Beschreibung" pointer={join(pointer, 'description')}>
+      <Fld label={uiText("editors.RegistryObjects.beschreibung_e9262f")} pointer={join(pointer, 'description')}>
         {(p) => <Textarea {...p} rows={2} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value })} />}
       </Fld>
 
       <section className="flex flex-col gap-3">
-        <SectionTitle>Eingänge (Bindung an Quellen und andere Contracts)</SectionTitle>
+        <SectionTitle>{uiText("editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b")}</SectionTitle>
         <IssuesAt pointer={join(pointer, 'inputs')} />
-        {declared.length === 0 && undeclared.length === 0 && <p className="text-xs text-faint">Dieser Typ deklariert keine Eingänge.</p>}
+        {declared.length === 0 && undeclared.length === 0 && <p className="text-xs text-faint">{uiText("editors.RegistryObjects.dieser_typ_deklariert_keine_eingange_8d0dc9")}</p>}
         {declared.map((input) => {
           const current = refFor(input.name);
           const index = inputs.findIndex((i) => str(i.name) === input.name);
           const ref = str(current?.ref);
           const ip = index >= 0 ? join(pointer, 'inputs', index) : join(pointer, 'inputs');
+          const availableRefs = refs.filter((ref) => !input.schema || (ref.schema && (input.schema.type === 'object' || ref.schema.type === input.schema.type) && (input.schema.unit ?? '') === (ref.schema.unit ?? '')));
           return (
             <div key={input.name} className="grid items-start gap-2 sm:grid-cols-[12rem_1fr]">
               <div className="pt-6 text-sm">
                 <code>{input.name}</code>{' '}
-                <Badge tone={input.required ? 'accent' : 'neutral'}>{input.required ? 'Pflicht' : 'optional'}</Badge>
-                {input.schema && <Badge className="ml-1">{String(input.schema.type)}{input.schema.unit ? ` · ${String(input.schema.unit)}` : ''}</Badge>}
+                <Badge tone={input.required ? 'accent' : 'neutral'}>{input.required ? uiText("editors.RegistryObjects.pflicht_6a047f") : uiText("editors.RegistryObjects.optional_ec91fd")}</Badge>
+                {input.schema && <Badge className="ml-1">{codeLabel(input.schema.type)}{input.schema.unit ? uiText("editors.RegistryObjects.v0_8b43bb", { v0: (String(input.schema.unit)) }) : ''}</Badge>}
               </div>
-              <Fld label="Referenz" pointer={join(ip, 'ref')}>
+              <Fld label={uiText("editors.RegistryObjects.referenz_e13113")} pointer={join(ip, 'ref')}>
                 {(p) => (
                   <Select {...p} value={ref} onChange={(e) => setRef(input.name, e.target.value)}>
-                    <option value="">{input.required ? '— wählen —' : '— nicht gebunden —'}</option>
-                    {ref && !refs.some((r) => r.value === ref) && <option value={ref}>{ref} (unbekannt)</option>}
-                    <optgroup label="Quellen">
-                      {refs.filter((r) => r.kind === 'source').map((r) => (
-                        <option key={r.value} value={r.value}>{r.label} · {r.detail}</option>
+                    <option value="">{input.required ? uiText("editors.RegistryObjects.wahlen_602246") : uiText("editors.RegistryObjects.nicht_gebunden_4105e9")}</option>
+                    {ref && !availableRefs.some((r) => r.value === ref) && <option value={ref}>{ref} {uiText("editors.RegistryObjects.ungultige_oder_unbekannte_referenz_f8a620")}</option>}
+                    <optgroup label={uiText("editors.RegistryObjects.quellen_c78600")}>
+                      {availableRefs.filter((r) => r.kind === 'source').map((r) => (
+                        <option key={r.value} value={r.value}>{r.label} · {codeLabel(r.detail)}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="Contracts">
-                      {refs.filter((r) => r.kind === 'contract').map((r) => (
-                        <option key={r.value} value={r.value}>{r.label} · {r.detail}</option>
+                    <optgroup label={uiText("editors.RegistryObjects.contracts_0488ac")}>
+                      {availableRefs.filter((r) => r.kind === 'contract').map((r) => (
+                        <option key={r.value} value={r.value}>{r.label} · {codeLabel(r.detail)}</option>
                       ))}
                     </optgroup>
                   </Select>
@@ -532,20 +549,20 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
           );
         })}
         {undeclared.map((input) => (
-          <Notice key={str(input.name)} tone="warn" title={`Eingang „${str(input.name)}“ ist im Typ nicht deklariert`}>
-            <Button size="sm" variant="outline" onClick={() => setRef(str(input.name), '')}>Entfernen</Button>
+          <Notice key={str(input.name)} tone="warn" title={uiText("editors.RegistryObjects.eingang_v0_ist_im_typ_nicht_deklariert_d04398", { v0: (str(input.name)) })}>
+            <Button size="sm" variant="outline" onClick={() => setRef(str(input.name), '')}>{uiText("editors.RegistryObjects.entfernen_382837")}</Button>
           </Notice>
         ))}
       </section>
 
       <section className="flex flex-col gap-3">
-        <SectionTitle>Parameter</SectionTitle>
+        <SectionTitle>{uiText("editors.RegistryObjects.parameter_dd066e")}</SectionTitle>
         {entry?.declarative ? (
-          <p className="text-xs text-muted">Deklarative Typen haben keine Instanzparameter: Regelparameter gehören zur unveränderlichen Definitionsversion.</p>
+          <p className="text-xs text-muted">{uiText("editors.RegistryObjects.deklarative_typen_haben_keine_instanzparameter_r_67dbe1")}</p>
         ) : entry?.parameterSchema ? (
           <SchemaForm root={entry.parameterSchema} node={entry.parameterSchema} value={asObject(value.parameters)} pointer={join(pointer, 'parameters')} onChange={(next) => set({ parameters: (next ?? {}) as JsonObject })} />
         ) : (
-          <p className="text-xs text-faint">Keine Parameter bekannt.</p>
+          <p className="text-xs text-faint">{uiText("editors.RegistryObjects.keine_parameter_bekannt_272f5e")}</p>
         )}
         <IssuesAt pointer={join(pointer, 'parameters')} />
       </section>

@@ -46,7 +46,7 @@ export function DataTable<T>({
   const rows = table.getRowModel().rows;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] border-collapse text-sm">
+      <table className="w-full min-w-[40rem] table-fixed border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -80,7 +80,7 @@ export function DataTable<T>({
               className={cn('border-b border-line/60 transition-colors', onRowClick && 'cursor-pointer hover:bg-raised focus-visible:bg-raised', rowClassName?.(row.original))}
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-3 py-2 align-middle">
+                <td key={cell.id} title={typeof cell.getValue() === "string" ? String(cell.getValue()) : undefined} className="break-words px-3 py-2 align-middle [overflow-wrap:anywhere]">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

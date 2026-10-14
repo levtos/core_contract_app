@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Link } from 'react-router';
 import { Notice } from '@/components/ui/layout';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +23,7 @@ export function QualityBadge({ quality }: { quality: 'healthy' | 'degraded' }) {
 
 export function ConditionList({ conditions }: { conditions: Condition[] }) {
   if (conditions.length === 0) {
-    return <Notice tone="ok" title="Keine offenen Bedingungen">Bereitschaft, Verbindungen und Veröffentlichung sind in Ordnung.</Notice>;
+    return <Notice tone="ok" title={uiText("components.status-parts.keine_offenen_bedingungen_4c615b")}>{uiText("components.status-parts.bereitschaft_verbindungen_und_veroffentlichung_s_c38872")}</Notice>;
   }
   return (
     <ul className="space-y-2">

@@ -1,3 +1,5 @@
+import { codeLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { ChevronRight, Copy, Trash2 } from 'lucide-react';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Checkbox } from '@/components/ui/controls';
@@ -42,7 +44,7 @@ const EnvContext = createContext<RuleEnv | null>(null);
 export const RuleEnvProvider = EnvContext.Provider;
 function useEnv(): RuleEnv {
   const env = useContext(EnvContext);
-  if (!env) throw new Error('RuleEnvProvider fehlt');
+  if (!env) throw new Error(uiText("editors.RuleEditor.ruleenvprovider_fehlt_4c1afc"));
   return env;
 }
 
@@ -55,27 +57,27 @@ export function operatorDefaults(caps: Capabilities | undefined): OperatorDefaul
 }
 
 const OP_LABELS: Record<string, string> = {
-  input: 'Eingang',
+  input: uiText("editors.RuleEditor.eingang_d8af5e"),
   ref: 'Interne Regel (Verweis)',
-  literal: 'Konstante',
-  and: 'UND',
-  or: 'ODER',
-  not: 'NICHT',
-  compare: 'Vergleich',
-  map: 'Zuordnung (Map)',
-  first_match: 'Erster Treffer',
-  bucket: 'Hysterese (Bucket)',
-  formula: 'Formel',
-  fusion: 'Fusion',
-  temporal: 'Zeitlich (Temporal)',
-  machine: 'Zustand der State Machine',
-  not_applicable: 'Nicht anwendbar',
+  literal: uiText("editors.RuleEditor.konstante_2e2736"),
+  and: uiText("editors.RuleEditor.und_fd2908"),
+  or: uiText("editors.RuleEditor.oder_43e406"),
+  not: uiText("editors.RuleEditor.nicht_774d65"),
+  compare: uiText("editors.RuleEditor.vergleich_79a63c"),
+  map: uiText("editors.RuleEditor.zuordnung_map_5ecf05"),
+  first_match: uiText("editors.RuleEditor.erster_treffer_e8c4e8"),
+  bucket: uiText("editors.RuleEditor.hysterese_bucket_688e48"),
+  formula: uiText("editors.RuleEditor.formel_244289"),
+  fusion: uiText("editors.RuleEditor.fusion_09d751"),
+  temporal: uiText("editors.RuleEditor.zeitlich_temporal_542f27"),
+  machine: uiText("editors.RuleEditor.zustand_der_state_machine_2b1f38"),
+  not_applicable: uiText("editors.RuleEditor.nicht_anwendbar_af8969"),
 };
 const OP_GROUPS: { label: string; ops: string[] }[] = [
-  { label: 'Werte', ops: ['input', 'ref', 'literal'] },
-  { label: 'Logik', ops: ['and', 'or', 'not', 'compare', 'map', 'first_match', 'not_applicable'] },
-  { label: 'Berechnung & Fusion', ops: ['formula', 'fusion', 'bucket'] },
-  { label: 'Zeit & Zustand', ops: ['temporal', 'machine'] },
+  { label: uiText("editors.RuleEditor.werte_6fac44"), ops: ['input', 'ref', 'literal'] },
+  { label: uiText("editors.RuleEditor.logik_eff656"), ops: ['and', 'or', 'not', 'compare', 'map', 'first_match', 'not_applicable'] },
+  { label: uiText("editors.RuleEditor.berechnung_fusion_55d3b1"), ops: ['formula', 'fusion', 'bucket'] },
+  { label: uiText("editors.RuleEditor.zeit_zustand_6dfc62"), ops: ['temporal', 'machine'] },
 ];
 const FALLBACK_OPS = Object.keys(OP_LABELS);
 
@@ -98,21 +100,21 @@ const TONE: Record<string, string> = {
 };
 
 const COMPARISONS: [string, string][] = [
-  ['eq', '= gleich'],
-  ['ne', '≠ ungleich'],
-  ['lt', '< kleiner'],
-  ['le', '≤ höchstens'],
-  ['gt', '> größer'],
-  ['ge', '≥ mindestens'],
+  [uiText("editors.RuleEditor.eq_7d601f"), uiText("editors.RuleEditor.gleich_dcabf6")],
+  [uiText("editors.RuleEditor.ne_cb58e4"), uiText("editors.RuleEditor.ungleich_d4ec9a")],
+  [uiText("editors.RuleEditor.lt_67d414"), uiText("editors.RuleEditor.kleiner_fa34fb")],
+  [uiText("editors.RuleEditor.le_61098a"), uiText("editors.RuleEditor.hochstens_a9e2ae")],
+  [uiText("editors.RuleEditor.gt_e294af"), uiText("editors.RuleEditor.gro_er_ccbed1")],
+  [uiText("editors.RuleEditor.ge_309d20"), uiText("editors.RuleEditor.mindestens_dc2ecc")],
 ];
 
 const TEMPORAL_HINTS: Record<string, string> = {
-  stable_for: 'Wahr erst, wenn der Wahrheitswert über die Dauer unverändert anliegt (Wahrheitswert-Eingang).',
-  dwell: 'Verweildauer des Wahrheitswerts (Wahrheitswert-Eingang).',
-  grace: 'Hält den letzten gültigen Wert bis zum ursprünglichen Fristende; behält den Typ des Eingangs.',
-  edge: 'Flankenerkennung eines Wahrheitswerts.',
-  delta: 'Differenz zweier Zahlen.',
-  age: 'Alter der Messung; benötigt Messzeitpunkt-Evidenz.',
+  stable_for: uiText("editors.RuleEditor.wahr_erst_wenn_der_wahrheitswert_uber_die_dauer__cdd9b0"),
+  dwell: uiText("editors.RuleEditor.verweildauer_des_wahrheitswerts_wahrheitswert_ei_37f3bf"),
+  grace: uiText("editors.RuleEditor.halt_den_letzten_gultigen_wert_bis_zum_ursprungl_05d8ca"),
+  edge: uiText("editors.RuleEditor.flankenerkennung_eines_wahrheitswerts_0325ea"),
+  delta: uiText("editors.RuleEditor.differenz_zweier_zahlen_5cc0dd"),
+  age: uiText("editors.RuleEditor.alter_der_messung_benotigt_messzeitpunkt_evidenz_ce2c48"),
 };
 
 function summary(rule: Rule): string {
@@ -121,16 +123,16 @@ function summary(rule: Rule): string {
     case 'ref':
       return str(rule.name) || '—';
     case 'literal':
-      return JSON.stringify(rule.value);
+      return typeof rule.value === 'boolean' ? codeLabel(String(rule.value)) : JSON.stringify(rule.value);
     case 'compare':
       return COMPARISONS.find(([k]) => k === rule.comparison)?.[1] ?? '';
     case 'bucket':
     case 'temporal':
-      return `${str(rule.id)}${rule.operation ? ` · ${String(rule.operation)}` : ''}`;
+      return `${str(rule.id)}${rule.operation ? ` · ${codeLabel(rule.operation)}` : ''}`;
     case 'formula':
       return `${str(rule.name)}@${String(rule.version ?? '')}`;
     case 'fusion':
-      return str(rule.strategy);
+      return codeLabel(rule.strategy);
     default:
       return Array.isArray(rule.args) ? `${rule.args.length} Argument${rule.args.length === 1 ? '' : 'e'}` : '';
   }
@@ -163,18 +165,18 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
   return (
     <div className={cn('rounded-[var(--radius-md)] border border-line border-l-[3px] bg-sunken/60', TONE[op] ?? 'border-l-faint')} data-op={op} data-pointer={pointer}>
       <div className="flex flex-wrap items-center gap-2 px-2.5 py-2">
-        <button type="button" aria-label={open ? 'Zuklappen' : 'Aufklappen'} aria-expanded={open} className="cursor-pointer text-muted hover:text-fg" onClick={() => setOpen((v) => !v)}>
+        <button type="button" aria-label={open ? uiText("editors.RuleEditor.zuklappen_41b22f") : uiText("editors.RuleEditor.aufklappen_0f644f")} aria-expanded={open} className="cursor-pointer text-muted hover:text-fg" onClick={() => setOpen((v) => !v)}>
           <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
         </button>
         {label && <span className="text-xs font-medium text-muted">{label}</span>}
         <Select
-          aria-label={`Operator${label ? ` (${label})` : ''}`}
+          aria-label={uiText("editors.RuleEditor.operator_v0_e1f310", { v0: (label ? ` (${label})` : '') })}
           className="h-8 w-auto min-w-44 text-xs"
           value={op}
           disabled={env.locked}
           onChange={(e) => switchOp(e.target.value)}
         >
-          {!known && <option value={op}>{op} (unbekannt)</option>}
+          {!known && <option value={op}>{op} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
           {OP_GROUPS.map((group) => {
             const ops = group.ops.filter((o) => available.includes(o));
             return ops.length === 0 ? null : (
@@ -194,20 +196,20 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
           <IssueCount pointer={pointer} />
           {!env.locked && (
             <>
-              <IconButton label="In NICHT einpacken" onClick={() => wrap('not')}>
+              <IconButton label={uiText("editors.RuleEditor.in_nicht_einpacken_f78273")} onClick={() => wrap('not')}>
                 <span className="text-[10px] font-bold">¬</span>
               </IconButton>
-              <IconButton label="In UND einpacken" onClick={() => wrap('and')}>
+              <IconButton label={uiText("editors.RuleEditor.in_und_einpacken_ad37d5")} onClick={() => wrap('and')}>
                 <span className="text-[10px] font-bold">∧</span>
               </IconButton>
-              <IconButton label="In ODER einpacken" onClick={() => wrap('or')}>
+              <IconButton label={uiText("editors.RuleEditor.in_oder_einpacken_6e76ab")} onClick={() => wrap('or')}>
                 <span className="text-[10px] font-bold">∨</span>
               </IconButton>
-              <IconButton label="Knoten duplizieren (JSON in Zwischenablage)" onClick={() => void navigator.clipboard?.writeText(JSON.stringify(value))}>
+              <IconButton label={uiText("editors.RuleEditor.knoten_duplizieren_json_in_zwischenablage_060036")} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(value))}>
                 <Copy size={13} />
               </IconButton>
               {onRemove && (
-                <IconButton label="Entfernen" tone="danger" onClick={onRemove}>
+                <IconButton label={uiText("editors.RuleEditor.entfernen_382837")} tone="danger" onClick={onRemove}>
                   <Trash2 size={14} />
                 </IconButton>
               )}
@@ -240,7 +242,7 @@ function Child({ parent, pointer, depth, ...props }: { parent: Rule; onChange: (
   const { keyPath, onChange } = props;
   const child = keyPath.reduce<Json | undefined>((node, key) => (Array.isArray(node) ? node[Number(key)] : isObject(node) ? node[String(key)] : undefined), parent as Json);
   if (!isObject(child) || typeof child.op !== 'string') {
-    return <p className="text-xs text-bad">Ausdruck fehlt oder ist ungültig.</p>;
+    return <p className="text-xs text-bad">{uiText("editors.RuleEditor.ausdruck_fehlt_oder_ist_ungultig_427904")}</p>;
   }
   return (
     <RuleEditor
@@ -264,7 +266,7 @@ function ArgList({ value, onChange, pointer, depth, min = 1, max, labels, addLab
       {args.map((_, i) => (
         <div key={i} className="flex items-start gap-1">
           <div className="min-w-0 flex-1">
-            <Child parent={value} pointer={pointer} depth={depth} keyPath={['args', i]} label={labels?.[i] ?? `${i + 1}.`} onChange={onChange} />
+            <Child parent={value} pointer={pointer} depth={depth} keyPath={['args', i]} label={labels?.[i] ?? uiText("editors.RuleEditor.v0_383901", { v0: (i + 1) })} onChange={onChange} />
           </div>
           {max !== min && (
             <RowActions
@@ -310,10 +312,10 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       const current = str(value.name);
       const declared = ctx.inputs.find((i) => i.name === current);
       return (
-        <Fld label="Eingang" pointer={join(pointer, 'name')} hint={declared ? `Typ: ${declared.schema.type}${declared.schema.unit ? ` · ${String(declared.schema.unit)}` : ''}` : 'Dieser Name ist in der Definition nicht als Eingang deklariert.'}>
+        <Fld label={uiText("editors.RuleEditor.eingang_d8af5e")} pointer={join(pointer, 'name')} hint={declared ? uiText("editors.RuleEditor.typ_v0_v1_e5ef47", { v0: (declared.schema.type), v1: (declared.schema.unit ? ` · ${String(declared.schema.unit)}` : '') }) : uiText("editors.RuleEditor.dieser_name_ist_in_der_definition_nicht_als_eing_bd4b8c")}>
           {(p) => (
             <Select {...p} value={current} onChange={(e) => set({ name: e.target.value })}>
-              {!names.includes(current) && <option value={current}>{current || '— wählen —'}</option>}
+              {!names.includes(current) && <option value={current}>{current || uiText("editors.RuleEditor.wahlen_602246")}</option>}
               {names.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
@@ -325,10 +327,10 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     case 'ref': {
       const current = str(value.name);
       return (
-        <Fld label="Interne Regel" pointer={join(pointer, 'name')} hint="Benannte Regeln werden pro Auswertung nur einmal berechnet; Zustandsregeln schreiten so nur einmal fort.">
+        <Fld label={uiText("editors.RuleEditor.interne_regel_744cdc")} pointer={join(pointer, 'name')} hint={uiText("editors.RuleEditor.benannte_regeln_werden_pro_auswertung_nur_einmal_5ec5f3")}>
           {(p) => (
             <Select {...p} value={current} onChange={(e) => set({ name: e.target.value })}>
-              {!ctx.ruleNames.includes(current) && <option value={current}>{current || '— wählen —'}</option>}
+              {!ctx.ruleNames.includes(current) && <option value={current}>{current || uiText("editors.RuleEditor.wahlen_602246")}</option>}
               {ctx.ruleNames.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
@@ -353,13 +355,13 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     }
     case 'and':
     case 'or':
-      return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} addLabel="Operand" />;
+      return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} addLabel={uiText("editors.RuleEditor.operand_c81de8")} />;
     case 'not':
       return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={1} max={1} labels={['Operand']} />;
     case 'compare':
       return (
         <div className="flex flex-col gap-3">
-          <Fld label="Vergleich" pointer={join(pointer, 'comparison')} className="max-w-56">
+          <Fld label={uiText("editors.RuleEditor.vergleich_79a63c")} pointer={join(pointer, 'comparison')} className="max-w-56">
             {(p) => (
               <Select {...p} value={str(value.comparison)} onChange={(e) => set({ comparison: e.target.value })}>
                 {(enumAt(caps?.schemas.definition, 'CompareRule', 'comparison', COMPARISONS.map(([k]) => k))).map((k) => (
@@ -368,23 +370,23 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
               </Select>
             )}
           </Fld>
-          <Child parent={value} pointer={pointer} depth={depth} keyPath={['left']} label="Links" onChange={onChange} />
-          <Child parent={value} pointer={pointer} depth={depth} keyPath={['right']} label="Rechts" onChange={onChange} />
+          <Child parent={value} pointer={pointer} depth={depth} keyPath={['left']} label={uiText("editors.RuleEditor.links_9024c1")} onChange={onChange} />
+          <Child parent={value} pointer={pointer} depth={depth} keyPath={['right']} label={uiText("editors.RuleEditor.rechts_00e9e5")} onChange={onChange} />
         </div>
       );
     case 'not_applicable':
-      return <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label="Bedingung (trifft nicht zu, wenn wahr)" onChange={onChange} />;
+      return <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label={uiText("editors.RuleEditor.bedingung_trifft_nicht_zu_wenn_wahr_cb4a34")} onChange={onChange} />;
     case 'first_match': {
       const cases = asArray(value.cases);
       const set2 = (next: Json[]) => set({ cases: next });
       return (
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted">Die erste Zeile, deren „Wenn“ wahr ist, bestimmt das Ergebnis. Ein unbekanntes „Wenn“ blockiert die Auswahl (selection_blocked).</p>
+          <p className="text-xs text-muted">{uiText("editors.RuleEditor.die_erste_zeile_deren_wenn_wahr_ist_bestimmt_das_300b11")}</p>
           {cases.map((_, i) => (
             <div key={i} className="flex items-start gap-1 rounded-[var(--radius-md)] border border-line p-2">
               <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Child parent={value} pointer={pointer} depth={depth} keyPath={['cases', i, 'when']} label="Wenn" onChange={onChange} />
-                <Child parent={value} pointer={pointer} depth={depth} keyPath={['cases', i, 'then']} label="Dann" onChange={onChange} />
+                <Child parent={value} pointer={pointer} depth={depth} keyPath={['cases', i, 'when']} label={uiText("editors.RuleEditor.wenn_312fc0")} onChange={onChange} />
+                <Child parent={value} pointer={pointer} depth={depth} keyPath={['cases', i, 'then']} label={uiText("editors.RuleEditor.dann_612577")} onChange={onChange} />
               </div>
               <RowActions
                 index={i}
@@ -401,7 +403,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
             </div>
           ))}
           <div>
-            <AddButton onClick={() => set2([...cases, { when: newRule('input', ctx, defaults), then: newRule('literal', ctx, defaults) }])}>Fall</AddButton>
+            <AddButton onClick={() => set2([...cases, { when: newRule('input', ctx, defaults), then: newRule('literal', ctx, defaults) }])}>{uiText("editors.RuleEditor.fall_e85a64")}</AddButton>
           </div>
         </div>
       );
@@ -411,23 +413,23 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     case 'bucket':
       return (
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted">Hysterese: schaltet erst über „oben“ ein und erst unter „unten“ aus. Der Zustand ist flüchtig und startet nach Neustart wieder bei „initial“.</p>
+          <p className="text-xs text-muted">{uiText("editors.RuleEditor.hysterese_schaltet_erst_uber_oben_ein_und_erst_u_629b5d")}</p>
           <div className="grid gap-3 sm:grid-cols-4">
-            <Fld label="ID (eindeutig)" pointer={join(pointer, 'id')}>
+            <Fld label={uiText("editors.RuleEditor.id_eindeutig_df6df9")} pointer={join(pointer, 'id')}>
               {(p) => <Input {...p} value={str(value.id)} onChange={(e) => set({ id: e.target.value })} />}
             </Fld>
-            <NumberField label="Unten" pointer={join(pointer, 'lower')} value={Number(value.lower ?? 0)} onChange={(n) => set({ lower: n })} />
-            <NumberField label="Oben" pointer={join(pointer, 'upper')} value={Number(value.upper ?? 0)} onChange={(n) => set({ upper: n })} />
-            <Fld label="Initial" pointer={join(pointer, 'initial')}>
+            <NumberField label={uiText("editors.RuleEditor.unten_39c51d")} pointer={join(pointer, 'lower')} value={Number(value.lower ?? 0)} onChange={(n) => set({ lower: n })} />
+            <NumberField label={uiText("editors.RuleEditor.oben_0d7d94")} pointer={join(pointer, 'upper')} value={Number(value.upper ?? 0)} onChange={(n) => set({ upper: n })} />
+            <Fld label={uiText("editors.RuleEditor.initial_1f3974")} pointer={join(pointer, 'initial')}>
               {(p) => (
                 <Select {...p} value={String(value.initial === true)} onChange={(e) => set({ initial: e.target.value === 'true' })}>
-                  <option value="false">aus</option>
-                  <option value="true">an</option>
+                  <option value="false">{uiText("editors.RuleEditor.aus_2337c3")}</option>
+                  <option value="true">{uiText("editors.RuleEditor.an_ea325d")}</option>
                 </Select>
               )}
             </Fld>
           </div>
-          <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label="Zahl" onChange={onChange} />
+          <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label={uiText("editors.RuleEditor.zahl_654eb4")} onChange={onChange} />
         </div>
       );
     case 'formula': {
@@ -438,7 +440,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       return (
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Fld label="Formel" pointer={join(pointer, 'name')} hint={selected ? `Eingänge: ${selected.input_schema.type}${selected.input_schema.unit ? ` (${String(selected.input_schema.unit)})` : ''} → ${selected.output_schema.type}` : undefined}>
+            <Fld label={uiText("editors.RuleEditor.formel_244289")} pointer={join(pointer, 'name')} hint={selected ? uiText("editors.RuleEditor.eingange_v0_v1_v2_cd9f97", { v0: (selected.input_schema.type), v1: (selected.input_schema.unit ? ` (${String(selected.input_schema.unit)})` : ''), v2: (selected.output_schema.type) }) : undefined}>
               {(p) => (
                 <Select
                   {...p}
@@ -448,14 +450,14 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                     set({ name: e.target.value, version: first?.version ?? 1 });
                   }}
                 >
-                  {!names.includes(str(value.name)) && <option value={str(value.name)}>{str(value.name) || '—'} (unbekannt)</option>}
+                  {!names.includes(str(value.name)) && <option value={str(value.name)}>{str(value.name) || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
                   {names.map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </Select>
               )}
             </Fld>
-            <Fld label="Version" pointer={join(pointer, 'version')}>
+            <Fld label={uiText("editors.RuleEditor.version_dd1679")} pointer={join(pointer, 'version')}>
               {(p) => (
                 <Select {...p} value={String(value.version ?? '')} onChange={(e) => set({ version: Number(e.target.value) })}>
                   {!versions.includes(Number(value.version)) && <option value={String(value.version ?? '')}>{String(value.version ?? '—')}</option>}
@@ -476,21 +478,21 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       return (
         <div className="flex flex-col gap-3">
           <Fld
-            label="Strategie"
+            label={uiText("editors.RuleEditor.strategie_bfecce")}
             pointer={join(pointer, 'strategy')}
-            hint={[current?.priority === 'argument_order' ? 'Die Reihenfolge der Argumente ist die Priorität.' : '', current?.conflict_detection ? 'Erkennt Konflikte zwischen gleich gewichteten Kandidaten.' : ''].filter(Boolean).join(' ') || undefined}
+            hint={[current?.priority === 'argument_order' ? uiText("editors.RuleEditor.die_reihenfolge_der_argumente_ist_die_prioritat_09f0f4") : '', current?.conflict_detection ? uiText("editors.RuleEditor.erkennt_konflikte_zwischen_gleich_gewichteten_ka_e83977") : ''].filter(Boolean).join(' ') || undefined}
             className="max-w-sm"
           >
             {(p) => (
               <Select {...p} value={str(value.strategy)} onChange={(e) => set({ strategy: e.target.value })}>
-                {!current && <option value={str(value.strategy)}>{str(value.strategy) || '—'} (unbekannt)</option>}
+                {!current && <option value={str(value.strategy)}>{str(value.strategy) || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
                 {strategies.map((s) => (
-                  <option key={s.strategy} value={s.strategy}>{s.strategy}</option>
+                  <option key={s.strategy} value={s.strategy}>{codeLabel(s.strategy)}</option>
                 ))}
               </Select>
             )}
           </Fld>
-          <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} addLabel="Kandidat" />
+          <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} addLabel={uiText("editors.RuleEditor.kandidat_3c49ac")} />
         </div>
       );
     }
@@ -502,10 +504,10 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       return (
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-4">
-            <Fld label="ID (eindeutig)" pointer={join(pointer, 'id')}>
+            <Fld label={uiText("editors.RuleEditor.id_eindeutig_df6df9")} pointer={join(pointer, 'id')}>
               {(p) => <Input {...p} value={str(value.id)} onChange={(e) => set({ id: e.target.value })} />}
             </Fld>
-            <Fld label="Operation" pointer={join(pointer, 'operation')} className="sm:col-span-1">
+            <Fld label={uiText("editors.RuleEditor.operation_0f044f")} pointer={join(pointer, 'operation')} className="sm:col-span-1">
               {(p) => (
                 <Select
                   {...p}
@@ -517,19 +519,19 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                     set({ operation: e.target.value, args });
                   }}
                 >
-                  {!meta && <option value={operation}>{operation || '—'} (unbekannt)</option>}
+                  {!meta && <option value={operation}>{operation || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
                   {operations.map((o) => (
-                    <option key={o.operation} value={o.operation}>{o.operation}</option>
+                    <option key={o.operation} value={o.operation}>{codeLabel(o.operation)}</option>
                   ))}
                 </Select>
               )}
             </Fld>
-            <NumberField label="Dauer (s)" pointer={join(pointer, 'duration_s')} value={Number(value.duration_s ?? 1)} min={0} onChange={(n) => set({ duration_s: n })} hint="größer 0" />
+            <NumberField label={uiText("editors.RuleEditor.dauer_s_e59ef1")} pointer={join(pointer, 'duration_s')} value={Number(value.duration_s ?? 1)} min={0} onChange={(n) => set({ duration_s: n })} hint={uiText("editors.RuleEditor.gro_er_0_2ae790")} />
             <div className="flex items-end pb-1.5">
-              <Checkbox checked={value.accepts_held === true} onCheckedChange={(on) => set({ accepts_held: on || undefined })} label="Gehaltene Werte akzeptieren" />
+              <Checkbox checked={value.accepts_held === true} onCheckedChange={(on) => set({ accepts_held: on || undefined })} label={uiText("editors.RuleEditor.gehaltene_werte_akzeptieren_034eb1")} />
             </div>
           </div>
-          {TEMPORAL_HINTS[operation] && <p className="text-xs text-muted">{TEMPORAL_HINTS[operation]} Zeitkontexte werden mit absoluten Fristen wiederhergestellt.</p>}
+          {TEMPORAL_HINTS[operation] && <p className="text-xs text-muted">{TEMPORAL_HINTS[operation]} {uiText("editors.RuleEditor.zeitkontexte_werden_mit_absoluten_fristen_wieder_91a4b2")}</p>}
           <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={arity} max={arity} labels={arity === 2 ? ['Aktuell', 'Vergleich'] : ['Eingang']} />
         </div>
       );
@@ -537,8 +539,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     case 'machine':
       return (
         <p className="text-xs text-muted">
-          Liefert den aktuellen Zustand der State Machine dieser Definition.
-          {!ctx.hasMachine && <span className="ml-1 text-bad">Die Definition hat noch keine State Machine – im Reiter „State Machine“ anlegen.</span>}
+          {uiText("editors.RuleEditor.liefert_den_aktuellen_zustand_der_state_machine__723ee5")}{!ctx.hasMachine && <span className="ml-1 text-bad">{uiText("editors.RuleEditor.die_definition_hat_noch_keine_state_machine_im_r_062ddc")}</span>}
         </p>
       );
     default:
@@ -552,7 +553,7 @@ function GenericBody({ value, onChange, pointer, depth }: { value: Rule; onChang
   const operator = caps?.operators.find((o) => o.op === value.op);
   const definitionSchema = caps?.schemas.definition;
   if (!operator || !definitionSchema) {
-    return <SchemaForm root={{}} node={undefined} value={value} onChange={(next) => isObject(next) && onChange(next as Rule)} pointer={pointer} label="Unbekannter Operator (JSON)" />;
+    return <SchemaForm root={{}} node={undefined} value={value} onChange={(next) => isObject(next) && onChange(next as Rule)} pointer={pointer} label={uiText("editors.RuleEditor.unbekannter_operator_json_a20a96")} />;
   }
   return (
     <SchemaForm
@@ -607,9 +608,9 @@ function MapBody({ value, onChange, pointer, depth }: { value: Rule; onChange: (
 
   return (
     <div className="flex flex-col gap-3">
-      <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label="Eingang der Zuordnung" onChange={onChange} />
+      <Child parent={value} pointer={pointer} depth={depth} keyPath={['arg']} label={uiText("editors.RuleEditor.eingang_der_zuordnung_b6a678")} onChange={onChange} />
       <div>
-        <SectionTitle>Ergebnistyp</SectionTitle>
+        <SectionTitle>{uiText("editors.RuleEditor.ergebnistyp_a0907a")}</SectionTitle>
         <FieldSchemaEditor
           compact
           pointer={join(pointer, 'schema')}
@@ -621,8 +622,8 @@ function MapBody({ value, onChange, pointer, depth }: { value: Rule; onChange: (
         />
       </div>
       <div className="flex flex-col gap-2">
-        <SectionTitle aside={<AddButton onClick={() => setEntries([...entries, [freshKey(), defaultLiteralValue(schema)]])}>Eintrag</AddButton>}>Zuordnungen</SectionTitle>
-        {mode === 'raw' && <p className="text-xs text-muted">Schlüssel sind kanonische JSON-Skalare: <code>true</code>, <code>42</code> oder <code>&quot;text&quot;</code> (in Anführungszeichen).</p>}
+        <SectionTitle aside={<AddButton onClick={() => setEntries([...entries, [freshKey(), defaultLiteralValue(schema)]])}>{uiText("editors.RuleEditor.eintrag_99b925")}</AddButton>}>{uiText("editors.RuleEditor.zuordnungen_6382c7")}</SectionTitle>
+        {mode === 'raw' && <p className="text-xs text-muted">{uiText("editors.RuleEditor.schlussel_sind_kanonische_json_skalare_2c69e1")}<code>{uiText("editors.RuleEditor.true_b5bea4")}</code>, <code>42</code> {uiText("editors.RuleEditor.oder_7e3b22")}<code>{uiText("editors.RuleEditor.quot_text_quot_dc8483")}</code> {uiText("editors.RuleEditor.in_anfuhrungszeichen_ab3cf1")}</p>}
         {entries.map(([key, entryValue], i) => {
           const decoded = decodeKey(key);
           const rename = (nextKey: string) => {
@@ -631,12 +632,12 @@ function MapBody({ value, onChange, pointer, depth }: { value: Rule; onChange: (
           };
           return (
             <div key={i} className="grid items-start gap-2 rounded-[var(--radius-md)] border border-line p-2 sm:grid-cols-[minmax(10rem,14rem)_1fr_auto]">
-              <Fld label="Wenn Eingang =" pointer={join(pointer, 'entries', key)}>
+              <Fld label={uiText("editors.RuleEditor.wenn_eingang_53a1cc")} pointer={join(pointer, 'entries', key)}>
                 {(p) =>
                   mode === 'bool' ? (
                     <Select {...p} value={decoded.text} onChange={(e) => rename(e.target.value)}>
-                      <option value="true">wahr</option>
-                      <option value="false">falsch</option>
+                      <option value="true">{uiText("editors.RuleEditor.wahr_167f97")}</option>
+                      <option value="false">{uiText("editors.RuleEditor.falsch_b3c3e0")}</option>
                     </Select>
                   ) : mode === 'enum' ? (
                     <Select {...p} value={key} onChange={(e) => rename(e.target.value)}>
@@ -653,14 +654,14 @@ function MapBody({ value, onChange, pointer, depth }: { value: Rule; onChange: (
                 }
               </Fld>
               <TypedValueEditor
-                label="dann"
+                label={uiText("editors.RuleEditor.dann_06cb6c")}
                 schema={schema}
                 value={entryValue}
                 pointer={join(pointer, 'entries', key)}
                 onChange={(next) => setEntries(entries.map(([k, v], j) => (j === i ? [k, next] : [k, v])))}
               />
               <div className="pt-5">
-                <IconButton label="Eintrag entfernen" tone="danger" disabled={entries.length <= 1} onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
+                <IconButton label={uiText("editors.RuleEditor.eintrag_entfernen_706a15")} tone="danger" disabled={entries.length <= 1} onClick={() => setEntries(entries.filter((_, j) => j !== i))}>
                   <Trash2 size={14} />
                 </IconButton>
               </div>

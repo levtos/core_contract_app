@@ -397,6 +397,46 @@ class Evaluation:
             if "$machine" not in self.memo:
                 assert self.context is not None and self.definition.machine is not None
                 reinitialize_rule = self.definition.machine.reinitialize_when
+
+                def reinitialize(ctx: Context) -> bool:
+                    condition = self.evaluate(reinitialize_rule)
+                    allowed = (
+                        condition.status == "valid"
+                        and condition.value is True
+                        and bool(condition.evidence)
+                    )
+                    names: set[str] = set()
+                    visited: set[str] = set()
+
+                    def collect(rule: dm.Rule) -> None:
+                        if isinstance(rule, dm.InputRule):
+                            names.add(rule.name)
+                        elif isinstance(rule, dm.ReferenceRule) and rule.name not in visited:
+                            visited.add(rule.name)
+                            collect(self.definition.rules[rule.name])
+                        for child in children(rule):
+                            collect(child)
+
+                    collect(reinitialize_rule)
+                    ctx.node["machine_recovery"] = {
+                        "status": condition.status,
+                        "condition_met": allowed,
+                        "evidence": list(condition.evidence[:64]) if allowed else [],
+                        "inputs": [
+                            {
+                                "name": name,
+                                "status": self.inputs[name].status
+                                if name in self.inputs
+                                else "unknown",
+                                "reasons": [r.code.value for r in self.inputs[name].reasons]
+                                if name in self.inputs
+                                else ["input_absent"],
+                            }
+                            for name in sorted(names)
+                        ],
+                    }
+                    return allowed
+
                 if self.context.override is not None:
                     previous = self.context.node.get("machine", {}).get("state")
                     for transition in self.definition.machine.transitions:
@@ -418,9 +458,7 @@ class Evaluation:
                 self.memo["$machine"] = evaluate_machine(
                     self.context,
                     compile_machine(self.definition, evaluation=self),
-                    reinitialize=lambda ctx: (
-                        ctx.origin == "input" and self.evaluate(reinitialize_rule).value is True
-                    ),
+                    reinitialize=reinitialize,
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import type { Json } from './json';
 import { coolDownRequests, reserveRequest } from './request-budget';
 
@@ -7,6 +8,7 @@ export interface Issue {
   path: string;
   object_id?: string | null;
   message: string;
+  parameters?: Record<string, string | null> | null;
 }
 
 export type ErrorKind =
@@ -64,7 +66,7 @@ export function issuesFromBody(body: ErrorBody | null | undefined): Issue[] {
       path:
         '/' +
         d.location!.map((p) => String(p).replace(/~/g, '~0').replace(/\//g, '~1')).join('/'),
-      message: d.type ?? 'invalid',
+      message: d.type ?? uiText("lib.api.invalid_f1234d"),
     }));
 }
 
@@ -88,7 +90,7 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiError(0, 'network_error', [], 'Der Dienst ist nicht erreichbar.');
+    throw new ApiError(0, 'network_error', [], uiText("lib.api.der_dienst_ist_nicht_erreichbar_793240"));
   }
   if (!response.ok) {
     if (response.status === 429) await coolDownRequests(response.headers.get('Retry-After'));
@@ -101,26 +103,29 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
 }
 
 const MESSAGES: Record<string, string> = {
+  draft_limit: uiText("lib.api.es_sind_bereits_100_entwurfe_vorhanden_entfernen_f89be6"),
+  draft_identity_conflict: uiText("lib.api.diese_entwurfs_id_ist_bereits_vergeben_2355ad"),
+  sensitive_document: uiText("lib.api.geheimnisse_sind_in_der_konfiguration_nicht_erla_dfcfff"),
   draft_version_conflict:
-    'Der Draft wurde zwischenzeitlich geändert. Neu laden und Änderungen zusammenführen.',
+    uiText("lib.api.der_draft_wurde_zwischenzeitlich_geandert_neu_la_8afab3"),
   active_revision_conflict:
-    'Die aktive Revision hat sich geändert. Stand neu laden und erneut prüfen.',
-  no_active_registry: 'Es ist noch keine Registry aktiv.',
-  persistence_unavailable: 'Persistenz derzeit nicht erreichbar. Es wurde nichts geändert.',
-  ha_discovery_unavailable: 'Home-Assistant-Entitätsliste derzeit nicht verfügbar.',
-  contract_disabled: 'Der Contract ist deaktiviert.',
-  revision_not_found: 'Diese Revision existiert nicht.',
-  evidence_not_found: 'Zu dieser Referenz liegt keine aufgezeichnete Evidenz vor.',
-  invalid_request: 'Die Anfrage ist ungültig.',
-  network_error: 'Der Dienst ist nicht erreichbar.',
-  rate_limited: 'Zu viele Anfragen. Weitere Anfragen warten; diese Aktion wurde nicht automatisch wiederholt.',
+    uiText("lib.api.die_aktive_revision_hat_sich_geandert_stand_neu__b101a1"),
+  no_active_registry: uiText("lib.api.es_ist_noch_keine_registry_aktiv_2f47c4"),
+  persistence_unavailable: uiText("lib.api.persistenz_derzeit_nicht_erreichbar_es_wurde_nic_1c4a47"),
+  ha_discovery_unavailable: uiText("lib.api.home_assistant_entitatsliste_derzeit_nicht_verfu_4a74b1"),
+  contract_disabled: uiText("lib.api.der_contract_ist_deaktiviert_225806"),
+  revision_not_found: uiText("lib.api.diese_revision_existiert_nicht_011869"),
+  evidence_not_found: uiText("lib.api.zu_dieser_referenz_liegt_keine_aufgezeichnete_ev_a4cab9"),
+  invalid_request: uiText("lib.api.die_anfrage_ist_ungultig_85729c"),
+  network_error: uiText("lib.api.der_dienst_ist_nicht_erreichbar_793240"),
+  rate_limited: uiText("lib.api.zu_viele_anfragen_weitere_anfragen_warten_diese__545695"),
 };
 
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.kind === 'auth') return 'Keine Berechtigung für diese Aktion.';
+    if (error.kind === 'auth') return uiText("lib.api.keine_berechtigung_fur_diese_aktion_a1a527");
     if (error.kind === 'rate_limited') return MESSAGES.rate_limited!;
-    return MESSAGES[error.code] ?? `Anfrage fehlgeschlagen: ${error.message}`;
+    return MESSAGES[error.code] ?? uiText('common.requestFailed');
   }
-  return error instanceof Error ? error.message : 'Unbekannter Fehler.';
+  return uiText('common.requestFailed');
 }

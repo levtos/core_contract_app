@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { createBrowserLive, LiveStore, type LiveSnapshot } from './live';
 import { useInfo } from './queries';
@@ -19,6 +20,6 @@ export function LiveProvider({ children, store }: { children: ReactNode; store?:
 
 export function useLive(): LiveSnapshot {
   const store = useContext(LiveContext);
-  if (!store) throw new Error('LiveProvider fehlt');
+  if (!store) throw new Error(uiText("lib.live-context.liveprovider_fehlt_509518"));
   return useSyncExternalStore(store.subscribe, store.getSnapshot);
 }

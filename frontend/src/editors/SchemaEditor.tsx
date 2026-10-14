@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Checkbox, Collapsible } from '@/components/ui/controls';
 import { Input } from '@/components/ui/form';
 import { AddButton, Fld, IconButton, IssueCount, IssuesAt, SectionTitle } from './common';
@@ -43,19 +44,17 @@ export function SchemaEditor({
               onAddField(`feld${n}`);
             }}
           >
-            Ausgabefeld
-          </AddButton>
+            {uiText("editors.SchemaEditor.ausgabefeld_894864")}</AddButton>
         }
       >
-        Ausgabefelder
-      </SectionTitle>
+        {uiText("editors.SchemaEditor.ausgabefelder_e646ec")}</SectionTitle>
       <IssuesAt pointer={pointer} />
       {names.map((name) => {
         const fp = join(pointer, 'fields', name);
         return (
-          <Collapsible key={name} defaultOpen title={<code>{name}</code>} aside={<><IssueCount pointer={fp} /><IconButton label={`Feld ${name} entfernen`} tone="danger" disabled={names.length <= 1} onClick={() => onRemoveField(name)}><Trash2 size={14} /></IconButton></>}>
+          <Collapsible key={name} defaultOpen title={<code>{name}</code>} aside={<><IssueCount pointer={fp} /><IconButton label={uiText("editors.SchemaEditor.feld_v0_entfernen_3a5487", { v0: (name) })} tone="danger" disabled={names.length <= 1} onClick={() => onRemoveField(name)}><Trash2 size={14} /></IconButton></>}>
             <div className="flex flex-col gap-3">
-              <Fld label="Feldname" pointer={fp}>
+              <Fld label={uiText("editors.SchemaEditor.feldname_bc85f6")} pointer={fp}>
                 {(props) => (
                   <Input
                     {...props}
@@ -77,7 +76,7 @@ export function SchemaEditor({
               <Checkbox
                 checked={projection.includes(name)}
                 onCheckedChange={(on) => setProjection(on ? [...projection, name] : projection.filter((p) => p !== name))}
-                label="Zählt zur Verfügbarkeit (available_projection)"
+                label={uiText("editors.SchemaEditor.zahlt_zur_verfugbarkeit_available_projection_0fd998")}
               />
               {extra?.(name)}
             </div>

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { ArrowDown, ArrowUp, GripVertical, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Children, createContext, isValidElement, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -63,14 +64,14 @@ export function PanelLayout({ view, children, defaultOrder }: { view: string; ch
     order.splice(from, 1);
     order.splice(to, 0, id);
     save({ ...current, order });
-    setAnnouncement(`${slots.find((s) => s.id === id)?.title}: Position ${to + 1} von ${order.length}.`);
+    setAnnouncement(uiText("components.PanelLayout.v0_position_v1_von_v2_528978", { v0: (slots.find((s) => s.id === id)?.title), v1: (to + 1), v2: (order.length) }));
   };
-  return <section aria-label="Funktionspanels">
+  return <section aria-label={uiText("components.PanelLayout.funktionspanels_82acad")}>
     <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-      <Button size="sm" className="min-h-11" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}><SlidersHorizontal size={13} /> Layout anpassen</Button>
-      {adjusting && <Button size="sm" className="min-h-11" onClick={() => { save(metadata(null, slots)); setAnnouncement('Standardlayout wiederhergestellt.'); }}><RotateCcw size={13} /> Layout zurücksetzen</Button>}
+      <Button size="sm" className="min-h-11" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}><SlidersHorizontal size={13} /> {uiText("components.PanelLayout.layout_anpassen_9d4ca3")}</Button>
+      {adjusting && <Button size="sm" className="min-h-11" onClick={() => { save(metadata(null, slots)); setAnnouncement(uiText("components.PanelLayout.standardlayout_wiederhergestellt_6a6783")); }}><RotateCcw size={13} /> {uiText("components.PanelLayout.layout_zurucksetzen_5c6f02")}</Button>}
     </div>
-    {adjusting && <p className="mb-3 text-xs text-muted">Panels am Griff ziehen oder mit den Pfeiltasten am Griff verschieben. Die Breite lässt sich separat wählen.</p>}
+    {adjusting && <p className="mb-3 text-xs text-muted">{uiText("components.PanelLayout.panels_am_griff_ziehen_oder_mit_den_pfeiltasten__f2377c")}</p>}
     <div className="grid items-start gap-4 xl:grid-cols-3">
       {current.order.map((id, index) => {
         const slot = slots.find((s) => s.id === id)!;
@@ -114,13 +115,13 @@ function MovablePanel({ slot, span, view, index, count, adjusting, onMove, onDro
   }, [adjusting, slot.id, view]);
   return <div ref={element} data-layout-panel={slot.id} data-span={span} className={cn('min-w-0', span === 1 ? 'xl:col-span-1' : span === 2 ? 'xl:col-span-2' : 'xl:col-span-3', over && 'rounded-[var(--radius-lg)] ring-2 ring-accent')}>
     {adjusting && <div className="mb-1 flex flex-wrap items-center gap-1 rounded-[var(--radius-sm)] border border-line bg-raised p-1">
-      <button ref={handle} type="button" aria-label={`Panel ${slot.title} verschieben`} className="flex min-h-11 min-w-11 cursor-grab items-center gap-1 px-2 text-xs active:cursor-grabbing" onKeyDown={(e) => {
+      <button ref={handle} type="button" aria-label={uiText("components.PanelLayout.panel_v0_verschieben_ee4a83", { v0: (slot.title) })} className="flex min-h-11 min-w-11 cursor-grab items-center gap-1 px-2 text-xs active:cursor-grabbing" onKeyDown={(e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); onMove(index - 1); }
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); onMove(index + 1); }
       }}><GripVertical size={14} /><span>{slot.title}</span></button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={`${slot.title}: nach vorne`} disabled={index === 0} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={`${slot.title}: nach hinten`} disabled={index === count - 1} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
-      <Select className="ml-auto min-h-11 w-auto min-w-32" aria-label={`${slot.title}: Panelbreite`} value={span} onChange={(e) => onSize(Number(e.target.value) as Span)}><option value="1">Schmal</option><option value="2">Mittel</option><option value="3">Ganze Zeile</option></Select>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_vorne_f637f0", { v0: (slot.title) })} disabled={index === 0} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_hinten_9b7af0", { v0: (slot.title) })} disabled={index === count - 1} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
+      <Select className="ml-auto min-h-11 w-auto min-w-32" aria-label={uiText("components.PanelLayout.v0_panelbreite_116978", { v0: (slot.title) })} value={span} onChange={(e) => onSize(Number(e.target.value) as Span)}><option value="1">{uiText("components.PanelLayout.schmal_ec22ce")}</option><option value="2">{uiText("components.PanelLayout.mittel_660427")}</option><option value="3">{uiText("components.PanelLayout.ganze_zeile_701a57")}</option></Select>
     </div>}
     {slot.children}
   </div>;

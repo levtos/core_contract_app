@@ -53,6 +53,7 @@ def document(count=1, definitions=1):
                 binding_id=f"binding.{name}",
                 source_id=f"source.{name}",
                 adapter=dict(kind="ha_state", ha_entity_id=f"sensor.{name}"),
+                transform=dict(kind="type_cast", target="bool"),
             )
             for name in ("a", "b")
         ],

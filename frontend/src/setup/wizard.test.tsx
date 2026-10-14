@@ -5,7 +5,7 @@ import type { SetupStatus } from './setup';
 vi.mock('@/Workbench', () => ({
   Workbench: ({ onSetup }: { onSetup: () => void }) => (
     <main>
-      <h1>Administration</h1>
+      <h1>Einstellungen</h1>
       <button onClick={onSetup}>Einrichtung prüfen</button>
     </main>
   ),
@@ -59,8 +59,8 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('reload after DB initialization resumes the unfinished Bridge step', async () => {
     backend({ ...initial, phase: 'completed', authority: 'wizard', database_configured: true });
     render(<App />);
-    await screen.findByRole('heading', { name: 'Home-Assistant-Bridge' });
-    expect(document.querySelector('h1')?.textContent).toBe('Core Contracts einrichten');
+    await screen.findByRole('heading', { name: "Terra HA-Anbindung" });
+    expect(document.querySelector('h1')?.textContent).toBe("Terra");
     expect(document.body.textContent).toContain('SELF-INSTALL-01');
   });
 
@@ -75,10 +75,10 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     const status = { ...initial, phase: 'connecting' as SetupStatus['phase'], authority: 'wizard', database_configured: true, onboarding_complete: true };
     backend(status);
     render(<App />);
-    await screen.findByText('Core Contracts einrichten');
+    await screen.findByText("Terra");
     status.phase = 'completed';
     // Polling performs the same recovery refresh without changing configuration.
-    await screen.findByText('Administration', {}, { timeout: 5000 });
+    await screen.findByText("Einstellungen", {}, { timeout: 5000 });
     clickText('Einrichtung prüfen');
     await screen.findByText(/Bestehende Identität wird beibehalten/);
     expect(screen.queryByText('Einrichtung prüfen')).toBeNull();
@@ -87,7 +87,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('fresh installation renders guided UI before any ordinary API request', async () => {
     const fetch = backend();
     render(<App />);
-    await screen.findByText('Core Contracts einrichten');
+    await screen.findByText("Terra");
     expect(document.body.textContent).toContain('Willkommen');
     expect(fetch.mock.calls.every(([url]) => url.includes('/setup/'))).toBe(true);
   });
@@ -100,7 +100,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     fireEvent.change(host, { target: { value: 'postgres-test' } });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Weiter' })).toBeEnabled());
     clickText('^Weiter$');
-    await screen.findByRole('heading', { name: 'Einrichtungsskript und geheimer Import' });
+    await screen.findByRole('heading', { name: "Einrichtungsskript und geheimer Einlesen" });
     expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('reviewable-test-script');
     expect(document.querySelector('input[type=password]')).not.toBeNull();
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/provision'))).toBe(true);
@@ -123,16 +123,17 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   });
 
   it('finishing setup requires an active Bridge and the explicit confirmation payload', async () => {
-    const status = { ...initial, phase: 'completed' as const, authority: 'wizard', database_configured: true, onboarding_complete: false, installation_id: 'id' };
+    const status = { ...initial, phase: 'completed' as const, authority: 'wizard', database_configured: true, onboarding_complete: false, installation_id: 'id', registry_revision: 9 };
     const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
       new Response(JSON.stringify(url.endsWith('/status') ? status : url.endsWith('/bridge') ? { state: 'active' } : { ok: true })),
     );
     vi.stubGlobal('fetch', fetch);
     const done = vi.fn();
     render(<SetupWizard initial={status} oncomplete={done} />);
-    await screen.findByText('Bridge aktiv (Protokoll 1)');
+    await screen.findByText("HA-Anbindung aktiv (Protokoll 1)");
     clickText('Ergebnisse ansehen');
     const finish = await screen.findByRole('button', { name: /Einrichtung abschließen/ });
+    expect(screen.getByText(/Konfiguration: Version 9 ist aktiv/)).toBeInTheDocument();
     await waitFor(() => expect(finish).toBeEnabled());
     fireEvent.click(finish);
     await waitFor(() => expect(done).toHaveBeenCalled());

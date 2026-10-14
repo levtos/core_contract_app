@@ -35,7 +35,7 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
   const input = screen.getByLabelText('Unsaved editor');
   await user.type(input, 'private registry text');
   const initialMounts = mounted;
-  await user.click(screen.getByRole('button', { name: 'Layout anpassen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
   const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
   handle.focus();
   await user.keyboard('{ArrowDown}');
@@ -44,7 +44,7 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
   expect(screen.getByLabelText('Unsaved editor')).toBe(input);
   await user.selectOptions(screen.getByLabelText('Editor: Panelbreite'), '3');
   expect(document.querySelector('[data-layout-panel="editor"]')).toHaveAttribute('data-span', '3');
-  await user.click(screen.getByRole('button', { name: 'Layout zurücksetzen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
   expect(order()).toEqual(['editor', 'validation', 'diff']);
   expect(input).toHaveValue('private registry text');
   expect(mounted).toBe(initialMounts);
@@ -55,7 +55,7 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
 
 it('persists order and widths across reload, separated by installation and view', async () => {
   const view = render(<Layout />);
-  await user.click(screen.getByRole('button', { name: 'Layout anpassen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
   await user.click(screen.getByRole('button', { name: 'Editor: nach hinten' }));
   await user.selectOptions(screen.getByLabelText('Editor: Panelbreite'), '1');
   view.unmount();
@@ -75,7 +75,7 @@ it('ignores corrupt metadata and writes nothing before the installation identity
   const view = render(<Layout />);
   expect(order()).toEqual(['editor', 'validation', 'diff']);
   view.rerender(<Layout installation={null} />);
-  await user.click(screen.getByRole('button', { name: 'Layout anpassen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
   await user.click(screen.getByRole('button', { name: 'Editor: nach hinten' }));
   expect(localStorage.length).toBe(1);
   expect(localStorage.getItem(layoutKey('one', 'test')!)).toBe('{broken');
@@ -85,7 +85,7 @@ it('moves through the real native drag adapter in StrictMode and keeps the edito
   render(<StrictMode><Layout /></StrictMode>);
   const input = screen.getByLabelText('Unsaved editor');
   await user.type(input, 'keep');
-  await user.click(screen.getByRole('button', { name: 'Layout anpassen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
   const data = new Map<string, string>();
   const transfer = { types: [] as string[], effectAllowed: 'all', dropEffect: 'move', setData(type: string, value: string) { data.set(type, value); this.types.push(type); }, getData: (type: string) => data.get(type) ?? '', setDragImage() {} };
   const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
@@ -119,10 +119,10 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
   await user.click(await screen.findByRole('button', { name: /source.a/ }));
   const input = screen.getByLabelText('Anzeigename');
   await user.type(input, 'unsaved');
-  await user.click(screen.getByRole('button', { name: 'Layout anpassen' }));
-  await user.click(screen.getByRole('button', { name: 'Source-Editor: nach vorne' }));
-  await user.selectOptions(screen.getByLabelText('Source-Editor: Panelbreite'), '3');
-  await user.click(screen.getByRole('button', { name: 'Layout zurücksetzen' }));
+  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await user.click(screen.getByRole('button', { name: 'Quelle-Editor: nach vorne' }));
+  await user.selectOptions(screen.getByLabelText('Quelle-Editor: Panelbreite'), '3');
+  await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
   expect(input).toHaveValue('unsaved');
   expect(screen.getByLabelText('Anzeigename')).toBe(input);
   expect(screen.getByTestId('dirty')).toHaveTextContent('true');
@@ -133,13 +133,13 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
 it('keeps navigation accessible and marks definitions active while collapsed; sidebar survives reload', async () => {
   installFakeApi();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const ui = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/definitions']}><LiveProvider store={idleLive()}><WorkingDocumentProvider><Routes><Route element={<Shell onSetup={() => {}} />}><Route path="/definitions" element={<p>Definitions</p>} /></Route></Routes></WorkingDocumentProvider></LiveProvider></MemoryRouter></QueryClientProvider>;
+  const ui = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/definitions']}><LiveProvider store={idleLive()}><WorkingDocumentProvider><Routes><Route element={<Shell onSetup={() => {}} />}><Route path="/definitions" element={<p>Vorlagen</p>} /></Route></Routes></WorkingDocumentProvider></LiveProvider></MemoryRouter></QueryClientProvider>;
   const view = render(ui());
-  await screen.findByText('Definitions');
+  await screen.findByText("Vorlagen");
   await waitFor(() => expect(client.getQueryData(['info'])).toBeTruthy());
   await user.click(screen.getByRole('button', { name: 'Navigation einklappen' }));
   const nav = within(screen.getByRole('navigation', { name: 'Hauptnavigation' }));
-  expect(nav.getByRole('link', { name: 'Contracts & Definitionen' })).toHaveAttribute('aria-current', 'page');
+  expect(nav.getByRole('link', { name: "Verträge & Vorlagen" })).toHaveAttribute('aria-current', 'page');
   expect(nav.getAllByRole('link')).toHaveLength(7);
   view.unmount();
   render(ui());

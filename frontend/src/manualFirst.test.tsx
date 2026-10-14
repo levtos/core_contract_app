@@ -47,7 +47,7 @@ afterEach(() => {
 describe('Alpha-4 example registry: complete manual-first flow', () => {
   it('rebuilds the registry from an empty draft with controls only, then saves and activates it', async () => {
     app();
-    await f.createDraft('GUI-Aufbau', 'Leere Registry');
+    await f.createDraft('GUI-Aufbau', "Leere Konfiguration");
     await screen.findAllByText('GUI-Aufbau');
     await f.buildExampleRegistry();
 
@@ -56,14 +56,14 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     expect(savedConfig()).toEqual(registry); // exact, including the object value, the machine and the nested rules
 
     const dialog = await f.activateOpenDraft([...api.drafts.keys()][0]!);
-    await within(dialog).findByText('Revision 1 ist aktiv');
+    await within(dialog).findByText("Version 1 ist aktiv");
     expect(api.revisions[0]!.config).toEqual(registry);
   }, 240_000);
 
   it('imports a valid registry, edits it graphically (including structured catalog values), exports and re-imports it without loss', async () => {
     app();
     const enriched: JsonObject = { ...registry, x_future: { z: [2, null], a: { id: 'stable' } }, definitions: (registry.definitions as JsonObject[]).map((d, i) => i === 0 ? { ...d, x_note: { z: 1, a: 2 } } : d) };
-    await f.createDraft('Import', 'Import (JSON)', JSON.stringify(enriched));
+    await f.createDraft('Import', "Einlesen (JSON)", JSON.stringify(enriched));
     const imported = [...api.drafts.values()][0]!;
     expect(imported.config).toEqual(enriched);
 
@@ -92,10 +92,10 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
 
     // Export (real button) → import into a new draft → identical, and the editor shows the real types.
     await f.go('#/registry');
-    await user.click((await screen.findAllByRole('button', { name: /Export/ }))[0]!);
+    await user.click((await screen.findAllByRole('button', { name: /Speichern als Datei/ }))[0]!);
     await waitFor(() => expect(exported).toHaveLength(1));
     expect(Object.keys(JSON.parse(exported[0]!).x_future)).toEqual(['z', 'a']);
-    await f.createDraft('Reimport', 'Import (JSON)', exported[0]);
+    await f.createDraft('Reimport', "Einlesen (JSON)", exported[0]);
     const second = [...api.drafts.values()].find((d) => d.display_name === 'Reimport')!;
     expect(second.config).toEqual(expected);
     await f.go('#/sources?tab=catalogs');

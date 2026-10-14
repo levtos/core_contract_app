@@ -80,7 +80,7 @@ describe('activation checks the exact immutable candidate and base', () => {
     api.touchDraft('a', { config: sampleConfig({ marker: 'new candidate' }) });
     await act(async () => pending.resolve(reply(200, { valid: true, issues: [] })));
     await screen.findByText('Prüfergebnis veraltet');
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(api.calls.some((c) => c.path.endsWith('/activate'))).toBe(false);
   });
@@ -94,7 +94,7 @@ describe('activation checks the exact immutable candidate and base', () => {
     api.revisions.push({ revision: 1, config: sampleConfig(), checksum: 'a'.repeat(64), created_at: 'x' });
     await act(async () => pending.resolve(reply(200, { valid: true, issues: [] })));
     await screen.findByText('Prüfergebnis veraltet');
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
   });
 
   it('discards A’s delayed validation after the same dialog switches to B', async () => {
@@ -111,8 +111,8 @@ describe('activation checks the exact immutable candidate and base', () => {
     await screen.findByRole('checkbox', { name: /Auswirkungen geprüft/ });
     await act(async () => pending.resolve(reply(200, { valid: false, issues: [] })));
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
-    await user.click(screen.getByRole('button', { name: 'Jetzt aktivieren' }));
-    await screen.findByText('Revision 1 ist aktiv');
+    await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
+    await screen.findByText("Version 1 ist aktiv");
     expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
   });
 });
@@ -129,8 +129,8 @@ describe('schemas outside the fixtures keep actual JSON types', () => {
     const root: JsonObject = { $defs: { Recursive: { type: 'object', properties: { name: { type: 'string' } }, allOf: [{ $ref: '#/$defs/Recursive', title: 'Recursive' }] } } };
     let value: JsonObject = { name: 'original', x: [null] };
     wrap(<Stateful initial={value} onValue={(next) => { value = next; }}>{(v, set) => <SchemaForm root={root} node={{ $ref: '#/$defs/Recursive' }} value={v} onChange={(n) => set(n as JsonObject)} pointer="/object" />}</Stateful>);
-    await user.clear(screen.getByLabelText('name'));
-    await user.type(screen.getByLabelText('name'), 'edited');
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'edited');
     expect(value).toEqual({ name: 'edited', x: [null] });
   });
   it('distinguishes colliding enum labels, including structured members and null', async () => {
@@ -153,8 +153,8 @@ describe('schemas outside the fixtures keep actual JSON types', () => {
     const schema: JsonObject = { $defs: { Alias: { $ref: '#/$defs/Object' }, Object: { allOf: [{ type: 'object', properties: { name: { type: 'string' } } }, { type: 'object', properties: { count: { type: 'integer' } }, required: ['count'] }] } } };
     let current: JsonObject = { name: 'old', count: 1, future: { ids: ['stable'] } };
     wrap(<Stateful initial={current} onValue={(v) => { current = v; }}>{(value, set) => <SchemaForm root={schema} node={{ $ref: '#/$defs/Alias' }} value={value} onChange={(v) => set(v as JsonObject)} pointer="/object" label="Object" />}</Stateful>);
-    await user.clear(screen.getByLabelText('name'));
-    await user.type(screen.getByLabelText('name'), 'new');
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'new');
     await user.click(screen.getByRole('button', { name: 'Eigenschaft' }));
     expect(current).toEqual({ name: 'new', count: 1, future: { ids: ['stable'] }, schluessel2: '' });
   });

@@ -1,3 +1,5 @@
+import { codeLabel, reasonLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Send } from 'lucide-react';
@@ -37,11 +39,11 @@ function commandsOf(type: TypeDescription | undefined): CommandSpec[] {
 
 const RESULT_TONE: Record<string, 'ok' | 'bad' | 'warn' | 'neutral'> = { accepted: 'ok', rejected: 'bad', expired: 'warn', not_supported: 'warn', command_id_conflict: 'bad' };
 const RESULT_TEXT: Record<string, string> = {
-  accepted: 'Angenommen: Die Transition wurde ausgeführt.',
-  rejected: 'Abgelehnt.',
-  expired: 'Abgelaufen: die Gültigkeit endete vor der Verarbeitung.',
-  not_supported: 'Nicht unterstützt: der Contract kennt diesen Befehl nicht.',
-  command_id_conflict: 'Command-ID-Konflikt: dieselbe ID wurde mit anderem Inhalt verwendet.',
+  accepted: uiText("features.diagnostics.CommandsPanel.angenommen_die_transition_wurde_ausgefuhrt_833e56"),
+  rejected: uiText("features.diagnostics.CommandsPanel.abgelehnt_34b49d"),
+  expired: uiText("features.diagnostics.CommandsPanel.abgelaufen_die_gultigkeit_endete_vor_der_verarbe_7e9bc2"),
+  not_supported: uiText("features.diagnostics.CommandsPanel.nicht_unterstutzt_der_contract_kennt_diesen_befe_51e577"),
+  command_id_conflict: uiText("features.diagnostics.CommandsPanel.command_id_konflikt_dieselbe_id_wurde_mit_andere_d2b1a5"),
 };
 
 /**
@@ -88,7 +90,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
         contract_id: contractId,
         command: spec!.name,
         args,
-        origin: { kind: 'workbench', actor: 'admin', client_name: 'Terra Workbench' },
+        origin: { kind: 'workbench', actor: 'admin', client_name: 'terra-workbench' },
         issued_at: new Date(issued).toISOString(),
         valid_until: new Date(issued + 30_000).toISOString(),
         ...(live.registryRevision ? { expected_registry_revision: live.registryRevision } : {}),
@@ -102,70 +104,69 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
   const recover = useMutation({
     mutationFn: (id: string) => api<CommandResult>(`commands/${encodeURIComponent(id)}`),
     onSuccess: (result) => setSent((s) => (s ? { ...s, result, error: null } : s)),
-    onError: (error) => setSent((s) => (s ? { ...s, error: `Kein gespeichertes Ergebnis: ${describeError(error)}` } : s)),
+    onError: (error) => setSent((s) => (s ? { ...s, error: uiText("features.diagnostics.CommandsPanel.kein_gespeichertes_ergebnis_v0_f20069", { v0: (describeError(error)) }) } : s)),
   });
 
   if (active.isPending || caps.isPending) return <Spinner />;
-  if (eligible.length === 0) return <Empty title="Keine Commands verfügbar">Commands gibt es nur für aktivierte Contracts, deren Typ Befehle deklariert (z. B. eine State Machine mit Befehlen).</Empty>;
+  if (eligible.length === 0) return <Empty title={uiText("features.diagnostics.CommandsPanel.keine_commands_verfugbar_7e30a7")}>{uiText("features.diagnostics.CommandsPanel.commands_gibt_es_nur_fur_aktivierte_contracts_de_eced61")}</Empty>;
 
   return (
-    <><PanelLayout view="diagnostics.commands"><LayoutPanel id="command" title="Command" span={2}>
+    <><PanelLayout view="diagnostics.commands"><LayoutPanel id="command" title={uiText("features.diagnostics.CommandsPanel.command_713166")} span={2}>
       <Panel>
-        <PanelHeader title="Command" description="Nur für die aktive Registry. Ein Command fordert eine benannte Transition an; es gibt kein direktes Setzen von Werten." />
+        <PanelHeader title={uiText("features.diagnostics.CommandsPanel.command_713166")} description={uiText("features.diagnostics.CommandsPanel.nur_fur_die_aktive_registry_ein_command_fordert__3a3fc2")} />
         <div className="flex flex-col gap-4 p-4">
-          <Field label="Contract">
+          <Field label={uiText("features.diagnostics.CommandsPanel.contract_a6f5b0")}>
             {(p) => (
               <Select {...p} value={contract ? contractId : ''} onChange={(e) => onContract(e.target.value)}>
-                <option value="">— wählen —</option>
+                <option value="">{uiText("features.diagnostics.CommandsPanel.wahlen_602246")}</option>
                 {eligible.map((c) => <option key={str(c.contract_id)} value={str(c.contract_id)}>{str(c.contract_id)}</option>)}
               </Select>
             )}
           </Field>
           {contract && spec && (
             <>
-              <Field label="Befehl">{(p) => <Select {...p} value={spec.name} onChange={(e) => setCommandName(e.target.value)}>{commands.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}</Select>}</Field>
+              <Field label={uiText("features.diagnostics.CommandsPanel.befehl_c8505b")}>{(p) => <Select {...p} value={spec.name} onChange={(e) => setCommandName(e.target.value)}>{commands.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}</Select>}</Field>
               {spec.fields && Object.keys(spec.fields).length > 0 && (
                 <fieldset className="flex flex-col gap-3">
-                  <legend className="mb-1 text-xs font-medium text-muted">Argumente (typisiert)</legend>
+                  <legend className="mb-1 text-xs font-medium text-muted">{uiText("features.diagnostics.CommandsPanel.argumente_typisiert_b6a75c")}</legend>
                   {Object.entries(spec.fields).map(([name, schema]) => (
-                    <TypedValueEditor key={name} label={`${name}${schema.required ? ' *' : ''}`} schema={schema} pointer={`/args/${name}`} value={(args[name] ?? null) as Json} onChange={(v) => setArgs({ ...args, [name]: v })} />
+                    <TypedValueEditor key={name} label={uiText("features.diagnostics.CommandsPanel.v0_v1_63ec26", { v0: (name), v1: (schema.required ? ' *' : '') })} schema={schema} pointer={`/args/${name}`} value={(args[name] ?? null) as Json} onChange={(v) => setArgs({ ...args, [name]: v })} />
                   ))}
                 </fieldset>
               )}
               {spec.schema && <SchemaForm root={spec.schema} node={spec.schema} value={args} pointer="/args" onChange={(v) => setArgs(isObject(v) ? v : {})} />}
-              {spec.fields && Object.keys(spec.fields).length === 0 && <p className="text-xs text-muted">Dieser Befehl hat keine Argumente.</p>}
+              {spec.fields && Object.keys(spec.fields).length === 0 && <p className="text-xs text-muted">{uiText("features.diagnostics.CommandsPanel.dieser_befehl_hat_keine_argumente_cc8092")}</p>}
               <div>
-                <Button variant="primary" disabled={send.isPending} onClick={() => setConfirming(true)}><Send size={14} /> Command senden …</Button>
+                <Button variant="primary" disabled={send.isPending} onClick={() => setConfirming(true)}><Send size={14} /> {uiText("features.diagnostics.CommandsPanel.command_senden_8e5910")}</Button>
               </div>
             </>
           )}
         </div>
       </Panel>
-      </LayoutPanel><LayoutPanel id="result" title="Ergebnis" span={1}><Panel>
-        <PanelHeader title="Ergebnis" />
+      </LayoutPanel><LayoutPanel id="result" title={uiText("features.diagnostics.CommandsPanel.ergebnis_cd8e22")} span={1}><Panel>
+        <PanelHeader title={uiText("features.diagnostics.CommandsPanel.ergebnis_cd8e22")} />
         <div className="flex flex-col gap-3 p-4">
-          {!sent && <p className="text-sm text-muted">Noch kein Command gesendet.</p>}
-          {sent && !sent.result && !sent.error && <Spinner label="Warte auf die Antwort …" />}
+          {!sent && <p className="text-sm text-muted">{uiText("features.diagnostics.CommandsPanel.noch_kein_command_gesendet_a8eea1")}</p>}
+          {sent && !sent.result && !sent.error && <Spinner label={uiText("features.diagnostics.CommandsPanel.warte_auf_die_antwort_5e512a")} />}
           {sent?.result && (
-            <Notice tone={RESULT_TONE[String(sent.result.status)] === 'ok' ? 'ok' : RESULT_TONE[String(sent.result.status)] === 'bad' ? 'bad' : 'warn'} title={<span className="flex items-center gap-2"><Badge tone={RESULT_TONE[String(sent.result.status)] ?? 'neutral'}>{String(sent.result.status)}</Badge>{sent.result.reason ? <Badge>{String(sent.result.reason)}</Badge> : null}</span>}>
+            <Notice tone={RESULT_TONE[String(sent.result.status)] === 'ok' ? 'ok' : RESULT_TONE[String(sent.result.status)] === 'bad' ? 'bad' : 'warn'} title={<span className="flex items-center gap-2"><Badge tone={RESULT_TONE[String(sent.result.status)] ?? 'neutral'}>{codeLabel(sent.result.status)}</Badge>{sent.result.reason ? <Badge>{reasonLabel(sent.result.reason)}</Badge> : null}</span>}>
               {RESULT_TEXT[String(sent.result.status)] ?? ''}
             </Notice>
           )}
           {sent?.error && (
-            <Notice tone="warn" title="Antwort unbekannt">
-              {sent.error} Der Command kann trotzdem verarbeitet worden sein. Nicht erneut senden – stattdessen das gespeicherte Ergebnis dieser ID abfragen.
-              <div className="mt-2"><Button size="sm" disabled={recover.isPending} onClick={() => recover.mutate(sent.id)}>Gespeichertes Ergebnis abfragen</Button></div>
+            <Notice tone="warn" title={uiText("features.diagnostics.CommandsPanel.antwort_unbekannt_e79d9d")}>
+              {sent.error} {uiText("features.diagnostics.CommandsPanel.der_command_kann_trotzdem_verarbeitet_worden_sei_a1e8f2")}<div className="mt-2"><Button size="sm" disabled={recover.isPending} onClick={() => recover.mutate(sent.id)}>{uiText("features.diagnostics.CommandsPanel.gespeichertes_ergebnis_abfragen_f219ee")}</Button></div>
             </Notice>
           )}
-          {sent && <KeyValue items={[{ label: 'Command-ID', value: <code className="break-all text-xs">{sent.id}</code> }]} />}
+          {sent && <KeyValue items={[{ label: uiText("features.diagnostics.CommandsPanel.command_id_8aab8c"), value: <code className="break-all text-xs">{sent.id}</code> }]} />}
         </div>
       </Panel>
       </LayoutPanel></PanelLayout><ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title="Command wirklich senden?"
-        description={<>„{spec?.name}“ wird an <code>{contractId}</code> gesendet. Das ist eine Aktion am laufenden System: Wenn der Guard es erlaubt, wechselt die State Machine ihren Zustand.</>}
-        confirmLabel="Senden"
+        title={uiText("features.diagnostics.CommandsPanel.command_wirklich_senden_dfa28f")}
+        description={<>„{spec?.name}{uiText("features.diagnostics.CommandsPanel.wird_an_bc6f65")}<code>{contractId}</code> {uiText("features.diagnostics.CommandsPanel.gesendet_das_ist_eine_aktion_am_laufenden_system_55df5a")}</>}
+        confirmLabel={uiText("features.diagnostics.CommandsPanel.senden_079bef")}
         busy={send.isPending}
         onConfirm={() => {
           setConfirming(false);

@@ -6,8 +6,8 @@ Konfiguration `core_contracts/config.yaml` verlangt diese öffentlichen Images:
 
 | Supervisor-Architektur | Docker-Plattform | Image |
 |---|---|---|
-| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a5 |
-| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a5 |
+| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a6 |
+| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a6 |
 
 `{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-core-contracts` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
@@ -15,8 +15,8 @@ Supervisor-Konfiguration; die Python-Paketversion muss dazu passen.
 
 ## Explizit veröffentlichen
 
-Die Versionsangaben oben beschreiben den vorbereiteten Alpha-5-Stand, keine bereits
-erfolgte Veröffentlichung. [Alpha-5-Nachweise und Freigabeschritte](releases/1.0.0a5.md)
+Die Versionsangaben oben beschreiben den vorbereiteten Alpha-6-Stand, keine bereits
+erfolgte Veröffentlichung. [Alpha-6-Nachweise und Freigabeschritte](releases/1.0.0a6.md)
 trennen Vorbereitung, GHCR-Publikation und Live-Abnahme. Frühere Stände:
 [Alpha 4](releases/1.0.0a4.md), [Alpha 3](releases/1.0.0a3.md).
 

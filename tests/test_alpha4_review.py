@@ -60,8 +60,12 @@ async def exercise_latch_restore(runtime, config):
     )
     registry(config, data)
     add_source(config, "b")
+    config["sources"][1]["source_type"] = "boolean"
+    config["sources"][1]["value_schema"] = schema()
     config["sources"][0]["source_type"] = "numeric"
     config["sources"][0]["value_schema"] = schema("number")
+    config["bindings"][0]["transform"] = dict(kind="type_cast", target="number")
+    config["bindings"][1]["transform"] = dict(kind="type_cast", target="bool")
     config["contracts"][0]["inputs"].append(dict(name="b", ref="source.b"))
     await activate(runtime, config)
     baseline = Bucket(False, 2, 5)

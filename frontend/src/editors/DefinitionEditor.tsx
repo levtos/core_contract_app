@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Lock, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -99,7 +100,7 @@ export function DefinitionEditor({
       }}
       extra={(name) => (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
-          <SectionTitle>Regel für „{name}“</SectionTitle>
+          <SectionTitle>{uiText("editors.DefinitionEditor.regel_fur_69dffb")}{name}“</SectionTitle>
           <RuleEditor
             value={(outputs[name] ?? newRule('input', ctx, defaults)) as Rule}
             pointer={join(pointer, 'outputs', name)}
@@ -113,30 +114,30 @@ export function DefinitionEditor({
   const items = [
     {
       value: 'general',
-      label: 'Allgemein',
+      label: uiText("editors.DefinitionEditor.allgemein_24eddd"),
       content: (
         <div className="flex max-w-3xl flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Fld label="Typ-ID" pointer={join(pointer, 'type_id')} hint={TYPE_ID.test(str(value.type_id)) ? 'Synthetischer test.*-Namensraum' : 'Muss mit „test.“ beginnen.'}>
+            <Fld label={uiText("editors.DefinitionEditor.typ_id_b7db41")} pointer={join(pointer, 'type_id')} hint={TYPE_ID.test(str(value.type_id)) ? uiText("editors.DefinitionEditor.synthetischer_test_namensraum_8ac977") : uiText("editors.DefinitionEditor.muss_mit_test_beginnen_01622a")}>
               {(p) => <Input {...p} disabled={locked} value={str(value.type_id)} onChange={(e) => set({ type_id: e.target.value })} />}
             </Fld>
-            <Fld label="Version" pointer={join(pointer, 'type_version')} hint="Logikänderungen = neue Version">
+            <Fld label={uiText("editors.DefinitionEditor.version_dd1679")} pointer={join(pointer, 'type_version')} hint={uiText("editors.DefinitionEditor.logikanderungen_neue_version_28d5cf")}>
               {(p) => <Input {...p} disabled={locked} type="number" min={1} step={1} value={Number(value.type_version ?? 1)} onChange={(e) => set({ type_version: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })} />}
             </Fld>
-            <Fld label="Sprachversion" pointer={join(pointer, 'language_version')}>
+            <Fld label={uiText("editors.DefinitionEditor.sprachversion_4adccf")} pointer={join(pointer, 'language_version')}>
               {(p) => <Input {...p} readOnly disabled value={String(value.language_version ?? 1)} />}
             </Fld>
           </div>
-          <Fld label="Anzeigename (redaktionell)" pointer={join(pointer, 'display_name')} hint="Redaktionelle Felder ändern die Semantik nicht und bleiben auch bei aktivierten Versionen bearbeitbar.">
+          <Fld label={uiText("editors.DefinitionEditor.anzeigename_redaktionell_44433b")} pointer={join(pointer, 'display_name')} hint={uiText("editors.DefinitionEditor.redaktionelle_felder_andern_die_semantik_nicht_u_20b198")}>
             {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value || undefined })} />}
           </Fld>
-          <Fld label="Beschreibung (redaktionell)" pointer={join(pointer, 'description')}>
+          <Fld label={uiText("editors.DefinitionEditor.beschreibung_redaktionell_d5700f")} pointer={join(pointer, 'description')}>
             {(p) => <Textarea {...p} rows={3} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value || undefined })} />}
           </Fld>
           <fieldset disabled={locked} className="flex flex-col gap-2">
-            <SectionTitle>Refresh-Eingänge</SectionTitle>
-            <p className="text-xs text-muted">Deklarierte HA-Eingänge, die nach einem Commit neu angefordert werden dürfen.</p>
-            {inputs.length === 0 && <p className="text-xs text-faint">Noch keine Eingänge.</p>}
+            <SectionTitle>{uiText("editors.DefinitionEditor.refresh_eingange_f326cb")}</SectionTitle>
+            <p className="text-xs text-muted">{uiText("editors.DefinitionEditor.deklarierte_ha_eingange_die_nach_einem_commit_ne_ab47d2")}</p>
+            {inputs.length === 0 && <p className="text-xs text-faint">{uiText("editors.DefinitionEditor.noch_keine_eingange_63d0b8")}</p>}
             {inputs.map((input) => {
               const name = str(input.name);
               const selected = asArray(value.refresh_inputs).map(String);
@@ -156,15 +157,15 @@ export function DefinitionEditor({
       value: 'inputs',
       label: (
         <span className="flex items-center gap-2">
-          Eingänge <Badge>{inputs.length}</Badge>
+          {uiText("editors.DefinitionEditor.eingange_aaae23")}<Badge>{inputs.length}</Badge>
           <IssueCount pointer={join(pointer, 'inputs')} />
         </span>
       ),
       content: (
         <fieldset disabled={locked} className="flex max-w-3xl flex-col gap-3">
-          <SectionTitle aside={<AddButton onClick={() => set({ inputs: [...inputs, { name: uniqueName('eingang', inputs.map((i) => str(i.name))), schema: newFieldSchema('bool') }] })}>Eingang</AddButton>}>Typisierte Eingänge</SectionTitle>
+          <SectionTitle aside={<AddButton onClick={() => set({ inputs: [...inputs, { name: uniqueName('eingang', inputs.map((i) => str(i.name))), schema: newFieldSchema('bool') }] })}>{uiText("editors.DefinitionEditor.eingang_d8af5e")}</AddButton>}>{uiText("editors.DefinitionEditor.typisierte_eingange_1ca67c")}</SectionTitle>
           <IssuesAt pointer={join(pointer, 'inputs')} />
-          {inputs.length === 0 && <Notice tone="info">Ohne Eingänge liefert die Definition nur Konstanten.</Notice>}
+          {inputs.length === 0 && <Notice tone="info">{uiText("editors.DefinitionEditor.ohne_eingange_liefert_die_definition_nur_konstan_25c31a")}</Notice>}
           {inputs.map((input, i) => {
             const name = str(input.name);
             const ip = join(pointer, 'inputs', i);
@@ -173,7 +174,7 @@ export function DefinitionEditor({
               <Collapsible
                 key={i}
                 defaultOpen
-                title={<span className="flex items-center gap-2"><code>{name}</code><Badge>{str(asObject(input.schema).type)}</Badge>{used > 0 && <span className="text-xs text-faint">{used}× verwendet</span>}</span>}
+                title={<span className="flex items-center gap-2"><code>{name}</code><Badge>{str(asObject(input.schema).type)}</Badge>{used > 0 && <span className="text-xs text-faint">{used}{uiText("editors.DefinitionEditor.verwendet_cf0908")}</span>}</span>}
                 aside={
                   <>
                     <IssueCount pointer={ip} />
@@ -193,7 +194,7 @@ export function DefinitionEditor({
                 }
               >
                 <div className="flex flex-col gap-3">
-                  <Fld label="Name" pointer={join(ip, 'name')} hint={used > 0 ? 'Umbenennen aktualisiert alle Verweise in dieser Definition. Entfernen ist erst ohne Verwendung möglich.' : undefined}>
+                  <Fld label={uiText("editors.DefinitionEditor.name_dcd1d5")} pointer={join(ip, 'name')} hint={used > 0 ? uiText("editors.DefinitionEditor.umbenennen_aktualisiert_alle_verweise_in_dieser__746da1") : undefined}>
                     {(p) => (
                       <Input
                         {...p}
@@ -221,7 +222,7 @@ export function DefinitionEditor({
       value: 'outputs',
       label: (
         <span className="flex items-center gap-2">
-          Ausgaben <Badge>{Object.keys(asObject(asObject(value.schema).fields)).length}</Badge>
+          {uiText("editors.DefinitionEditor.ausgaben_c20af5")}<Badge>{Object.keys(asObject(asObject(value.schema).fields)).length}</Badge>
           <IssueCount pointer={join(pointer, 'outputs')} />
           <IssueCount pointer={join(pointer, 'schema')} />
         </span>
@@ -232,34 +233,34 @@ export function DefinitionEditor({
       value: 'rules',
       label: (
         <span className="flex items-center gap-2">
-          Benannte Regeln <Badge>{Object.keys(rules).length}</Badge>
+          {uiText("editors.DefinitionEditor.benannte_regeln_2d1254")}<Badge>{Object.keys(rules).length}</Badge>
           <IssueCount pointer={join(pointer, 'rules')} />
         </span>
       ),
       content: (
         <fieldset disabled={locked} className="flex max-w-4xl flex-col gap-3">
-          <SectionTitle aside={<AddButton onClick={() => set({ rules: { ...rules, [uniqueName('regel', Object.keys(rules))]: newRule('input', ctx, defaults) } })}>Regel</AddButton>}>Interne Zwischenausdrücke</SectionTitle>
-          <p className="text-xs text-muted">Benannte Regeln werden pro Auswertung einmal berechnet und können über „Interne Regel (Verweis)“ mehrfach verwendet werden. Zyklen werden vom Server abgelehnt.</p>
+          <SectionTitle aside={<AddButton onClick={() => set({ rules: { ...rules, [uniqueName('regel', Object.keys(rules))]: newRule('input', ctx, defaults) } })}>{uiText("editors.DefinitionEditor.regel_4b09cd")}</AddButton>}>{uiText("editors.DefinitionEditor.interne_zwischenausdrucke_55311a")}</SectionTitle>
+          <p className="text-xs text-muted">{uiText("editors.DefinitionEditor.benannte_regeln_werden_pro_auswertung_einmal_ber_2306fc")}</p>
           <IssuesAt pointer={join(pointer, 'rules')} />
-          {Object.keys(rules).length === 0 && <Notice tone="info">Noch keine benannten Regeln.</Notice>}
+          {Object.keys(rules).length === 0 && <Notice tone="info">{uiText("editors.DefinitionEditor.noch_keine_benannten_regeln_161f59")}</Notice>}
           {Object.entries(rules).map(([name, rule]) => {
             const used = ruleUse.get(name) ?? 0;
             return (
               <Collapsible
                 key={name}
                 defaultOpen
-                title={<span className="flex items-center gap-2"><code>{name}</code>{used > 0 && <span className="text-xs text-faint">{used}× verwendet</span>}</span>}
+                title={<span className="flex items-center gap-2"><code>{name}</code>{used > 0 && <span className="text-xs text-faint">{used}{uiText("editors.DefinitionEditor.verwendet_cf0908")}</span>}</span>}
                 aside={
                   <>
                     <IssueCount pointer={join(pointer, 'rules', name)} />
-                    <IconButton label={used > 0 ? `${name} wird verwendet` : `Regel ${name} entfernen`} tone="danger" disabled={used > 0} onClick={() => set({ rules: Object.fromEntries(Object.entries(rules).filter(([k]) => k !== name)) })}>
+                    <IconButton label={used > 0 ? uiText("editors.DefinitionEditor.v0_wird_verwendet_e5d823", { v0: (name) }) : uiText("editors.DefinitionEditor.regel_v0_entfernen_df07a9", { v0: (name) })} tone="danger" disabled={used > 0} onClick={() => set({ rules: Object.fromEntries(Object.entries(rules).filter(([k]) => k !== name)) })}>
                       <Trash2 size={14} />
                     </IconButton>
                   </>
                 }
               >
                 <div className="flex flex-col gap-3">
-                  <Fld label="Name" pointer={join(pointer, 'rules', name)}>
+                  <Fld label={uiText("editors.DefinitionEditor.name_dcd1d5")} pointer={join(pointer, 'rules', name)}>
                     {(p) => (
                       <Input
                         {...p}
@@ -286,7 +287,7 @@ export function DefinitionEditor({
       value: 'machine',
       label: (
         <span className="flex items-center gap-2">
-          State Machine {value.machine ? <Badge tone="accent">aktiv</Badge> : <Badge>keine</Badge>}
+          {uiText("editors.DefinitionEditor.state_machine_670ced")}{value.machine ? <Badge tone="accent">{uiText("editors.DefinitionEditor.aktiv_3139fc")}</Badge> : <Badge>{uiText("editors.DefinitionEditor.keine_db028e")}</Badge>}
           <IssueCount pointer={join(pointer, 'machine')} />
         </span>
       ),
@@ -296,14 +297,13 @@ export function DefinitionEditor({
           {!locked && (
             <div>
               <button type="button" className="cursor-pointer text-xs text-bad hover:underline" onClick={() => set({ machine: undefined })}>
-                State Machine aus dieser Definition entfernen
-              </button>
+                {uiText("editors.DefinitionEditor.state_machine_aus_dieser_definition_entfernen_46ef4d")}</button>
             </div>
           )}
         </div>
       ) : (
         <div className="flex max-w-xl flex-col items-start gap-3">
-          <p className="text-sm text-muted">Diese Definition hat keine State Machine. Eine Machine bringt Zustände, Episoden, Sessions, eine Deadline und Befehle mit; ein Ausgabefeld muss sie über „Zustand der State Machine“ verwenden.</p>
+          <p className="text-sm text-muted">{uiText("editors.DefinitionEditor.diese_definition_hat_keine_state_machine_eine_ma_eb27c0")}</p>
           <AddButton
             disabled={locked}
             onClick={() =>
@@ -320,19 +320,18 @@ export function DefinitionEditor({
               })
             }
           >
-            State Machine hinzufügen
-          </AddButton>
+            {uiText("editors.DefinitionEditor.state_machine_hinzufugen_c9125d")}</AddButton>
         </div>
       ),
     },
     {
       value: 'json',
-      label: 'JSON (Experte)',
+      label: uiText("editors.DefinitionEditor.json_experte_99d21a"),
       content: (
         <div className="max-w-4xl">
-          <p className="mb-2 text-xs text-muted">Optionale Expertenansicht derselben Daten. Ungültiges JSON wird nicht übernommen; alle Änderungen erscheinen sofort in den Formularen.</p>
+          <p className="mb-2 text-xs text-muted">{uiText("editors.DefinitionEditor.optionale_expertenansicht_derselben_daten_ungult_e2b8d0")}</p>
           <fieldset disabled={locked}>
-            <JsonValueEditor label="Definition" pointer={pointer} rows={24} value={value} onChange={(next) => next && typeof next === 'object' && !Array.isArray(next) && onChange(next)} />
+            <JsonValueEditor label={uiText("editors.DefinitionEditor.definition_9813fa")} pointer={pointer} rows={24} value={value} onChange={(next) => next && typeof next === 'object' && !Array.isArray(next) && onChange(next)} />
           </fieldset>
         </div>
       ),
@@ -347,9 +346,8 @@ export function DefinitionEditor({
     <RuleEnvProvider value={{ ctx, caps, locked }}>
       <div className="flex flex-col gap-4">
         {locked && (
-          <Notice tone="warn" title={<span className="flex items-center gap-2"><Lock size={14} /> Aktivierte Version – semantisch unveränderlich</span>}>
-            {lockReason ?? 'Diese Version war bereits aktiv.'} Redaktionelle Felder (Name, Beschreibung) bleiben änderbar. Für Logikänderungen eine neue Version anlegen.
-          </Notice>
+          <Notice tone="warn" title={<span className="flex items-center gap-2"><Lock size={14} /> {uiText("editors.DefinitionEditor.aktivierte_version_semantisch_unveranderlich_8bfc17")}</span>}>
+            {lockReason ?? uiText("editors.DefinitionEditor.diese_version_war_bereits_aktiv_faa77f")} {uiText("editors.DefinitionEditor.redaktionelle_felder_name_beschreibung_bleiben_a_a99fa7")}</Notice>
         )}
         <IssuesAt pointer={pointer} />
         <Tabs items={items} value={tab} onValueChange={setTab} />
@@ -360,9 +358,9 @@ export function DefinitionEditor({
 
 export function LockBadge() {
   return (
-    <Tip label="Diese Version war bereits aktiv und ist semantisch unveränderlich.">
+    <Tip label={uiText("editors.DefinitionEditor.diese_version_war_bereits_aktiv_und_ist_semantis_b868d2")}>
       <span tabIndex={0}>
-        <Badge tone="info"><Lock size={11} /> gesperrt</Badge>
+        <Badge tone="info"><Lock size={11} /> {uiText("editors.DefinitionEditor.gesperrt_4a76d6")}</Badge>
       </span>
     </Tip>
   );

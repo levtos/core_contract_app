@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
@@ -35,7 +36,7 @@ export function FieldSchemaEditor({
   return (
     <div className="flex flex-col gap-3" data-pointer={pointer} data-testid={idPrefix}>
       <div className={compact ? 'grid gap-3 sm:grid-cols-2' : 'grid gap-3 sm:grid-cols-3'}>
-        <Fld label="Typ" pointer={join(pointer, 'type')}>
+        <Fld label={uiText("editors.FieldSchemaEditor.typ_1b0241")} pointer={join(pointer, 'type')}>
           {(props) => (
             <Select
               {...props}
@@ -51,22 +52,22 @@ export function FieldSchemaEditor({
             </Select>
           )}
         </Fld>
-        <Fld label="Einheit (optional)" pointer={join(pointer, 'unit')}>
+        <Fld label={uiText("editors.FieldSchemaEditor.einheit_optional_330bf9")} pointer={join(pointer, 'unit')}>
           {(props) => (
-            <Input {...props} value={typeof value.unit === 'string' ? value.unit : ''} placeholder="z. B. W, °C" onChange={(e) => set({ unit: e.target.value === '' ? undefined : e.target.value })} />
+            <Input {...props} value={typeof value.unit === 'string' ? value.unit : ''} placeholder={uiText("editors.FieldSchemaEditor.z_b_w_c_b73aab")} onChange={(e) => set({ unit: e.target.value === '' ? undefined : e.target.value })} />
           )}
         </Fld>
         <div className="flex flex-col justify-end gap-2 pb-1.5">
-          <Checkbox checked={value.required} onCheckedChange={(required) => set({ required })} label="Pflichtwert" />
-          <Checkbox checked={value.physical_state} onCheckedChange={(physical_state) => set({ physical_state })} label="Physischer Zustand" />
+          <Checkbox checked={value.required} onCheckedChange={(required) => set({ required })} label={uiText("editors.FieldSchemaEditor.pflichtwert_eb4e10")} />
+          <Checkbox checked={value.physical_state} onCheckedChange={(physical_state) => set({ physical_state })} label={uiText("editors.FieldSchemaEditor.physischer_zustand_be93d1")} />
         </div>
       </div>
       {value.type === 'text' && catalog.length === 0 && !restricted && (
-        <Checkbox checked={false} onCheckedChange={setRestricted} label="Auf feste Textwerte einschränken (Wertekatalog)" />
+        <Checkbox checked={false} onCheckedChange={setRestricted} label={uiText("editors.FieldSchemaEditor.auf_feste_textwerte_einschranken_wertekatalog_29c7a2")} />
       )}
       {(value.type === 'enum' || catalog.length > 0 || (value.type === 'text' && restricted)) && (
         <StringListEditor
-          label={value.type === 'enum' ? 'Wertekatalog (Pflicht für Enum)' : 'Wertekatalog (schränkt Werte ein)'}
+          label={value.type === "enum" ? uiText("editors.FieldSchemaEditor.wertekatalog_pflicht_fur_enum_78abf7") : uiText("editors.FieldSchemaEditor.wertekatalog_schrankt_werte_ein_953952")}
           pointer={join(pointer, 'value_catalog')}
           value={catalog}
           onChange={(next) => set({ value_catalog: next.length === 0 && value.type !== 'enum' ? undefined : next })}

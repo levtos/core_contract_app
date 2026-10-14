@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,7 @@ export function Fld({
   const issues = useIssues(pointer);
   return (
     <Field
+      pointer={pointer}
       label={label}
       hint={hint}
       className={className}
@@ -45,7 +47,7 @@ export function IssuesAt({ pointer }: { pointer: string }) {
     <ul className="space-y-1">
       {issues.map((issue, i) => (
         <li key={i} role="alert" className="rounded-[var(--radius-sm)] border border-bad/40 bg-bad/10 px-2.5 py-1.5 text-xs text-bad">
-          <span className="mono mr-1.5 opacity-70">{issue.code}</span>
+          <span className="mono mr-1.5 opacity-70">{uiText("common.validationError")}</span>
           {explain(issue)}
         </li>
       ))}
@@ -59,7 +61,7 @@ export function IssueCount({ pointer }: { pointer: string }) {
   return (
     <Tip label={issues.map((i) => `${i.code}: ${explain(i)}`).join('\n')}>
       <span tabIndex={0}>
-        <Badge tone="bad">{issues.length} {issues.length === 1 ? 'Fehler' : 'Fehler'}</Badge>
+        <Badge tone="bad">{issues.length} {issues.length === 1 ? uiText("editors.common.fehler_f6cc01") : uiText("editors.common.fehler_f6cc01")}</Badge>
       </span>
     </Tip>
   );
@@ -78,13 +80,13 @@ export function IconButton({ label, onClick, disabled, children, tone }: { label
 export function RowActions({ index, count, onMove, onRemove, removeDisabled }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove: () => void; removeDisabled?: boolean }) {
   return (
     <div className="flex shrink-0 items-center">
-      <IconButton label="Nach oben" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
+      <IconButton label={uiText("editors.common.nach_oben_ed1652")} disabled={index === 0} onClick={() => onMove(index, index - 1)}>
         <ArrowUp size={14} />
       </IconButton>
-      <IconButton label="Nach unten" disabled={index >= count - 1} onClick={() => onMove(index, index + 1)}>
+      <IconButton label={uiText("editors.common.nach_unten_542457")} disabled={index >= count - 1} onClick={() => onMove(index, index + 1)}>
         <ArrowDown size={14} />
       </IconButton>
-      <IconButton label="Entfernen" tone="danger" disabled={removeDisabled} onClick={onRemove}>
+      <IconButton label={uiText("editors.common.entfernen_382837")} tone="danger" disabled={removeDisabled} onClick={onRemove}>
         <Trash2 size={14} />
       </IconButton>
     </div>
@@ -116,18 +118,18 @@ export function StringListEditor({ value, onChange, pointer, label, placeholder 
             {value.map((item, i) => (
               <span key={item + i} className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-raised py-0.5 pl-2.5 pr-1 text-xs">
                 <code>{item}</code>
-                <button type="button" aria-label={`${item} entfernen`} className="cursor-pointer rounded-full px-1 text-muted hover:text-bad" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+                <button type="button" aria-label={uiText("editors.common.v0_entfernen_92fea7", { v0: (item) })} className="cursor-pointer rounded-full px-1 text-muted hover:text-bad" onClick={() => onChange(value.filter((_, j) => j !== i))}>
                   ×
                 </button>
               </span>
             ))}
-            {value.length === 0 && <span className="text-xs text-faint">leer</span>}
+            {value.length === 0 && <span className="text-xs text-faint">{uiText("editors.common.leer_f13f8e")}</span>}
           </div>
           <div className="flex gap-2">
             <Input
               {...props}
               value={draft}
-              placeholder={placeholder ?? 'Wert + Enter'}
+              placeholder={placeholder ?? uiText("editors.common.wert_enter_a30cc4")}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -137,8 +139,7 @@ export function StringListEditor({ value, onChange, pointer, label, placeholder 
               }}
             />
             <Button variant="outline" onClick={commit} disabled={!draft.trim()}>
-              Hinzufügen
-            </Button>
+              {uiText("editors.common.hinzufugen_cbb95c")}</Button>
           </div>
         </div>
       )}
@@ -165,8 +166,8 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = 'We
         <Fld label={label} pointer={pointer}>
           {(props) => (
             <Select {...props} value={String(value)} onChange={(e) => onChange(e.target.value === 'true')}>
-              <option value="true">wahr</option>
-              <option value="false">falsch</option>
+              <option value="true">{uiText("editors.common.wahr_167f97")}</option>
+              <option value="false">{uiText("editors.common.falsch_b3c3e0")}</option>
             </Select>
           )}
         </Fld>
@@ -178,7 +179,7 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = 'We
         <Fld label={label} pointer={pointer}>
           {(props) => (
             <Select {...props} value={String(value)} onChange={(e) => onChange(e.target.value)}>
-              {!catalog.includes(String(value)) && <option value={String(value)}>{String(value) || '—'} (nicht im Katalog)</option>}
+              {!catalog.includes(String(value)) && <option value={String(value)}>{String(value) || '—'} {uiText("editors.common.nicht_im_katalog_fa85e6")}</option>}
               {catalog.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
@@ -188,14 +189,14 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = 'We
       );
     case 'timestamp':
       return (
-        <Fld label={label} pointer={pointer} hint="Zeitpunkt mit Zeitzone (RFC 3339), z. B. 2026-01-01T12:00:00+00:00">
+        <Fld label={label} pointer={pointer} hint={uiText("editors.common.zeitpunkt_mit_zeitzone_rfc_3339_z_b_2026_01_01t1_ccb975")}>
           {(props) => (
             <div className="flex gap-2">
               <Input {...props} value={String(value)} onChange={(e) => onChange(e.target.value)} className="font-mono text-xs" />
               <Input
                 type="datetime-local"
                 step={1}
-                aria-label={`${label} (Kalender)`}
+                aria-label={uiText("editors.common.v0_kalender_4c1966", { v0: (label) })}
                 className="w-52"
                 value={isoToLocalInput(String(value))}
                 onChange={(e) => e.target.value && onChange(new Date(e.target.value).toISOString().replace('Z', '+00:00'))}
@@ -272,12 +273,12 @@ export function JsonValueEditor({ label, pointer, value, onChange, rows = 6, hin
                 const parsed = JSON.parse(e.target.value) as Json;
                 setError(null);
                 onChange(parsed);
-              } catch (err) {
-                setError((err as Error).message);
+              } catch {
+                setError(uiText("common.invalidJson"));
               }
             }}
           />
-          {error && <p role="alert" className="text-xs text-bad">Ungültiges JSON – Änderung noch nicht übernommen: {error}</p>}
+          {error && <p role="alert" className="text-xs text-bad">{uiText("editors.common.ungultiges_json_anderung_noch_nicht_ubernommen_ffa9c9")}{error}</p>}
         </div>
       )}
     </Fld>

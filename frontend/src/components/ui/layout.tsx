@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { AlertTriangle, CircleAlert, Info, Loader2 } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ export function Notice({ tone = 'info', title, children, className, role }: { to
   );
 }
 
-export function Spinner({ label = 'Lädt …' }: { label?: string }) {
+export function Spinner({ label = uiText("components.ui.layout.ladt_c8ebc9") }: { label?: string }) {
   return (
     <div role="status" className="flex items-center gap-2 py-6 text-sm text-muted">
       <Loader2 size={16} className="animate-spin" />

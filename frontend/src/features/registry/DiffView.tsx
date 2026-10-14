@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible } from '@/components/ui/controls';
@@ -7,12 +8,12 @@ import { pluralize } from '@/lib/format';
 import type { Diff } from '@/lib/types';
 
 const GROUP_LABELS: Record<string, string> = {
-  dependencies: 'Dependencies',
-  sources: 'Sources',
-  bindings: 'Bindings',
-  catalogs: 'Kataloge',
-  contracts: 'Contracts',
-  definitions: 'Definitionen',
+  dependencies: uiText("features.registry.DiffView.dependencies_2e41b1"),
+  sources: uiText("features.registry.DiffView.sources_caf85b"),
+  bindings: uiText("features.registry.DiffView.bindings_7697ab"),
+  catalogs: uiText("features.registry.DiffView.kataloge_daf282"),
+  contracts: uiText("features.registry.DiffView.contracts_0488ac"),
+  definitions: uiText("features.registry.DiffView.definitionen_871a91"),
 };
 
 function Chips({ items, tone = 'neutral', link }: { items: string[]; tone?: 'neutral' | 'ok' | 'bad' | 'warn' | 'accent'; link?: boolean }) {
@@ -44,48 +45,46 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted">
-        Statische Analyse{against ? ` gegen ${against}` : ''}: Es werden weder Entwürfe ausgewertet noch Werte vorhergesagt.
-      </p>
-      {nothing && <Notice tone="info" title="Keine Änderung gegenüber der aktiven Revision" />}
+        {uiText("features.registry.DiffView.statische_analyse_929ff1")}{against ? uiText("features.registry.DiffView.gegen_v0_0e5182", { v0: (against) }) : ''}{uiText("features.registry.DiffView.es_werden_weder_entwurfe_ausgewertet_noch_werte__5b260d")}</p>
+      {nothing && <Notice tone="info" title={uiText("features.registry.DiffView.keine_anderung_gegenuber_der_aktiven_revision_b4a476")} />}
       {diff.fingerprint_version.context_migration && (
-        <Notice tone="warn" title="Fingerprint-Version wechselt">
-          Von {String(diff.fingerprint_version.before)} auf {diff.fingerprint_version.after}: betroffene Kontexte werden neu initialisiert (Kontextmigration). Zeitkontexte starten dabei neu.
-        </Notice>
+        <Notice tone="warn" title={uiText("features.registry.DiffView.fingerprint_version_wechselt_b60a4b")}>
+          {uiText("features.registry.DiffView.von_704f87")}{String(diff.fingerprint_version.before)} {uiText("features.registry.DiffView.auf_9d82d9")}{diff.fingerprint_version.after}{uiText("features.registry.DiffView.betroffene_kontexte_werden_neu_initialisiert_kon_b49c90")}</Notice>
       )}
       <dl className="divide-y divide-line rounded-[var(--radius-md)] border border-line px-3">
-        <Row label="Contracts hinzugefügt"><Chips items={diff.added} tone="ok" link /></Row>
-        <Row label="Contracts entfernt"><Chips items={diff.removed} tone="bad" /></Row>
-        <Row label="Contracts geändert"><Chips items={diff.changed} tone="warn" link /></Row>
-        <Row label="Direkt betroffen"><Chips items={diff.directly_affected_contracts} link /></Row>
-        <Row label="Transitiv betroffen"><Chips items={diff.transitively_affected_contracts} link /></Row>
-        <Row label="Geänderte Fingerprints"><Chips items={diff.fingerprint_changes} tone="warn" /></Row>
-        <Row label="Mögliche Neuinitialisierung"><Chips items={diff.possibly_invalidated_contexts} tone="warn" link /></Row>
-        <Row label="Identitätswechsel Quellen"><Chips items={diff.source_identity_changes} tone="warn" /></Row>
-        <Row label="Identitätswechsel Bindings"><Chips items={diff.binding_identity_changes} tone="warn" /></Row>
-        <Row label="Fristen bleiben erhalten">{diff.restore.retains_absolute_deadlines_if_compatible ? 'ja, bei kompatiblem Fingerprint' : 'nein'}</Row>
-        <Row label="Snapshot">{diff.snapshot.revision_changes ? `neue Revision; ${pluralize(diff.snapshot.affected_contracts.length, 'Contract', 'Contracts')} im Snapshot betroffen` : 'unverändert'}</Row>
+        <Row label={uiText("features.registry.DiffView.contracts_hinzugefugt_aa1b10")}><Chips items={diff.added} tone="ok" link /></Row>
+        <Row label={uiText("features.registry.DiffView.contracts_entfernt_5c5965")}><Chips items={diff.removed} tone="bad" /></Row>
+        <Row label={uiText("features.registry.DiffView.contracts_geandert_59d44d")}><Chips items={diff.changed} tone="warn" link /></Row>
+        <Row label={uiText("features.registry.DiffView.direkt_betroffen_832e51")}><Chips items={diff.directly_affected_contracts} link /></Row>
+        <Row label={uiText("features.registry.DiffView.transitiv_betroffen_ef01a8")}><Chips items={diff.transitively_affected_contracts} link /></Row>
+        <Row label={uiText("features.registry.DiffView.geanderte_fingerprints_eb5466")}><Chips items={diff.fingerprint_changes} tone="warn" /></Row>
+        <Row label={uiText("features.registry.DiffView.mogliche_neuinitialisierung_2361a0")}><Chips items={diff.possibly_invalidated_contexts} tone="warn" link /></Row>
+        <Row label={uiText("features.registry.DiffView.identitatswechsel_quellen_9211e3")}><Chips items={diff.source_identity_changes} tone="warn" /></Row>
+        <Row label={uiText("features.registry.DiffView.identitatswechsel_bindings_3f8a12")}><Chips items={diff.binding_identity_changes} tone="warn" /></Row>
+        <Row label={uiText("features.registry.DiffView.fristen_bleiben_erhalten_bcbfe1")}>{diff.restore.retains_absolute_deadlines_if_compatible ? uiText("features.registry.DiffView.ja_bei_kompatiblem_fingerprint_219c13") : uiText("features.registry.DiffView.nein_4d03db")}</Row>
+        <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText("features.registry.DiffView.neue_revision_v0_im_snapshot_betroffen_69638e", { v0: (pluralize(diff.snapshot.affected_contracts.length, 'Contract', 'Contracts')) }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
       </dl>
       {groups.map(([name, group]) => (
-        <Collapsible key={name} title={`${GROUP_LABELS[name] ?? name}: ${group.added.length} neu · ${group.changed.length} geändert · ${group.removed.length} entfernt`} defaultOpen={groups.length <= 2}>
+        <Collapsible key={name} title={uiText("features.registry.DiffView.v0_v1_neu_v2_geandert_v3_entfernt_80a78f", { v0: (GROUP_LABELS[name] ?? name), v1: (group.added.length), v2: (group.changed.length), v3: (group.removed.length) })} defaultOpen={groups.length <= 2}>
           <dl>
-            <Row label="Hinzugefügt"><Chips items={group.added} tone="ok" /></Row>
-            <Row label="Entfernt"><Chips items={group.removed} tone="bad" /></Row>
-            <Row label="Geändert"><Chips items={group.changed} tone="warn" /></Row>
+            <Row label={uiText("features.registry.DiffView.hinzugefugt_1625f5")}><Chips items={group.added} tone="ok" /></Row>
+            <Row label={uiText("features.registry.DiffView.entfernt_d0124f")}><Chips items={group.removed} tone="bad" /></Row>
+            <Row label={uiText("features.registry.DiffView.geandert_d63c93")}><Chips items={group.changed} tone="warn" /></Row>
           </dl>
           {group.changed.map((key) => (
             <div key={key} className="mt-2 rounded-[var(--radius-sm)] border border-line p-2">
               <p className="font-mono text-xs font-medium">{key}</p>
-              <p className="mt-1 text-xs text-muted">Felder: {(group.fields[key] ?? []).join(', ') || '–'}</p>
+              <p className="mt-1 text-xs text-muted">{uiText("features.registry.DiffView.felder_ad2dff")}{(group.fields[key] ?? []).join(', ') || '–'}</p>
               <ul className="mt-1 max-h-40 overflow-auto font-mono text-[11px] text-muted">
                 {(group.field_paths[key] ?? []).map((path) => <li key={path}>{path}</li>)}
               </ul>
-              {group.field_paths_truncated.includes(key) && <p className="mt-1 text-xs text-warn">Pfadliste gekürzt (Server-Limit 1 024).</p>}
+              {group.field_paths_truncated.includes(key) && <p className="mt-1 text-xs text-warn">{uiText("features.registry.DiffView.pfadliste_gekurzt_server_limit_1_024_344b24")}</p>}
             </div>
           ))}
         </Collapsible>
       ))}
       {Object.keys(diff.affected_fields).length > 0 && (
-        <Collapsible title="Betroffene Ausgabefelder (konservativ)">
+        <Collapsible title={uiText("features.registry.DiffView.betroffene_ausgabefelder_konservativ_1da6f9")}>
           <ul className="space-y-1 text-sm">
             {Object.entries(diff.affected_fields).map(([id, fields]) => (
               <li key={id} className="flex flex-wrap items-center gap-2"><Link to={`/contracts/${encodeURIComponent(id)}`} className="font-mono text-xs text-accent hover:underline">{id}</Link>{fields.map((f) => <Badge key={f}>{f}</Badge>)}</li>

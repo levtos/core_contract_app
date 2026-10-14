@@ -166,11 +166,29 @@ def state_machine(
         if invalid:
             if reinitialize(ctx):
                 current = machine.initial(now, ctx.state.active_revision, node["fingerprint"])
+                current = current.model_copy(
+                    update={
+                        "transition_reason": "reinitialize_when",
+                        "trigger": "reinitialize_when",
+                        "source": "evidence",
+                        "evidence": tuple(node.get("machine_recovery", {}).get("evidence", ())),
+                    }
+                )
             else:
                 node.pop("machine", None)
                 return invalid
-    elif current is None and (ctx.case == "first" or reinitialize(ctx)):
+    elif current is None and ctx.case == "first":
         current = machine.initial(now, ctx.state.active_revision, node["fingerprint"])
+    elif current is None and reinitialize(ctx):
+        current = machine.initial(now, ctx.state.active_revision, node["fingerprint"])
+        current = current.model_copy(
+            update={
+                "transition_reason": "reinitialize_when",
+                "trigger": "reinitialize_when",
+                "source": "evidence",
+                "evidence": tuple(node.get("machine_recovery", {}).get("evidence", ())),
+            }
+        )
     elif current is None:
         code = (
             ReasonCode.RESTORE_INCOMPATIBLE

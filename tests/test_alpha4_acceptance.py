@@ -21,6 +21,8 @@ from .test_phase1a import add_source, contract, field
 def cascade(config):
     config["fingerprint_version"] = 2
     add_source(config, "b")
+    for binding in config["bindings"]:
+        binding["transform"] = dict(kind="type_cast", target="bool")
     truth = definition()
     truth["type_id"] = "test.truth"
     either = definition(
