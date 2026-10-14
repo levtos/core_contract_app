@@ -379,8 +379,10 @@ keine JS-Fehler. Netzwerk: 147 API-Aufrufe, 142 × 200, 5 × 400 (alle aus provo
      14.10.2026:** Typ und Einheit sind ab dem ersten Übernehmen gesperrt, die Umwandlung folgt fest aus
      dem Typ und steht ausdrücklich in der Verknüpfung, ein Typwechsel heißt neue Quelle plus Umzug
      (Details: Issue #17, Codex-Paket B2).
-   - **(b)** Wie kommt ein Ablauf nach einer Fingerprint-Änderung wieder in einen Zustand: Startzustand,
-     Befehl „neu starten“ oder Pflicht-Reinit?
+   - **(b)** ~~Wie kommt ein Ablauf nach einer Fingerprint-Änderung wieder in einen Zustand?~~
+     **Beschlossen 14.10.2026:** B3 (Erholung nur über echte Daten) + B4 (verständliche Diagnose) als
+     Standard, B2 („Ablauf neu starten“ als Admin-Notausgang mit Freigabe am Ablauf, Bestätigung, Audit,
+     Kennzeichnung „manuell“) – nach ADR. B1 abgelehnt (Details: Issue #17, Codex-Paket B4).
 6. Barrierefreiheit (Tastatur, Kontrast „unbekannt“, Screenreader) messen.
 7. Hinweis Betrieb: Live-DB läuft mit `sslmode: disable` – bewusst? (separat, kein UX-Thema).
 
@@ -431,10 +433,28 @@ B3 Ablauf-Editor reinitialize_when (BUG-03)
 - Akzeptanz: Import einer Maschine ohne reinitialize_when zeigt Fehler am Feld; ein Klick „Bedingung
   festlegen“ behebt ihn. Test: MachineEditor-Komponententest.
 
-B4 Ablauf nach Fingerprint-Wechsel / Befehlsgrund (BUG-04) [ENTSCHEID (b)]
-- Ablehnungsgrund bei fehlendem Zustand eigener Reason (z. B. state_unknown) statt guard_rejected.
-- Nach Entscheid: definierter Weg in den Startzustand.
-- Akzeptanz/Tests: Command-Test mit unknown-Maschine; Restore-Test laut Entscheid.
+B4 Ablauf ohne gültigen Zustand (BUG-04) [ENTSCHEID (b) BESCHLOSSEN, Benni 14.10.2026 – Issue #17:
+   B3 + B4 Standard, B2 Notausgang, B1 abgelehnt]
+- B1 verboten: kein automatischer Reset ohne Datengrundlage; ohne Nachweis bleibt unknown.
+- B3: Wiederherstellung nur über die deklarierte Neustart-Bedingung, ausgewertet auf gültiger Evidence.
+  Validierung/Editor warnen deutlich bei konstanter Bedingung „falsch“ („kann sich nie selbst erholen“);
+  der Editor schlägt eine Bedingung aus den Eingängen vor.
+- B4: Diagnose und Vertragsseite erklären in Alltagssprache, warum der Ablauf unbekannt ist und welche
+  Voraussetzung fehlt (z. B. „wartet auf: Fenster zu“). Befehle an einen zustandslosen Ablauf liefern einen
+  eigenen Grund (z. B. state_unknown) statt guard_rejected.
+- B2 [GATE: zuerst ADR 0004, da Spezifikation §6.7/§16 kein generisches set_state erlaubt]:
+  Admin-Aktion „Ablauf neu starten“ nur, wenn die Ablauf-Definition sie erlaubt (neues Feld, Standard: aus).
+  Bestätigungsdialog zeigt betroffene nachgelagerte Verträge (Impact) und den Hinweis „Startzustand wird
+  manuell gesetzt, nicht durch Sensordaten bestätigt“. Wirkung: definierter Startzustand, neue Episode,
+  origin=manual, Zeitpunkt, Grund, Akteur – persistiert in einem Commit (Command-/Audit-Pfad). Der Zustand
+  trägt einen sichtbaren Grund (z. B. manual_restart), bis der erste datengetriebene Übergang oder eine
+  erfüllte Neustart-Bedingung ihn bestätigt. Keine anderen Zielzustände, keine Wiederholung nach Restore.
+- Akzeptanz: (1) Ablauf mit Bedingung „Fenster zu“ erholt sich nach einer Fingerprint-Änderung ohne
+  Eingriff, sobald gültige Daten die Bedingung erfüllen; (2) ohne Nachweis bleibt unknown mit
+  verständlicher Erklärung; (3) Befehl an einen zustandslosen Ablauf → state_unknown; (4) Neustart nur bei
+  Freigabe, mit Bestätigung, Audit und manual-Kennzeichnung; ohne Freigabe ist der Knopf deaktiviert mit
+  Grund; (5) Consumer sehen über Envelope/WS die Kennzeichnung. Tests: Restore-/SM-Unit, Command-Idempotenz,
+  Audit, API, Frontend-Dialog, Engine-E2E.
 
 B5 Dialoge, Konflikte, Assistent (BUG-05/06/07/08/11/12)
 - Bestätigung in Aktivieren/Zurücksetzen immer sichtbar (sticky Footer), Knopf deaktiviert mit Grund.
