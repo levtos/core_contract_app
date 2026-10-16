@@ -1,6 +1,6 @@
 import { t as uiText } from '@/i18n';
 import dagre from '@dagrejs/dagre';
-import { applyNodeChanges, Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
+import { applyNodeChanges, Background, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
 import { Cable, FileCode2, Sigma } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -11,11 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
 import { Empty, KeyValue, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
-import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useLive } from '@/lib/live-context';
 import { cn } from '@/lib/utils';
 import type { Envelope } from '@/lib/types';
+import { useActiveRevision } from '@/lib/queries';
+import { contractState } from '@/features/contracts/presentation';
 import { buildGraph, neighborhood, nodeId, reach, type Graph, type GraphNode } from './buildGraph';
 
 interface NodeData extends Record<string, unknown> {
@@ -24,8 +25,8 @@ interface NodeData extends Record<string, unknown> {
   dim: boolean;
 }
 
-const WIDTH = 220;
-const HEIGHT = 64;
+const WIDTH = 280;
+const HEIGHT = 80;
 
 function layout(graph: Graph): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph();
@@ -43,18 +44,8 @@ function layout(graph: Graph): Map<string, { x: number; y: number }> {
 /** Contract nodes show server-provided health; sources and results are structural. */
 const TerraNode = memo(function TerraNode({ data, selected }: NodeProps<Node<NodeData>>) {
   const { node, envelope, dim } = data;
-  const tone =
-    node.kind === 'contract'
-      ? node.enabled === false
-        ? 'border-line-strong'
-        : envelope
-          ? envelope.contract_health === 'healthy'
-            ? 'border-ok/60'
-            : 'border-warn/70'
-          : 'border-line-strong'
-      : node.kind === 'source'
-        ? 'border-info/50'
-        : 'border-accent/40 border-dashed';
+  const state = contractState(envelope, node.enabled !== false);
+  const tone = node.kind !== 'contract' ? 'border-line-strong' : ({ ok: 'border-ok/60', warn: 'border-warn/70', bad: 'border-bad/70', info: 'border-info/60', neutral: 'border-line-strong', accent: 'border-line-strong' }[state.tone]);
   const Icon = node.kind === 'source' ? Cable : node.kind === 'contract' ? FileCode2 : Sigma;
   return (
     <div
@@ -64,13 +55,13 @@ const TerraNode = memo(function TerraNode({ data, selected }: NodeProps<Node<Nod
     >
       <Handle type="target" position={Position.Left} className="!size-2 !border-line-strong !bg-raised" />
       <div className="flex items-center gap-2">
-        <Icon size={14} className={node.kind === 'source' ? 'text-info' : node.kind === 'contract' ? 'text-accent' : 'text-muted'} />
-        <span className="truncate font-mono text-xs font-medium">{node.label}</span>
+        <Icon size={16} className="shrink-0 text-muted" />
+        <span className="truncate text-sm font-medium" title={uiText('alpha7.graph.tooltip', { name: node.label, id: node.id })}>{node.label}</span>
       </div>
-      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+      <div className="mt-2 flex items-center gap-1.5 text-xs text-muted">
         <span className="truncate">{node.detail}</span>
         {node.kind === 'contract' && node.enabled === false && <Badge>{uiText("features.graph.GraphPage.aus_2337c3")}</Badge>}
-        {node.kind === 'contract' && envelope && <span className={envelope.contract_health === 'healthy' ? 'text-ok' : 'text-warn'}>●</span>}
+        {node.kind === 'contract' && envelope && <Badge tone={state.tone}>{state.label}</Badge>}
       </div>
       <Handle type="source" position={Position.Right} className="!size-2 !border-line-strong !bg-raised" />
     </div>
@@ -116,7 +107,7 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
     animated: false,
     style: edge.kind === 'input' ? undefined : { strokeDasharray: '5 4' },
     markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
-    labelStyle: { fontSize: 10, fill: 'var(--color-muted)' },
+    labelStyle: { fontSize: 13, fill: 'var(--color-muted)' },
     labelBgStyle: { fill: 'var(--color-panel)' },
   }));
 
@@ -131,9 +122,9 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       fitView
-      fitViewOptions={{ padding: 0.06, maxZoom: 1 }}
-      minZoom={0.2}
-      maxZoom={1.6}
+      fitViewOptions={{ padding: 0.08, minZoom: 0.9, maxZoom: 1 }}
+      minZoom={0.65}
+      maxZoom={1.8}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable
@@ -143,8 +134,11 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       aria-label={uiText("features.graph.GraphPage.abhangigkeitsgraph_52b36e")}
     >
       <Background gap={24} color="var(--color-line)" />
-      <Controls showInteractive={false} />
-      <MiniMap pannable zoomable nodeColor={() => 'var(--color-line-strong)'} maskColor="rgb(0 0 0 / 0.5)" />
+      <div className="absolute bottom-3 left-3 z-10 flex gap-2 rounded-lg border border-line bg-panel p-2" role="group" aria-label={uiText('alpha7.graph.view')}>
+        <Button size="sm" onClick={() => void flow.zoomIn()}>{uiText('alpha7.graph.zoomIn')}</Button>
+        <Button size="sm" onClick={() => void flow.zoomOut()}>{uiText('alpha7.graph.zoomOut')}</Button>
+        <Button size="sm" onClick={() => void flow.fitView({ padding: 0.08, minZoom: 0.9, maxZoom: 1 })}>{uiText('alpha7.graph.readable')}</Button>
+      </div>
     </ReactFlow>
   );
 }
@@ -155,7 +149,7 @@ function Details({ node, graph, envelope }: { node: GraphNode; graph: Graph; env
   const label = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? id;
   return (
     <Panel>
-      <PanelHeader title={<span className="font-mono">{node.label}</span>} aside={<Badge tone={node.kind === 'source' ? 'info' : node.kind === 'contract' ? 'accent' : 'neutral'}>{node.kind === 'source' ? uiText("features.graph.GraphPage.quelle_037889") : node.kind === 'contract' ? (node.declarative ? uiText("features.graph.GraphPage.contract_deklarativ_4bb04f") : uiText("features.graph.GraphPage.contract_paket_typ_ad3d17")) : uiText("features.graph.GraphPage.abgeleitetes_ergebnis_1c7c27")}</Badge>} />
+      <PanelHeader title={<span title={node.id}>{node.label}</span>} aside={<Badge>{node.kind === 'source' ? uiText("features.graph.GraphPage.quelle_037889") : node.kind === 'contract' ? (node.declarative ? uiText("features.graph.GraphPage.contract_deklarativ_4bb04f") : uiText("features.graph.GraphPage.contract_paket_typ_ad3d17")) : uiText("features.graph.GraphPage.abgeleitetes_ergebnis_1c7c27")}</Badge>} />
       <div className="flex flex-col gap-4 p-4 text-sm">
         <KeyValue items={[{ label: uiText("features.graph.GraphPage.details_45989d"), value: node.detail }, ...(node.kind === 'contract' ? [{ label: uiText("features.graph.GraphPage.status_920e41"), value: node.enabled === false ? uiText("features.graph.GraphPage.deaktiviert_10f33e") : uiText("features.graph.GraphPage.aktiviert_acb27b") }] : [])]} />
         {node.kind === 'contract' && envelope && (
@@ -178,10 +172,10 @@ function Details({ node, graph, envelope }: { node: GraphNode; graph: Graph; env
           <p className="flex flex-wrap gap-1.5">{downstream.length ? downstream.map((id) => <Badge key={id}>{label(id)}</Badge>) : <span className="text-xs text-faint">–</span>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {node.kind === 'contract' && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/view/${encodeURIComponent(node.label)}`)}>{uiText("features.graph.GraphPage.detailansicht_9d72e5")}</Button>}
-          {node.kind === 'contract' && <Link to={`/diagnostics?contract=${encodeURIComponent(node.label)}`}><Button size="sm">{uiText("features.graph.GraphPage.diagnose_64dd65")}</Button></Link>}
+          {node.kind === 'contract' && node.contractId && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/view/${encodeURIComponent(node.contractId!)}`)}>{uiText("features.graph.GraphPage.detailansicht_9d72e5")}</Button>}
+          {node.kind === 'contract' && node.contractId && <Link to={`/settings/diagnostics?contract=${encodeURIComponent(node.contractId)}`}><Button size="sm">{uiText("features.graph.GraphPage.diagnose_64dd65")}</Button></Link>}
           {node.kind === 'result' && node.contractId && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/view/${encodeURIComponent(node.contractId!)}`)}>{uiText("features.graph.GraphPage.contract_offnen_019eff")}</Button>}
-          {node.kind === 'source' && <Button size="sm" variant="primary" onClick={() => navigate(`/sources?tab=sources&item=${node.index ?? 0}`)}>{uiText("features.graph.GraphPage.quelle_offnen_16c604")}</Button>}
+          {node.kind === 'source' && <Button size="sm" variant="primary" onClick={() => navigate(`/sources/devices?item=${node.index ?? 0}`)}>{uiText("features.graph.GraphPage.quelle_offnen_16c604")}</Button>}
         </div>
       </div>
     </Panel>
@@ -191,6 +185,8 @@ function Details({ node, graph, envelope }: { node: GraphNode; graph: Graph; env
 export default function GraphPage() {
   const src = useAuthoringSource();
   const live = useLive();
+  const active = useActiveRevision();
+  const envelopes = src.source === 'active' && active.data?.revision === live.registryRevision ? live.contracts : null;
   const [params, setParams] = useSearchParams();
   const [structural, setStructural] = useState(false);
   const [depth, setDepth] = useState<'all' | '1' | '2' | '3'>('all');
@@ -206,22 +202,24 @@ export default function GraphPage() {
   return (
     <>
       <PageHeader title={uiText("features.graph.GraphPage.graph_32ab01")} description={uiText("features.graph.GraphPage.quellen_contracts_und_abgeleitete_ergebnisse_kan_5cf87d")} />
-      <ReadOnlyNotice what={uiText("features.graph.GraphPage.graph_32ab01")} />
+      <p className="mb-3 flex items-center gap-2 text-sm"><Badge tone={src.source === 'draft' ? 'info' : 'neutral'}>{uiText(src.source === 'draft' ? 'alpha7.graph.draft' : 'alpha7.graph.live')}</Badge>{uiText(src.source === 'draft' ? 'alpha7.graph.draftHelp' : 'alpha7.graph.liveHelp', { n: active.data?.revision ?? '—' })}</p>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Input aria-label={uiText("features.graph.GraphPage.knoten_suchen_5bcf84")} className="w-56" placeholder={uiText("features.graph.GraphPage.knoten_suchen_64e35f")} value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && match && select(match.id)} />
         <Button size="sm" disabled={!match} onClick={() => match && select(match.id)}>{uiText("features.graph.GraphPage.auswahlen_0bf1ed")}</Button>
+        {!match && <span className="text-xs text-muted">{uiText(search.trim() ? 'alpha7.graph.noMatch' : 'alpha7.graph.searchFirst')}</span>}
         <Select aria-label={uiText("features.graph.GraphPage.nachbarschaft_d49e47")} className="w-52" value={depth} onChange={(e) => setDepth(e.target.value as typeof depth)} disabled={!selected}>
           <option value="all">{uiText("features.graph.GraphPage.gesamter_graph_ce5753")}</option>
           <option value="1">{uiText("features.graph.GraphPage.nachbarschaft_1_schritt_6ed35c")}</option>
           <option value="2">{uiText("features.graph.GraphPage.nachbarschaft_2_schritte_edd4a3")}</option>
           <option value="3">{uiText("features.graph.GraphPage.nachbarschaft_3_schritte_0df84f")}</option>
         </Select>
+        {!selected && <span className="text-xs text-muted">{uiText('alpha7.graph.selectFirst')}</span>}
         <Switch checked={structural} onCheckedChange={setStructural} label={uiText("features.graph.GraphPage.liveness_dependencies_4224a7")} />
         <span className="ml-auto flex items-center gap-2 text-xs text-muted">
-          <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full border border-info/60" /> {uiText("features.graph.GraphPage.quelle_037889")}</span>
+          <span className="flex items-center gap-1"><Cable size={13} /> {uiText("features.graph.GraphPage.quelle_037889")}</span>
           <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full border border-ok/70" /> {uiText("features.graph.GraphPage.contract_gesund_0a175e")}</span>
           <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full border border-warn/70" /> {uiText("features.graph.GraphPage.eingeschrankt_7c77f8")}</span>
-          <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full border border-dashed border-accent/60" /> {uiText("features.graph.GraphPage.ergebnis_cd8e22")}</span>
+          <span className="flex items-center gap-1"><Sigma size={13} /> {uiText("features.graph.GraphPage.ergebnis_cd8e22")}</span>
         </span>
       </div>
       {live.stale && live.contracts && <p className="mb-2 text-xs text-warn">{uiText("features.graph.GraphPage.zustandsfarben_letzter_bekannter_stand_live_verb_243a87")}</p>}
@@ -233,11 +231,11 @@ export default function GraphPage() {
         <PanelLayout view="graph"><LayoutPanel id="graph" title={uiText("features.graph.GraphPage.graph_32ab01")} span={2}>
           <Panel className="h-[min(70vh,44rem)] min-h-[24rem] overflow-hidden">
             <ReactFlowProvider>
-              <Canvas key={`${structural}-${depth}-${selected ?? ''}`} graph={graph} envelopes={live.contracts} selected={selected} onSelect={select} focus={selected ?? match?.id ?? null} />
+              <Canvas key={`${structural}-${depth}-${selected ?? ''}`} graph={graph} envelopes={envelopes} selected={selected} onSelect={select} focus={selected ?? match?.id ?? null} />
             </ReactFlowProvider>
           </Panel>
           </LayoutPanel><LayoutPanel id="details" title={uiText("features.graph.GraphPage.knotendetails_1af0bd")} span={1}>
-          {selectedNode ? <Details node={selectedNode} graph={full} envelope={selectedNode.contractId ? (live.contracts?.[selectedNode.contractId] ?? null) : null} /> : <Panel><Empty title={uiText("features.graph.GraphPage.knoten_wahlen_b5df2f")}>{uiText("features.graph.GraphPage.klicken_sie_einen_knoten_an_um_zustand_abhangigk_356431")}</Empty></Panel>}
+          {selectedNode ? <Details node={selectedNode} graph={full} envelope={selectedNode.contractId ? (envelopes?.[selectedNode.contractId] ?? null) : null} /> : <Panel><Empty title={uiText("features.graph.GraphPage.knoten_wahlen_b5df2f")}>{uiText("features.graph.GraphPage.klicken_sie_einen_knoten_an_um_zustand_abhangigk_356431")}</Empty></Panel>}
           </LayoutPanel></PanelLayout>
       )}
     </>

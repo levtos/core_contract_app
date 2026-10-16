@@ -78,9 +78,9 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P10.03 | Zurücksetzen nur auf ältere Versionen | umgesetzt; Aktion erst bei bekanntem kohärentem Aktivstand | versions.test.tsx; lifecycle.test.tsx; e2e.test.tsx | offen |
 | P10.04 | Neue Objekte im Diff ohne bedrohliche Warnplaketten; Prüfsummen Erweitert | umgesetzt; echte Auswirkungen auf Bestandskontexte bleiben sichtbar | versions.test.tsx | offen |
 | P10.05 | Eigene Import-/Export-Unterseite | umgesetzt in P1, P4 | navigation.test.tsx | offen |
-| P11.01 | Graph bei 1920 lesbar, Entwurf/live markiert | offen | offen | offen |
-| P11.02 | Kein grauer Knopf ohne Grund | offen | offen | offen |
-| P11.03 | Nachweis mit Quellenauswahl und Tabelle statt Tippfeld/JSON | offen | offen | offen |
+| P11.01 | Graph bei 1920 lesbar, Entwurf/live markiert | umgesetzt; 90-Prozent-Startgröße, Verschieben statt unlesbarem Einpassen; Browserprüfung offen | graphEvidence.test.tsx; buildGraph.test.ts | offen |
+| P11.02 | Kein grauer Knopf ohne Grund | umgesetzt; Suche und Nachbarschaft erklären Voraussetzung, beschriftete Zoomknöpfe | graphEvidence.test.tsx | offen |
+| P11.03 | Nachweis mit Quellenauswahl und Tabelle statt Tippfeld/JSON | umgesetzt; aktive Quellen nach Namen, Nachweissuche optional unter Erweitert; gespeicherte Uhren getrennt | graphEvidence.test.tsx; diagnostics.test.tsx | offen |
 | P12.01 | Gedämpftes Petrol nur Marke/Navigation/Hauptknopf | offen | offen | offen |
 | P12.02 | Exklusive Statusfarben Grün/Gelb/Rot/Grau/Blau, keine Dekoration | offen | offen | offen |
 | P12.03 | Gesund-Grün unterscheidbar; WCAG AA für alle Status-Chips, besonders Grau | offen | offen | offen |

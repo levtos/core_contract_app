@@ -1,4 +1,5 @@
 import { t as uiText } from '@/i18n';
+import { fieldLabel } from '@/i18n/codes';
 import { isObject, type JsonObject } from '@/lib/json';
 import { asArray, str } from '@/features/authoring/model';
 import { resolveRef } from '@/features/authoring/usage';
@@ -44,15 +45,15 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
 
   asArray(config?.sources).filter(isObject).forEach((source, index) => {
     const id = str(source.source_id);
-    nodes.set(nodeId('source', id), { id: nodeId('source', id), kind: 'source', label: id, detail: uiText("features.graph.buildGraph.v0_v1_6a5b16", { v0: (str(source.source_type)), v1: (str(source.source_origin)) }), index });
+    nodes.set(nodeId('source', id), { id: nodeId('source', id), kind: 'source', label: str(source.display_name) || id, detail: uiText('alpha7.graph.sourceDetail'), index });
   });
   asArray(config?.contracts).filter(isObject).forEach((contract, index) => {
     const id = str(contract.contract_id);
     nodes.set(nodeId('contract', id), {
       id: nodeId('contract', id),
       kind: 'contract',
-      label: id,
-      detail: uiText("features.graph.buildGraph.v0_v_v1_bde90b", { v0: (str(contract.type_id)), v1: (String(contract.type_version)) }),
+      label: str(contract.display_name) || id,
+      detail: uiText('alpha7.graph.templateVersion', { n: String(contract.type_version) }),
       index,
       enabled: contract.enabled !== false,
       declarative: definitions.has(`${str(contract.type_id)}@${String(contract.type_version)}`),
@@ -69,7 +70,7 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
         edges.push({ id: `${nodeId('source', target.id)}->${to}:${str(input.name)}`, source: nodeId('source', target.id), target: to, label: str(input.name), kind: 'input' });
       } else if (target.field) {
         const resultId = nodeId('result', `${target.id}.${target.field}`);
-        if (!nodes.has(resultId)) nodes.set(resultId, { id: resultId, kind: 'result', label: target.field, detail: uiText("features.graph.buildGraph.ergebnis_von_v0_b655b9", { v0: (target.id) }), contractId: target.id });
+        if (!nodes.has(resultId)) nodes.set(resultId, { id: resultId, kind: 'result', label: fieldLabel(target.field), detail: uiText("features.graph.buildGraph.ergebnis_von_v0_b655b9", { v0: (nodes.get(nodeId('contract', target.id))?.label ?? target.id) }), contractId: target.id });
         const from = nodeId('contract', target.id);
         const produce = `${from}->${resultId}`;
         if (!edges.some((e) => e.id === produce)) edges.push({ id: produce, source: from, target: resultId, kind: 'input' });

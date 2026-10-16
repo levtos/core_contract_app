@@ -139,9 +139,10 @@ describe('evidence references are opaque and may legitimately be missing', () =>
     const api = installFakeApi();
     api.routes.push({ match: /^evidence\/reference\//, respond: (path) => reply(404, { error: 'evidence_not_found', reference: decodeURIComponent(path.split('/').pop()!) }) });
     wrap(<EvidenceTab />);
+    await user.click(screen.getByRole('button', { name: 'Erweitert: einzelnen Nachweis über Referenz suchen' }));
     await user.type(screen.getByLabelText("Nachweis-Referenz"), 'v2:e:7:ha:12:binding.a');
     await user.click(screen.getByRole('button', { name: 'Auflösen' }));
-    await screen.findByText("Keine aufgezeichnete Nachweis");
+    await screen.findByText('Kein gespeicherter Nachweis');
     expect(api.calls.at(-1)!.path).toBe(`evidence/reference/${encodeURIComponent('v2:e:7:ha:12:binding.a')}`);
   });
 });

@@ -20,7 +20,7 @@ describe('dependency graph', () => {
     (doc.contracts as JsonObject[])[3]!.inputs = [{ name: 'a', ref: 'fixture.either.value' }];
     const graph = buildGraph(doc);
     const result = graph.nodes.find((n) => n.kind === 'result');
-    expect(result).toMatchObject({ label: 'value', detail: 'Ergebnis von fixture.either' });
+    expect(result).toMatchObject({ label: 'Wert', detail: 'Ergebnis von fixture.either' });
     expect(graph.edges.map((e) => `${e.source}>${e.target}`)).toContain(`${nodeId('contract', 'fixture.either')}>${result!.id}`);
     expect(graph.edges.map((e) => `${e.source}>${e.target}`)).toContain(`${result!.id}>${nodeId('contract', 'fixture.condition')}`);
   });
