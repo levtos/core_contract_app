@@ -49,14 +49,14 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P5.05 | Anlegen/Import startet automatisch Entwurf, ohne Sprung auf andere Seite | umgesetzt für Verträge, Vorlagen/Versionen und alle Quellenarten; Sichtprüfung offen | draftMode.test.tsx; navigation.test.tsx; versioning.test.tsx | offen |
 | P5.06 | Name optional mit Änderungen vom Datum Uhrzeit; erklärender Satz | umgesetzt; Sichtprüfung offen | draftMode.test.tsx; navigation.test.tsx | offen |
 | P5.07 | Schreibschutz-Hinweiskästen entfernen; deaktivierte Knöpfe mit sichtbarem Grund | Kästen entfernt, Entwurfsaktionen begründet; weitere Seitenprüfung folgt | draftMode.test.tsx | offen |
-| P6.01 | Geräteführung wählt HA-Entität mit Bereichs-/Domänenfilter und aktuellem Wert | offen | offen | offen |
-| P6.02 | Quelle/Abhängigkeit/Verknüpfung/ausdrückliche passende Typumwandlung automatisch | offen | offen | offen |
-| P6.03 | Fach-IDs vorgeschlagen; Fachfelder nur Erweitert | offen | offen | offen |
-| P6.04 | Auch am Vertrags-Eingang erreichbar | offen | offen | offen |
-| P6.05 | Erster Temperaturvertrag in höchstens sechs Klicks ohne Fach-ID | offen | offen | offen |
-| P6.06 | Aktualitätsvorlagen Temperatur/Kontakt/Bewegung/Zähler mit Modus und Frist, änderbar | offen | offen | offen |
-| P6.07 | Modi deutsch, Ein-Satz-Erklärung; Kontakt: Alter allein kein Mangel, Lebenszeichen | offen | offen | offen |
-| P6.08 | Quellen-Unterseiten erhalten jeweilige Auswahl beim Wechsel | offen | offen | offen |
+| P6.01 | Geräteführung wählt HA-Entität mit Bereichs-/Domänenfilter und aktuellem Wert | umgesetzt; ausdrückliche Admin-Vorschau, getrennt von reinen Metadaten; Sichtprüfung offen | devices.test.tsx; test_alpha7_discovery.py | offen |
+| P6.02 | Quelle/Abhängigkeit/Verknüpfung/ausdrückliche passende Typumwandlung automatisch | umgesetzt; UX12-Originalimport über Geräteführung, keine manuelle Transformation | devices.test.tsx; e2e.test.tsx | offen |
+| P6.03 | Fach-IDs vorgeschlagen; Fachfelder nur Erweitert | umgesetzt; Namen/Kennungen automatisch, technischer manueller Weg bleibt zugänglich | devices.test.tsx; manualFirst.test.tsx | offen |
+| P6.04 | Auch am Vertrags-Eingang erreichbar | umgesetzt; typ-/einheitenpassende Geräteauswahl im Eingangs-Editor | ContractDetailPage; devices.test.tsx | offen |
+| P6.05 | Erster Temperaturvertrag in höchstens sechs Klicks ohne Fach-ID | umgesetzt; sechs Klicks bis bestätigter Übernahme im Interaktionstest | devices.test.tsx | offen |
+| P6.06 | Aktualitätsvorlagen Temperatur/Kontakt/Bewegung/Zähler mit Modus und Frist, änderbar | umgesetzt; Kontakt ohne Altersfrist, übrige mit änderbarer Frist | devices.test.tsx; build-registry.test.tsx | offen |
+| P6.07 | Modi deutsch, Ein-Satz-Erklärung; Kontakt: Alter allein kein Mangel, Lebenszeichen | umgesetzt; Sichtprüfung offen | devices.test.tsx; scan:i18n | offen |
+| P6.08 | Quellen-Unterseiten erhalten jeweilige Auswahl beim Wechsel | umgesetzt; Kennung je Installation/Entwurf/Sammlung, Umbenennung ohne Editorverlust | devices.test.tsx; manualFirst.test.tsx | offen |
 | P7.01 | Getrennte eigene/eingebaute Vorlagen; korrekte Mehrzahl | Seiten getrennt; Mehrzahl offen | navigation.test.tsx | offen |
 | P7.02 | Neue Vorlage typkonsistent, Typ-ID ohne Sofortfehler, Präfix automatisch | offen | offen | offen |
 | P7.03 | Alle sechs Zeitregeln deutsch plus Ein-Satz-Erklärung | offen | offen | offen |

@@ -12,7 +12,6 @@ import { Workbench } from '@/Workbench';
 import { LiveStore, type SocketLike } from '@/lib/live';
 import type { JsonObject } from '@/lib/json';
 import ux12 from '../test/fixtures/ux12-komplett.json';
-import { BindingEditor } from '@/editors/RegistryObjects';
 import { MachineEditor } from '@/editors/MachineEditor';
 import { FieldSchemaEditor } from '@/editors/FieldSchemaEditor';
 import type { FieldSchema } from '@/features/authoring/model';
@@ -68,6 +67,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     }, capabilities);
   }, 120_000);
   beforeEach(() => {
+    sessionStorage.clear(); localStorage.clear();
     vi.stubGlobal('indexedDB', new IDBFactory());
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => realFetch(typeof input === 'string' && input.startsWith('./') ? `${base}${input.slice(1)}` : input, init));
     HTMLAnchorElement.prototype.click = () => {};
@@ -106,6 +106,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(verdict).toMatchObject({ status: 200, body: { valid: true, issues: [] } });
     const dialog = await f.activateOpenDraft(draftId);
     await within(dialog).findByText("Version 1 ist aktiv", {}, { timeout: 20_000 });
+    await user.click(within(dialog).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await expectSameAsActive(registry); // what the server activated is semantically the registry that was built
 
     // 3. The activated cascade is observed over the real WebSocket (snapshot → deltas).
@@ -144,19 +145,22 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       expect(current.config.definitions).toHaveLength(6);
     }, { timeout: 15_000 });
     const second = await f.activateOpenDraft(reimported.draft_id);
-    await within(second).findByText("Version 2 ist aktiv", {}, { timeout: 20_000 });
+    await within(second).findByText("Version 2 ist aktiv", {}, { timeout: 65_000 });
+    await user.click(within(second).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await waitFor(() => expect(store.getSnapshot().registryRevision).toBe(2), { timeout: 20_000 });
 
     // 6. Rollback to revision 1 through the UI: a NEW revision with the historical content.
-    await f.go('#/registry');
-    await user.click(await screen.findByRole('tab', { name: "Versionen" }));
-    const rev1 = (await screen.findByText("Version 1")).closest('li')!;
-    await user.click(within(rev1).getByRole('button', { name: /Zurücksetzen/ }));
+    await f.go('#/changes/versions');
+    const rev1 = (await within(screen.getByRole('main')).findByText("Version 1", {}, { timeout: 65_000 })).closest('li')!;
+    const rollbackButton = within(rev1).getByRole('button', { name: /Zurücksetzen/ });
+    await waitFor(() => expect(rollbackButton).toBeEnabled(), { timeout: 65_000 });
+    await user.click(rollbackButton);
     const rollback = await screen.findByRole('dialog', { name: /Auf Version 1 zurücksetzen/ });
     // The real shared scheduler can wait for its 61-second window after this fast scripted flow.
     await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Version 1 als neue Version 3/ }, { timeout: 65_000 }));
     await user.click(within(rollback).getByRole('button', { name: "Zurücksetzen" }));
     await within(rollback).findByText(/Neue Version 3 aktiv/, {}, { timeout: 20_000 });
+    await user.click(within(rollback).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await expectSameAsActive(registry); // revision 3 carries revision 1's content again
     expect((await raw<{ items: { operation: string }[] }>('history/query/activations')).body.items.map((i) => i.operation)).toEqual(['rollback', 'activate', 'activate']);
     await waitFor(() => expect(store.getSnapshot().registryRevision).toBe(3), { timeout: 20_000 });
@@ -166,6 +170,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await waitFor(() => expect(screen.getByLabelText("Entwurf-Name")).toHaveValue('E2E'), { timeout: 65_000 });
     await f.go('#/contracts');
     await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
+    await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
     const create = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
     await f.type(within(create).getByLabelText("Vertrag-ID"), 'fixture.extra');
     await user.click(within(create).getByRole('button', { name: 'Anlegen' }));
@@ -177,16 +182,34 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(((await raw<{ config: JsonObject }>(`registry/drafts/${draftId}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
   }, 300_000);
 
-  it('repairs UX12 conversions by source type in controls and validates them with the real engine', async () => {
-    const document = structuredClone(ux12) as unknown as JsonObject;
+  it('routes the untouched UX12 import through guided devices without manual transformations and verifies real engine values', async () => {
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={store} /></QueryClientProvider>);
+    await f.createDraft('UX12 Geräteführung', 'Einlesen (JSON)', JSON.stringify(ux12));
+    const imported = (await raw<{ draft_id: string; display_name: string }[]>('registry/drafts')).body.find(draft => draft.display_name === 'UX12 Geräteführung')!;
+    await f.go('#/sources/devices');
+    for (const binding of ux12.bindings) {
+      await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+      const wizard = await screen.findByRole('dialog', { name: 'Gerät aus Home Assistant hinzufügen' });
+      const source = ux12.sources.find(source => source.source_id === binding.source_id)!;
+      await user.click(await within(wizard).findByRole('radio', { name: source.display_name }, { timeout: 65_000 }));
+      await user.click(within(wizard).getByRole('button', { name: 'Gerät hinzufügen' }));
+      await waitFor(() => {
+        const remaining = screen.queryByRole('dialog');
+        if (remaining) throw new Error(`Device picker did not close: ${remaining.textContent}`);
+      }, { timeout: 65_000 });
+    }
+    await user.click(f.saveButton());
+    const saved = await waitFor(async () => {
+      const draft = (await raw<{ config: JsonObject; draft_version: number }>(`registry/drafts/${imported.draft_id}`)).body;
+      expect(draft.draft_version).toBeGreaterThan(1); return draft;
+    });
+    const document = saved.config;
     const sources = document.sources as JsonObject[];
     const bindings = document.bindings as JsonObject[];
     for (let index = 0; index < bindings.length; index++) {
-      wrap(<Stateful initial={bindings[index]!} onValue={(value) => { bindings[index] = value; }}>{(value, set) => <BindingEditor value={value} onChange={set} pointer={`/bindings/${index}`} sourceIds={sources.map(s => String(s.source_id))} sources={sources} catalogIds={[]} onPickEntity={() => {}} />}</Stateful>);
-      await user.click(screen.getByRole('button', { name: 'Umwandlung ergänzen' }));
       expect(bindings[index]!.transform).toEqual({ kind: 'type_cast', target: sources[index]!.source_type === 'boolean' ? 'bool' : 'number' });
-      cleanup();
     }
+    cleanup(); store.stop();
     const definitions = document.definitions as JsonObject[];
     const machine = definitions[3]!;
     wrap(<Stateful initial={machine.machine as JsonObject} onValue={(value) => { machine.machine = value; }}>{(value, set) => <MachineEditor value={value} onChange={set} pointer="/definitions/3/machine" definition={machine} caps={undefined} locked={false} />}</Stateful>);
@@ -206,5 +229,11 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const result = await raw(`registry/drafts/${draft.body.draft_id}/activate`, json('POST', { draft_version: draft.body.draft_version, expected_active_revision: active?.revision ?? 0 }));
     expect(result.status).toBe(200);
     await expectSameAsActive(document);
-  }, 60_000);
+    await waitFor(async () => {
+      const state = (await raw<{ fields: { value: { value: unknown; status: string } } }>('contracts/bad.temperatur')).body;
+      expect(state.fields.value).toMatchObject({ value: 21.5, status: 'valid' });
+      const contact = (await raw<{ fields: { value: { value: unknown; status: string } } }>('contracts/fenster.offen')).body;
+      expect(contact.fields.value).toMatchObject({ value: false, status: 'valid' });
+    }, { timeout: 10_000 });
+  }, 120_000);
 });

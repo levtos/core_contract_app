@@ -25,7 +25,7 @@ export function flow(user: UserEvent) {
       await user.paste(json);
     }
     await user.click(within(dialog).getByRole('button', { name: "Entwurf anlegen" }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: "Neuer Entwurf" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: "Neuer Entwurf" })?.textContent ?? null).toBeNull(), { timeout: 65_000 });
   };
 
   const saveButton = () => screen.getAllByRole('button', { name: /Speichern/ })[0]!;
@@ -39,6 +39,8 @@ export function flow(user: UserEvent) {
     await go('#/sources/devices');
     for (const [id, key] of [['source.a', 'physical.a'], ['source.b', 'physical.b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Quelle hinzufügen" }));
+      const advanced = screen.getAllByRole('button', { name: 'Erweitert' })[0]!;
+      if (advanced.getAttribute('aria-expanded') !== 'true') await user.click(advanced);
       await steps.type(screen.getByLabelText("Quelle-ID"), id);
       await steps.type(screen.getByLabelText('Physischer Schlüssel'), key);
     }
@@ -80,6 +82,7 @@ export function flow(user: UserEvent) {
     for (const [id, type, refs] of contracts) {
       await go('#/contracts');
       await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
+      await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
       const dialog = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
       await steps.type(within(dialog).getByLabelText("Vertrag-ID"), id);
       await user.selectOptions(within(dialog).getByLabelText('Typ & Version'), type);

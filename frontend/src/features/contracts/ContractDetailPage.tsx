@@ -20,6 +20,7 @@ import { useLive } from '@/lib/live-context';
 import { useActiveRevision, useCapabilities } from '@/lib/queries';
 import { fieldsForContract } from './presentation';
 import { ContractSummary } from './ContractSummary';
+import { DeviceWizard } from '@/features/sources/DeviceWizard';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
@@ -31,12 +32,14 @@ export default function ContractDetailPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [removing, setRemoving] = useState(false);
+  const [deviceInput, setDeviceInput] = useState<string | null>(null);
   const list = asArray(src.config?.contracts).filter(isObject);
   const index = list.findIndex((c) => str(c.contract_id) === contractId);
   const contract = index >= 0 ? list[index]! : null;
   const activeContract = asArray(active.data?.config?.contracts).filter(isObject).find(item => item.contract_id === contractId);
   const draftOnly = src.source === 'draft' && active.data !== undefined && !activeContract;
-  const envelope = activeContract ? live.contracts?.[contractId] ?? null : null;
+  const candidate = live.contracts?.[contractId];
+  const envelope = activeContract && candidate && candidate.registry_revision === active.data?.revision ? candidate : null;
 
   if (src.loading && !contract) return <Spinner />;
 
@@ -99,7 +102,7 @@ export default function ContractDetailPage() {
             content: (
               <Panel className="max-w-4xl p-5">
                 <fieldset disabled={!src.editable} className="min-w-0">
-                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} onChange={(next) => doc.edit((c) => setAt(c, pointer, next))} />
+                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} onChange={(next) => doc.edit((c) => setAt(c, pointer, next))} onAddDevice={setDeviceInput} />
                 </fieldset>
               </Panel>
             ),
@@ -150,6 +153,7 @@ export default function ContractDetailPage() {
           },
         ]}
       />
+      <DeviceWizard open={deviceInput !== null} onOpenChange={open => !open && setDeviceInput(null)} contract={deviceInput ? { id: contractId, input: deviceInput } : undefined} expectedSchema={typeEntry?.inputs.find(input => input.name === deviceInput)?.schema} />
       <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}

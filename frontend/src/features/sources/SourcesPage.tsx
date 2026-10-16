@@ -18,6 +18,9 @@ import { BindingEditor, CatalogEditor, DependencyEditor, EntityPicker, SourceEdi
 import { clone, isObject, setAt, type JsonObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { describeError } from '@/lib/api';
+import { DeviceWizard } from './DeviceWizard';
+import { codeLabel } from '@/i18n/codes';
+import { useSourceSelection } from './useSourceSelection';
 
 type Name = 'dependencies' | 'sources' | 'bindings' | 'catalogs';
 
@@ -38,18 +41,13 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
   const issues = useAllIssues();
   const config = src.config ?? {};
   const list = useMemo(() => asArray(config[name]).filter(isObject), [config, name]);
-  const [params] = useSearchParams();
-  const initial = params.get('tab') === name && params.get('item') !== null ? Number(params.get('item')) : null;
-  const [selected, setSelected] = useState<number | null>(Number.isInteger(initial) ? initial : null);
+  const [selected, setSelected, selectIdentity] = useSourceSelection(name, list, idKey, src.editable);
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   useEffect(() => {
-    if (params.get('tab') === name && params.has('item')) setSelected(Number(params.get('item')));
-  }, [name, params]);
+    if (pendingSelection && src.editable && list.some(item => item[idKey] === pendingSelection)) { selectIdentity(pendingSelection); setPendingSelection(null); }
+  }, [pendingSelection, src.editable, list]);
   const [removing, setRemoving] = useState<number | null>(null);
   const [addError, setAddError] = useState('');
-  useEffect(() => {
-    if (!src.editable) return;
-    if (selected !== null && selected >= list.length) setSelected(list.length ? list.length - 1 : null);
-  }, [list.length, selected, src.editable]);
 
   const ids = list.map((item) => str(item[idKey]));
   const items = list.map((item, index) => ({
@@ -62,16 +60,16 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
     setAddError('');
     try {
       const current = await doc.ensureDraft();
-      const index = asArray(current[name]).length;
-      doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), make(c, asArray(c[name]).filter(isObject).map(item => str(item[idKey])))]));
-      setSelected(index);
+      const item = make(current, asArray(current[name]).filter(isObject).map(item => str(item[idKey])));
+      doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), item]));
+      setPendingSelection(str(item[idKey]));
     } catch (error) { setAddError(describeError(error)); }
   };
   const duplicate = (index: number) => {
     const copy = clone(list[index]!);
     copy[idKey] = uniqueName(`${str(copy[idKey])}_kopie`, ids);
     doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), copy]));
-    setSelected(list.length);
+    selectIdentity(str(copy[idKey]));
   };
   const current = selected !== null ? list[selected] : undefined;
 
@@ -143,10 +141,17 @@ export default function SourcesPage() {
   const location = useLocation();
   const pageTitle = NAVIGATION.find(module => module.id === 'sources')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.devices');
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
+  const [addingDevice, setAddingDevice] = useState(false);
+  const [deviceError, setDeviceError] = useState('');
+  const doc = useWorkingDocument();
+  const [, setParams] = useSearchParams();
+  const addDevice = async () => { setDeviceError(''); try { await doc.ensureDraft(); setAddingDevice(true); } catch (error) { setDeviceError(describeError(error)); } };
   const registrySchema = caps.data?.schemas.registry;
   return (
     <>
-      <PageHeader title={pageTitle} />
+      <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
+      {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
       <SourceSection
         items={[
@@ -158,7 +163,7 @@ export default function SourcesPage() {
                 name="sources"
                 idKey="source_id"
                 singular={uiText("features.sources.SourcesPage.source_0e570c")}
-                subtitle={(s) => `${str(s.source_type)} · ${str((isObject(s.freshness) ? s.freshness : {}).mode)}`}
+                subtitle={(s) => `${codeLabel(s.source_type)} · ${codeLabel((isObject(s.freshness) ? s.freshness : {}).mode)}`}
                 make={(c, ids) => ({
                   source_id: uniqueName('source.neu', ids),
                   source_type: 'boolean',
@@ -169,7 +174,7 @@ export default function SourcesPage() {
                 })}
                 usage={(item, config) => {
                   const used = consumersOfSource(config, str(item.source_id));
-                  return <span className="flex flex-col gap-1">{chips('Bindings', used.bindings)}{chips('Contracts', used.contracts, (id) => `/contracts/${encodeURIComponent(id)}`)}{used.sources.length > 0 && chips(uiText("features.sources.SourcesPage.liveness_fur_09aba4"), used.sources)}</span>;
+                  return <span className="flex flex-col gap-1">{chips(uiText('alpha7.nav.bindings'), used.bindings)}{chips(uiText('alpha7.nav.contracts'), used.contracts, (id) => `/contracts/view/${encodeURIComponent(id)}`)}{used.sources.length > 0 && chips(uiText("features.sources.SourcesPage.liveness_fur_09aba4"), used.sources)}</span>;
                 }}
                 render={(item, pointer, onChange, config) => (
                   <SourceEditor
@@ -201,8 +206,8 @@ export default function SourcesPage() {
                 }}
                 usage={(item, config) => (
                   <span className="flex flex-col gap-1">
-                    {chips('Quelle', [str(item.source_id)].filter(Boolean))}
-                    {chips(uiText("features.sources.SourcesPage.contracts_uber_diese_quelle_22a5c9"), consumersOfSource(config, str(item.source_id)).contracts, (id) => `/contracts/${encodeURIComponent(id)}`)}
+                    {chips(uiText('alpha7.contract.source'), [str(item.source_id)].filter(Boolean))}
+                    {chips(uiText("features.sources.SourcesPage.contracts_uber_diese_quelle_22a5c9"), consumersOfSource(config, str(item.source_id)).contracts, (id) => `/contracts/view/${encodeURIComponent(id)}`)}
                   </span>
                 )}
                 render={(item, pointer, onChange, config) => (
@@ -243,9 +248,9 @@ export default function SourcesPage() {
                 name="dependencies"
                 idKey="dependency_id"
                 singular={uiText("features.sources.SourcesPage.dependency_711595")}
-                subtitle={(d) => `${str(d.kind)} · ${str(d.monitor)}`}
+                subtitle={(d) => `${codeLabel(d.kind)} · ${codeLabel(d.monitor)}`}
                 make={(_, ids) => ({ dependency_id: uniqueName('dep.neu', ids), kind: 'ha', monitor: 'internal' })}
-                usage={(item, config) => chips('Quellen', sourcesUsingDependency(config, str(item.dependency_id)))}
+                usage={(item, config) => chips(uiText('alpha7.nav.sources'), sourcesUsingDependency(config, str(item.dependency_id)))}
                 render={(item, pointer, onChange, config) => (
                   <DependencyEditor value={item} pointer={pointer} onChange={onChange} schema={registrySchema} sourceIds={asArray(config.sources).filter(isObject).map((s) => str(s.source_id))} />
                 )}

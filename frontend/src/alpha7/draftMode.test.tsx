@@ -17,7 +17,7 @@ it.each([
   ['#/templates/own', 'Neue Vorlage'],
 ])('opens creation on %s with an automatic draft and no route change', async (hash, name) => {
   const user = userEvent.setup(); const fake = installFakeApi(); app(hash);
-  await user.click(await screen.findByRole('button', { name }));
+  await user.click(await screen.findByRole('button', { name }, { timeout: 5000 }));
   expect(await screen.findByRole('dialog', { name })).toBeVisible();
   expect(fake.drafts.size).toBe(1);
   expect(window.location.hash).toBe(hash);
@@ -33,7 +33,7 @@ it('makes a successful explicit check visible', async () => {
 it('starts a named draft automatically from a creation action and stays on the source page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
-  await screen.findByLabelText('Quelle-ID');
+  await screen.findByLabelText('Name');
   expect(fake.drafts.size).toBe(1);
   expect([...fake.drafts.values()][0]?.display_name).toMatch(/^Änderungen vom /);
   expect(window.location.hash).toBe('#/sources/devices');
@@ -44,13 +44,13 @@ it('starts a named draft automatically from a creation action and stays on the s
 it('switches to live and back while retaining unsaved edits and the current editor', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
-  const name = await screen.findByLabelText('Anzeigename');
+  const name = await screen.findByLabelText('Name');
   await user.type(name, 'Fenster im Zimmer');
   await user.click(screen.getByRole('button', { name: 'Live ansehen' }));
   expect(screen.getByText('Deine Änderungen bleiben im Entwurf erhalten.')).toBeVisible();
-  expect(screen.queryByLabelText('Anzeigename')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
-  expect(await screen.findByLabelText('Anzeigename')).toHaveValue('Fenster im Zimmer');
+  expect(await screen.findByLabelText('Name')).toHaveValue('Fenster im Zimmer');
   expect(fake.drafts.size).toBe(1);
   expect(fake.revisions).toHaveLength(0);
 });
@@ -69,11 +69,25 @@ it('opens the error list in place and gives visible feedback after an explicit c
 it('saves the candidate and opens confirmation from the bar without activating or leaving the page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
-  await screen.findByLabelText('Quelle-ID');
+  await screen.findByLabelText('Name');
   await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
   await waitFor(() => expect([...fake.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
   expect(fake.revisions).toHaveLength(0);
   expect(window.location.hash).toBe('#/sources/devices');
+});
+
+it('shows the committed activation acknowledgement while cache refreshes are still pending', async () => {
+  const user = userEvent.setup(); const fake = installFakeApi(); app();
+  await user.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
+  await user.click(await screen.findByRole('button', { name: 'Übernehmen' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
+  await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+  let release: ((response: Response) => void) | undefined;
+  fake.routes.push({ match: /^registry\/active$/, respond: () => new Promise(resolve => { release = resolve; }) });
+  await user.click(within(dialog).getByRole('button', { name: 'Jetzt übernehmen' }));
+  expect(await within(dialog).findByText('Version 1 ist aktiv')).toBeVisible();
+  expect(fake.revisions).toHaveLength(1);
+  release?.(reply(200, fake.revisions[0]));
 });

@@ -33,6 +33,7 @@ describe('registry objects are fully editable without JSON', () => {
       { source_id: 'source.neu', source_type: 'boolean', source_origin: 'local', freshness: { mode: 'event_stateful', future_tolerance_s: 1 }, dependency_id: 'dep.test', physical_source_key: 'physical.neu' },
       (v, set) => <SourceEditor value={v} onChange={set} pointer="/sources/0" dependencyIds={['dep.test']} sourceIds={['source.a']} schema={schema} />,
     );
+    await user.click(screen.getByRole('button', { name: 'Erweitert' }));
     await type(screen.getByLabelText("Quelle-ID"), 'source.a');
     await type(screen.getByLabelText('Physischer Schlüssel'), 'physical.a');
     expect(result()).toEqual(doc.sources![0]);

@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { useHaEntities } from '@/lib/queries';
 
 /** Metadata pages are bounded by the discovery API's 10 000 entity limit. */
-export function useHaCatalog(enabled = true) {
-  const query = useHaEntities('all', enabled);
+export function useHaCatalog(enabled = true, preview = false) {
+  const query = useHaEntities('all', enabled, preview);
   useEffect(() => {
     if (enabled && query.hasNextPage && !query.isFetchingNextPage && (query.data?.pages.length ?? 0) < 60) void query.fetchNextPage();
   }, [enabled, query.hasNextPage, query.isFetchingNextPage, query.data?.pages.length, query.fetchNextPage]);

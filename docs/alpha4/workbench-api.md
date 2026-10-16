@@ -228,9 +228,20 @@ including booleans. Only explicit machine guard outcomes and fusion selections
 disclose control-flow decisions. Command arguments are omitted. Diagnostics omit temporal
 last-value payloads. Reads do not advance state, refresh inputs or fire deadlines.
 
-Discovery uses the existing configured HA authentication and only get_states.
-It returns entity identifiers, display metadata and attribute names; arbitrary
-attribute/state values are excluded. Cache: 15 seconds; response cap: 4 MB and
+Discovery uses the existing configured HA authentication and get_states.
+Its default response returns entity identifiers, display metadata and attribute names;
+attribute/state values are excluded. Alpha 7 adds the explicit admin-only query
+`preview=1` for the guided device picker: bounded `current_value` (HA state text,
+256 characters), `area_id` and `area_name`. Area assignment uses read-only
+`config/area_registry/list`, `config/device_registry/list` and
+`config/entity_registry/list`, preferring an entity's area over its device's area.
+Unknown/unauthorized registry commands leave area assignment empty; other failures
+fail closed. No arbitrary attribute values are exposed. Metadata and preview caches
+are separate, both for 15 seconds; the default response cannot inherit preview values.
+This is a display projection, never an observation or quality/freshness calculation.
+Protocol references: [HA WebSocket API](https://developers.home-assistant.io/docs/api/websocket/)
+and [HA entity registry command](https://github.com/home-assistant/core/blob/dev/homeassistant/components/config/entity_registry.py).
+Response cap: 4 MB and
 10,000 entities; page cap: 200. `after` accepts the previous `next_cursor`
 entity ID. No HA service call, helper or device mutation is available.
 An oversized response is rejected completely with HTTP 503

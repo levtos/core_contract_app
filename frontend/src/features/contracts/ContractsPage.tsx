@@ -23,6 +23,7 @@ import { useActiveRevision, useCapabilities } from '@/lib/queries';
 import { useHaCatalog } from '@/features/sources/useHaCatalog';
 import { contractSources, contractValue, fieldsForContract } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
+import { DeviceWizard } from '@/features/sources/DeviceWizard';
 
 export function ContractsTabs() {
   return null;
@@ -44,6 +45,12 @@ interface Row {
 const col = createColumnHelper<Row>();
 
 export function NewContractDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
+  const [manual, setManual] = useState(false);
+  const change = (next: boolean) => { if (!next) setManual(false); onOpenChange(next); };
+  return <><DeviceWizard open={open && !manual} onOpenChange={change} title={uiText('alpha7.overview.newContract')} contract="new" onAdded={result => result.contractId && onCreated(result.contractId)} manualOption={<Button onClick={() => setManual(true)}>{uiText('alpha7.device.withoutDevice')}</Button>} /><ManualNewContractDialog open={open && manual} onOpenChange={change} onCreated={onCreated} /></>;
+}
+
+function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
   const ids = asArray(src.config?.contracts).filter(isObject).map((c) => str(c.contract_id));
@@ -137,7 +144,8 @@ export default function ContractsPage() {
   const rows: Row[] = configured.map((c) => {
     const id = str(c.contract_id);
     const activeContract = activeContracts.find(item => item.contract_id === id);
-    const envelope = activeContract ? live.contracts?.[id] ?? null : null;
+    const candidate = live.contracts?.[id];
+    const envelope = activeContract && candidate && candidate.registry_revision === active.data?.revision ? candidate : null;
     return {
       id,
       name: str(c.display_name),

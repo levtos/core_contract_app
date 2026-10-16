@@ -110,7 +110,7 @@ class Runtime:
         self.refresh_requests: asyncio.Queue[tuple[int, str]] = asyncio.Queue(256)
         self.pending_refresh: set[str] = set()
         self.refresh_overflow = 0
-        self.entity_discovery: Callable[[], Awaitable[list[dict[str, Any]]]] | None = None
+        self.entity_discovery: Callable[..., Awaitable[list[dict[str, Any]]]] | None = None
 
     @property
     def config(self) -> RegistryConfig | None:

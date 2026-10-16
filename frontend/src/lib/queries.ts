@@ -144,11 +144,11 @@ export const useHistory = (kind: string, filters: HistoryFilters, enabled = true
     placeholderData: keepPreviousData,
   });
 
-export const useHaEntities = (search: string, enabled: boolean) =>
+export const useHaEntities = (search: string, enabled: boolean, preview = false) =>
   useInfiniteQuery({
-    queryKey: keys.ha(search),
+    queryKey: keys.ha(`${search}:${preview ? 'preview' : 'metadata'}`),
     queryFn: ({ pageParam }) =>
-      api<HaEntityPage>(`ha/entities?limit=200${pageParam ? `&after=${encodeURIComponent(pageParam)}` : ''}`),
+      api<HaEntityPage>(`ha/entities?limit=200${preview ? '&preview=1' : ''}${pageParam ? `&after=${encodeURIComponent(pageParam)}` : ''}`),
     initialPageParam: '' as string,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     enabled,
@@ -217,7 +217,9 @@ export function useActivation() {
             expected_active_revision: input.expectedActiveRevision,
           },
         }),
-      onSuccess: done,
+      // The mutation response is the committed acknowledgement. Slow cache reads
+      // must not delay its success feedback or make a completed action look stale.
+      onSuccess: () => { void done(); },
     }),
     rollback: useMutation({
       retry: false,
@@ -226,7 +228,7 @@ export function useActivation() {
           method: 'POST',
           body: { revision: input.revision, expected_active_revision: input.expectedActiveRevision },
         }),
-      onSuccess: done,
+      onSuccess: () => { void done(); },
     }),
   };
 }

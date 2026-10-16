@@ -309,8 +309,15 @@ class API:
             after = request.query.get("after", "")
             if not 1 <= limit <= 200 or len(after) > 256:
                 raise ValueError("invalid discovery page")
+            preview = request.query.get("preview", "0")
+            if preview not in {"0", "1"}:
+                raise ValueError("invalid discovery preview")
             try:
-                entities = await runtime.entity_discovery()
+                entities = (
+                    await runtime.entity_discovery(preview=True)
+                    if preview == "1"
+                    else await runtime.entity_discovery()
+                )
             except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError, TypeError:
                 return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
             selected_entities = [e for e in entities if e["entity_id"] > after]

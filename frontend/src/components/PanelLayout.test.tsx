@@ -121,14 +121,14 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
   wrap(<LayoutPreferencesProvider value="one"><WorkingDocumentProvider validateDebounceMs={3_600_000}><Open /></WorkingDocumentProvider></LayoutPreferencesProvider>);
   await user.click(screen.getByText('Open'));
   await user.click(await screen.findByRole('button', { name: /source.a/ }));
-  const input = screen.getByLabelText('Anzeigename');
+  const input = screen.getByLabelText('Name');
   await user.type(input, 'unsaved');
   await adjust();
   await user.click(screen.getByRole('button', { name: 'Quelle-Editor: nach vorne' }));
   await user.selectOptions(screen.getByLabelText('Quelle-Editor: Panelbreite'), '3');
   await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
   expect(input).toHaveValue('unsaved');
-  expect(screen.getByLabelText('Anzeigename')).toBe(input);
+  expect(screen.getByLabelText('Name')).toBe(input);
   expect(screen.getByTestId('dirty')).toHaveTextContent('true');
   expect(api.calls.filter((c) => c.method !== 'GET')).toEqual([]);
   expect(JSON.stringify(api.drafts.get('a'))).not.toContain('unsaved');

@@ -83,6 +83,7 @@ it('shows now, a sentence for why, named origin and history with gaps', async ()
 it('starts a draft-only contract with an explicit draft state and no invented live value', async () => {
   const user = userEvent.setup(); const api = installFakeApi(); app('#/contracts/list/all');
   await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }));
+  await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await user.type(screen.getByLabelText('Vertrag-ID'), 'mein.neuer');
   await user.click(screen.getByRole('button', { name: 'Anlegen' }));
   expect(await screen.findByText('Dieser Vertrag gehört zum Entwurf. Prüfe ihn und wähle Übernehmen, damit er Werte liefern kann.')).toBeVisible();
@@ -113,4 +114,11 @@ it('offers declared flow commands on the detail page and requires confirmation b
   const command = api.calls.find(call => call.method === 'POST' && call.path === 'commands')!.body as Record<string, unknown>;
   expect(command.command).toBe('request_b'); expect(command.expected_registry_revision).toBe(1);
   expect(command).not.toHaveProperty('state');
+});
+
+it('does not label a value from a newer live version with the previous version unit', async () => {
+  fake(); app('#/contracts/view/zimmer', { ...envelope, registry_revision: 2 });
+  await screen.findByRole('heading', { name: 'Temperatur im Zimmer' });
+  expect(screen.queryByTestId('value-value')).not.toBeInTheDocument();
+  expect(screen.queryByText('21,5 °C')).not.toBeInTheDocument();
 });
