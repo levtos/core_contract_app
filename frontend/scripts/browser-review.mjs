@@ -139,11 +139,24 @@ async function taskPages(page, server, phase, browser) {
   for (const [name, afterRoute, beforeRoute] of pages) {
     const route = phase === 'after' ? afterRoute : beforeRoute;
     await visit(page, server.url, route);
+    if (phase === 'before' && name === 'changes-versions') await page.getByRole('tab', { name: 'Versionen', exact: true }).click();
+    if (phase === 'before' && name === 'contract-import') {
+      await page.getByRole('button', { name: 'Neuer Entwurf', exact: true }).click();
+      await page.getByRole('dialog').getByRole('radio', { name: 'Einlesen (JSON)', exact: true }).check();
+    }
     if (name === 'diagnostics-evidence') {
       if (phase === 'after') { await page.getByLabel('Quelle auswählen').selectOption('source.a'); await page.getByRole('table', { name: 'Gespeicherter Nachweis' }).waitFor({ timeout: 70_000 }); }
       else { await page.getByLabel('Quelle-ID', { exact: true }).fill('source.a'); await page.getByRole('button', { name: 'Laden', exact: true }).click(); }
     }
     await capture(page, phase, browser, name, phase === 'after' ? `Alpha 6: ${beforeRoute}` : `Alpha 7: ${afterRoute}`);
+    if (phase === 'before' && name === 'contract-import') await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    if (name === 'contract-detail') {
+      for (const [key, label] of [['config', 'Konfiguration'], ['dependencies', 'Abhängigkeiten']]) {
+        await page.getByRole('tab', { name: label, exact: true }).click(); await delay(150);
+        await capture(page, phase, browser, `contract-${key}`, 'Vertrags-Unterbereich vor/nach Alpha 7');
+      }
+    }
+    if (phase === 'after' && name === 'template-detail') await templateTabs(page, phase, browser);
     if (phase === 'after' && name === 'overview') {
       await page.getByRole('button', { name: /^(Nicht bereit|Bereit)/ }).click();
       await capture(page, phase, browser, 'readiness-conditions', 'P2: Bereitschaft und Lösungslinks im Kopf');
@@ -157,6 +170,15 @@ async function taskPages(page, server, phase, browser) {
   if (phase === 'after') {
     await visit(page, server.url, '/contracts/relations/graph');
     await capture(page, phase, browser, 'relations-draft', 'P11: geplante Zusammenhänge ohne zugemischte Live-Zustände');
+  } else {
+    await visit(page, server.url, '/definitions/test.flow/1');
+    await templateTabs(page, phase, browser);
+  }
+}
+async function templateTabs(page, phase, browser) {
+  for (const [name, label] of [['inputs', /^Eingänge/], ['outputs', /^Ausgaben/], ['rules', /^Benannte Regeln/], ['machine', /^Ablauf/], ['json', /^JSON/]]) {
+    await page.getByRole('tab', { name: label }).click(); await delay(150);
+    await capture(page, phase, browser, `template-${name}`, 'Vorlagen-Unterbereich; Alpha 6 im geöffneten Entwurf, Alpha 7 lesend im Live-Modus');
   }
 }
 async function extraAfter(page, server, browser) {

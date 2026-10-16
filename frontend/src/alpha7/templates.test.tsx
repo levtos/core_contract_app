@@ -7,6 +7,8 @@ import { RuleEditor, RuleEnvProvider } from '@/editors/RuleEditor';
 import { newDefinition, ruleContext, type Rule } from '@/features/authoring/model';
 import { installFakeApi } from '../../test/fakeApi';
 import { caps, idleLive, Stateful, wrap } from '../../test/harness';
+import example from '../../test/fixtures/example-registry.json';
+import type { JsonObject } from '@/lib/json';
 
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 function app(hash = '#/templates/own') {
@@ -36,6 +38,20 @@ it('uses the singular Feld for built-in templates with one field', async () => {
   await screen.findByRole('heading', { name: 'Eingebaute Vorlagen', level: 1 });
   expect((await screen.findAllByText(/1 Feld$/)).length).toBeGreaterThan(0);
   expect(screen.queryByText(/1 Felder/)).not.toBeInTheDocument();
+});
+
+it('lets Live viewers inspect every template tab while metadata and semantic controls remain read-only', async () => {
+  const user = userEvent.setup();
+  const api = installFakeApi({ revisions: [{ revision: 1, config: example as unknown as JsonObject, checksum: 'sum', created_at: '2026-10-16T12:00:00Z' }] });
+  app('#/templates/details/test.flow/1');
+  const name = await screen.findByLabelText('Anzeigename (redaktionell)', {}, { timeout: 5000 });
+  expect(name).toBeDisabled();
+  for (const tab of [/Eingänge/, /Ausgaben/, /Benannte Regeln/, /Ablauf/, /JSON/]) {
+    const target = screen.getByRole('tab', { name: tab });
+    expect(target).toBeEnabled(); await user.click(target); expect(target).toHaveAttribute('aria-selected', 'true');
+  }
+  expect(screen.getByRole('button', { name: 'Bearbeiten' })).toHaveAttribute('aria-pressed', 'false');
+  expect(api.calls.some(call => ['POST', 'PUT', 'DELETE'].includes(call.method))).toBe(false);
 });
 
 function rule(initial: Rule, changed: (value: Rule) => void = () => {}) {

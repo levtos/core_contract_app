@@ -41,7 +41,8 @@ export function DefinitionEditor({
   onChange,
   pointer,
   caps,
-  locked,
+  locked: semanticLocked,
+  readOnly = false,
   lockReason,
   initialTab,
 }: {
@@ -50,9 +51,11 @@ export function DefinitionEditor({
   pointer: string;
   caps: Capabilities | undefined;
   locked: boolean;
+  readOnly?: boolean;
   lockReason?: string;
   initialTab?: string;
 }) {
+  const locked = semanticLocked || readOnly;
   const defaults = operatorDefaults(caps);
   const ctx = ruleContext(value, false);
   const inputs = asArray(value.inputs).map(asObject);
@@ -129,10 +132,10 @@ export function DefinitionEditor({
             </Fld>
           </div>
           <Fld label={uiText("editors.DefinitionEditor.anzeigename_redaktionell_44433b")} pointer={join(pointer, 'display_name')} hint={uiText("editors.DefinitionEditor.redaktionelle_felder_andern_die_semantik_nicht_u_20b198")}>
-            {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value || undefined })} />}
+            {(p) => <Input {...p} disabled={readOnly} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value || undefined })} />}
           </Fld>
           <Fld label={uiText("editors.DefinitionEditor.beschreibung_redaktionell_d5700f")} pointer={join(pointer, 'description')}>
-            {(p) => <Textarea {...p} rows={3} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value || undefined })} />}
+            {(p) => <Textarea {...p} disabled={readOnly} rows={3} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value || undefined })} />}
           </Fld>
           <fieldset disabled={locked} className="flex flex-col gap-2">
             <SectionTitle>{uiText("editors.DefinitionEditor.refresh_eingange_f326cb")}</SectionTitle>

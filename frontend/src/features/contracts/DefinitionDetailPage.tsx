@@ -93,17 +93,18 @@ export default function DefinitionDetailPage() {
       {versionError && <p role="alert" className="mb-3 text-sm text-bad">{versionError}</p>}
       {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionDetailPage.definition_9813fa")} />
-      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><fieldset disabled={!src.editable} className="min-w-0">
+      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><div className="min-w-0">
         <DefinitionEditor
           value={definition}
           pointer={pointer}
           caps={caps.data}
           initialTab={params.get('tab') ?? undefined}
           locked={locked}
+          readOnly={!src.editable}
           lockReason={lockedSince !== null ? uiText("features.contracts.DefinitionDetailPage.diese_version_war_in_revision_v0_aktiv_7f3ad4", { v0: (lockedSince) }) : src.editable ? undefined : uiText("features.contracts.DefinitionDetailPage.schreibgeschutzte_ansicht_der_aktiven_registry_10e355")}
           onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}
         />
-      </fieldset>
+      </div>
       </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">
         {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/view/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-fg hover:underline">{id}</Link>)}
       </section>
