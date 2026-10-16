@@ -47,7 +47,7 @@ export function OverviewPage() {
         <PanelHeader title={t('alpha7.nav.contracts')} description={t('alpha7.overview.activeOnly')} />
         <div className="space-y-5 p-5">
           {active.isPending ? <Spinner /> : active.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.overview.contractsUnavailable')}</p> : <div className="grid gap-3 sm:grid-cols-4">
-            {metrics.map(metric => <Link key={metric.key} to={`/contracts/list/all?filter=${metric.filter}`} onClick={() => doc.setEditing(false)} className="rounded-xl border border-line px-4 py-3 text-sm hover:border-accent focus-visible:outline-2 focus-visible:outline-accent">
+            {metrics.map(metric => <Link key={metric.key} to={`/contracts/list/all?filter=${metric.filter}`} onClick={() => doc.setEditing(false)} className="rounded-xl border border-line px-4 py-3 text-sm hover:border-faint focus-visible:outline-2 focus-visible:outline-accent">
               <span className="block text-2xl font-semibold tabular-nums">{counts[metric.key] ?? '–'}</span>{' '}<span className="text-muted">{t(`alpha7.overview.${metric.key}`)}</span>
             </Link>)}
           </div>}
@@ -57,13 +57,13 @@ export function OverviewPage() {
             {entries.slice(0, 8).map(([id, reasons]) => {
               const advice = problemAdvice(reasons, config, id);
               return <li key={id} className="py-4 first:pt-0">
-                <Link to={`/contracts/view/${encodeURIComponent(id)}`} onClick={() => doc.setEditing(false)} className="font-medium hover:text-accent">{contractName(config, id)}</Link>
+                <Link to={`/contracts/view/${encodeURIComponent(id)}`} onClick={() => doc.setEditing(false)} className="font-medium hover:text-fg">{contractName(config, id)}</Link>
                 <p className="mt-1 text-sm text-muted">{advice.text}</p>
-                <details className="mt-2 text-sm"><summary className="cursor-pointer text-accent">{t('alpha7.overview.whatCanIDo')}</summary><div className="mt-2 space-y-2 border-l border-line pl-3"><p>{advice.advice}</p><Link to={advice.to} className="inline-block text-accent underline underline-offset-4">{advice.action}</Link></div></details>
+                <details className="mt-2 text-sm"><summary className="cursor-pointer text-fg">{t('alpha7.overview.whatCanIDo')}</summary><div className="mt-2 space-y-2 border-l border-line pl-3"><p>{advice.advice}</p><Link to={advice.to} className="inline-block text-fg underline underline-offset-4">{advice.action}</Link></div></details>
               </li>;
             })}
           </ul>}
-          {entries.length > 8 && <Link to="/contracts/list/all?filter=degraded" className="text-sm text-accent underline">{t('alpha7.overview.moreProblems', { count: entries.length - 8 })}</Link>}
+          {entries.length > 8 && <Link to="/contracts/list/all?filter=degraded" className="text-sm text-fg underline">{t('alpha7.overview.moreProblems', { count: entries.length - 8 })}</Link>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="events" title={t('alpha7.overview.events')}><Panel>

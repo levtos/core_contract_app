@@ -110,7 +110,7 @@ function BridgePanel() {
           { label: uiText("features.admin.AdminPage.resyncs_634ca6"), value: uiText("features.admin.AdminPage.v0_460783", { v0: (live.resyncCount) }) },
         ]} />
         <div className="flex flex-wrap items-center gap-3">
-          <Button size="sm" disabled={discovery.isPending} onClick={() => discovery.mutate()}>{uiText("features.admin.AdminPage.ha_erkennung_testen_nur_lesend_34b8be")}</Button>
+          <Button size="sm" disabled={discovery.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => discovery.mutate()}>{uiText("features.admin.AdminPage.ha_erkennung_testen_nur_lesend_34b8be")}</Button>
           {discovery.isSuccess && <Badge tone="ok">{uiText("features.admin.AdminPage.erreichbar_fb6263")}</Badge>}
           {discovery.isError && <span className="text-xs text-warn">{describeError(discovery.error)}</span>}
         </div>
@@ -157,8 +157,8 @@ function TokensPanel() {
           <ul className="flex flex-col gap-2">
             {(roles.data?.roles ?? []).map((role) => (
               <li key={role} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-line px-3 py-2">
-                <span className="flex items-center gap-2 text-sm"><KeyRound size={14} className="text-accent" /> <strong className="font-medium">{role === 'admin' ? uiText("features.admin.AdminPage.admin_c1c224") : uiText("features.admin.AdminPage.consumer_3fdb18")}</strong><Badge>{role}</Badge></span>
-                <Button size="sm" variant="danger" disabled={rotating} onClick={() => setPending(role as 'admin' | 'consumer')}>{uiText("features.admin.AdminPage.token_rotieren_ce44a8")}</Button>
+                <span className="flex items-center gap-2 text-sm"><KeyRound size={14} className="text-fg" /> <strong className="font-medium">{role === 'admin' ? uiText("features.admin.AdminPage.admin_c1c224") : uiText("features.admin.AdminPage.consumer_3fdb18")}</strong><Badge>{role}</Badge></span>
+                <Button size="sm" variant="danger" disabled={rotating} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => setPending(role as 'admin' | 'consumer')}>{uiText("features.admin.AdminPage.token_rotieren_ce44a8")}</Button>
               </li>
             ))}
           </ul>

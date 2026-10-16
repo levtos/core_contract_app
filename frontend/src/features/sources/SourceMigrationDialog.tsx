@@ -63,7 +63,7 @@ export function SourceMigrationDialog({ sourceId, onClose }: { sourceId: string;
   const apply = () => { if (!fresh || !review || disabledReason) return; doc.replaceAll(review.result.config); onClose(); };
   const definitions = objects(doc.config?.definitions);
   return <Dialog open onOpenChange={open => !open && !busy && onClose()} size="xl" title={t('alpha7.move.title')} description={t('alpha7.move.explanation')} footer={<>
-    <Button disabled={busy} onClick={onClose}>{t('alpha7.device.cancel')}</Button>
+    <Button disabled={busy} disabledReason={t('alpha7.copy.inProgress')} onClick={onClose}>{t('alpha7.device.cancel')}</Button>
     <Button disabled={!!disabledReason} onClick={() => void check()}>{t('alpha7.move.check')}</Button>
     <Button variant="primary" disabled={!fresh || !!disabledReason} onClick={apply}>{t('alpha7.move.apply')}</Button>
   </>}>
@@ -91,7 +91,7 @@ export function SourceMigrationDialog({ sourceId, onClose }: { sourceId: string;
           </div>;
         })}
         <Checkbox checked={adapt} onCheckedChange={setAdapt} label={t('alpha7.move.adaptTemplate')} />
-        <p className="text-xs text-muted">{t('alpha7.move.templateHelp')} <Link to="/templates/own" className="text-accent hover:underline">{t('alpha7.nav.ownTemplates')}</Link></p>
+        <p className="text-xs text-muted">{t('alpha7.move.templateHelp')} <Link to="/templates/own" className="text-fg hover:underline">{t('alpha7.nav.ownTemplates')}</Link></p>
       </section>
       <Collapsible title={t('alpha7.device.advanced')}><div className="space-y-3">
         <Field label={t('alpha7.device.sourceId')}>{props => <Input {...props} value={id} onChange={event => setId(event.target.value)} maxLength={128} />}</Field>

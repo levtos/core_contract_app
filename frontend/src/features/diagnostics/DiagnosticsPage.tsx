@@ -1,4 +1,5 @@
 import { t as uiText } from '@/i18n';
+import { connectionLabel } from '@/lib/status';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { ContractLiveState } from '@/components/ContractLiveState';
@@ -37,7 +38,7 @@ function StateTab({ contractId, onContract }: { contractId: string; onContract: 
   const live = useLive();
   const envelope = live.contracts?.[contractId] ?? null;
   const ids = Object.keys(live.contracts ?? {});
-  if (live.contracts === null) return live.connection === 'open' || live.connection === 'connecting' ? <Spinner label={uiText("features.diagnostics.DiagnosticsPage.snapshot_wird_erwartet_8f2bea")} /> : <Notice tone="warn" title={uiText("features.diagnostics.DiagnosticsPage.noch_kein_live_zustand_d31d85")}>{uiText("features.diagnostics.DiagnosticsPage.es_wurde_noch_kein_snapshot_empfangen_ec5820")}{live.connection}).</Notice>;
+  if (live.contracts === null) return live.connection === 'open' || live.connection === 'connecting' ? <Spinner label={uiText("features.diagnostics.DiagnosticsPage.snapshot_wird_erwartet_8f2bea")} /> : <Notice tone="warn" title={uiText("features.diagnostics.DiagnosticsPage.noch_kein_live_zustand_d31d85")}>{uiText("features.diagnostics.DiagnosticsPage.es_wurde_noch_kein_snapshot_empfangen_ec5820")}{connectionLabel(live.connection)}).</Notice>;
   if (ids.length === 0) return <Empty title={uiText("features.diagnostics.DiagnosticsPage.keine_aktiven_contracts_ec85c7")}>{uiText("features.diagnostics.DiagnosticsPage.die_aktive_registry_enthalt_keine_aktivierten_co_ee9568")}</Empty>;
   return (
     <div className="flex flex-col gap-4">

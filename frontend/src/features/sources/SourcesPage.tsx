@@ -129,7 +129,7 @@ const chips = (label: string, ids: string[], to?: (id: string) => string) =>
   ) : (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {label}:
-      {ids.slice(0, 8).map((id) => (to ? <Link key={id} to={to(id)} className="rounded-full border border-line-strong bg-raised px-2 py-0.5 font-mono text-[11px] text-accent hover:border-accent/60">{id}</Link> : <Badge key={id}>{id}</Badge>))}
+      {ids.slice(0, 8).map((id) => (to ? <Link key={id} to={to(id)} className="rounded-full border border-line-strong bg-raised px-2 py-0.5 font-mono text-[11px] text-fg hover:border-faint">{id}</Link> : <Badge key={id}>{id}</Badge>))}
       {ids.length > 8 && <span>+{ids.length - 8}</span>}
     </span>
   );

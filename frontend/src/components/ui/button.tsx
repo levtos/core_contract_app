@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ButtonHTMLAttributes, Ref } from 'react';
+import { useId, type ButtonHTMLAttributes, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 
 export const buttonVariants = cva(
@@ -9,10 +9,10 @@ export const buttonVariants = cva(
       variant: {
         primary:
           'border-accent-strong bg-accent text-accent-fg hover:bg-accent-strong hover:border-accent',
-        secondary: 'border-line-strong bg-raised text-fg hover:border-accent/60 hover:bg-line',
+        secondary: 'border-line-strong bg-raised text-fg hover:border-fg/60 hover:bg-line',
         ghost: 'border-transparent bg-transparent text-muted hover:bg-raised hover:text-fg',
-        danger: 'border-bad/60 bg-bad/10 text-bad hover:bg-bad/20',
-        outline: 'border-line-strong bg-transparent text-fg hover:border-accent/60',
+        danger: 'border-line-strong bg-raised text-fg hover:bg-line hover:border-fg/60',
+        outline: 'border-line-strong bg-transparent text-fg hover:border-fg/60',
       },
       size: {
         sm: 'h-7 px-2.5 text-xs',
@@ -29,10 +29,16 @@ export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   ref?: Ref<HTMLButtonElement>;
+  disabledReason?: string;
 }
 
-export function Button({ className, variant, size, type = 'button', ref, ...props }: ButtonProps) {
+export function Button({ className, variant, size, type = 'button', ref, disabledReason, ...props }: ButtonProps) {
+  const id = useId();
+  const reason = props.disabled ? disabledReason : undefined;
   return (
-    <button ref={ref} type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+    <>
+      <button ref={ref} type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} aria-describedby={[props['aria-describedby'], reason ? id : ''].filter(Boolean).join(' ') || undefined} />
+      {reason && <span id={id} className="max-w-64 text-xs font-normal text-muted">{reason}</span>}
+    </>
   );
 }

@@ -108,7 +108,7 @@ export function HistoryTable({ kind, filters, columns }: { kind: string; filters
       )}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
         <span>{items.length} {uiText("features.diagnostics.HistoryTab.geladen_neueste_zuerst_6e064a")}</span>
-        {query.hasNextPage && <Button size="sm" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? uiText("features.diagnostics.HistoryTab.ladt_c8ebc9") : uiText("features.diagnostics.HistoryTab.altere_eintrage_laden_f8e8e1")}</Button>}
+        {query.hasNextPage && <Button size="sm" disabled={query.isFetchingNextPage} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? uiText("features.diagnostics.HistoryTab.ladt_c8ebc9") : uiText("features.diagnostics.HistoryTab.altere_eintrage_laden_f8e8e1")}</Button>}
         {!query.hasNextPage && items.length > 0 && <Badge>{uiText("features.diagnostics.HistoryTab.ende_der_historie_e37499")}</Badge>}
         <span className="text-faint">{uiText("features.diagnostics.HistoryTab.cursor_seiten_sind_kein_datenbank_snapshot_episo_66bc2a")}</span>
       </div>

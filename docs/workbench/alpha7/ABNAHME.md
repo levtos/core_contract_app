@@ -81,9 +81,9 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P11.01 | Graph bei 1920 lesbar, Entwurf/live markiert | umgesetzt; 90-Prozent-Startgröße, Verschieben statt unlesbarem Einpassen; Browserprüfung offen | graphEvidence.test.tsx; buildGraph.test.ts | offen |
 | P11.02 | Kein grauer Knopf ohne Grund | umgesetzt; Suche und Nachbarschaft erklären Voraussetzung, beschriftete Zoomknöpfe | graphEvidence.test.tsx | offen |
 | P11.03 | Nachweis mit Quellenauswahl und Tabelle statt Tippfeld/JSON | umgesetzt; aktive Quellen nach Namen, Nachweissuche optional unter Erweitert; gespeicherte Uhren getrennt | graphEvidence.test.tsx; diagnostics.test.tsx | offen |
-| P12.01 | Gedämpftes Petrol nur Marke/Navigation/Hauptknopf | offen | offen | offen |
-| P12.02 | Exklusive Statusfarben Grün/Gelb/Rot/Grau/Blau, keine Dekoration | offen | offen | offen |
-| P12.03 | Gesund-Grün unterscheidbar; WCAG AA für alle Status-Chips, besonders Grau | offen | offen | offen |
+| P12.01 | Gedämpftes Petrol nur Marke/Navigation/Hauptknopf | umgesetzt; Browserprüfung offen | presentation.test.tsx; FARBEN-SPRACHE.md | offen |
+| P12.02 | Exklusive Statusfarben Grün/Gelb/Rot/Grau/Blau, keine Dekoration | umgesetzt; unbekannt grau, Regelkästen neutral, Hinweise ohne gelbe Kästen | presentation.test.tsx; status.test.ts | offen |
+| P12.03 | Gesund-Grün unterscheidbar; WCAG AA für alle Status-Chips, besonders Grau | umgesetzt; Kontrast mindestens 4,5:1 auf verwendeten Flächen, Browserprüfung offen | presentation.test.tsx | offen |
 | P13.01 | Historische Alpha-6-Veröffentlichung korrekt dokumentieren | offen | offen | entfällt: Dokumentation |
 | P13.02 | Workbench-README und CHANGELOG neue Struktur | offen | offen | entfällt: Dokumentation |
 | P13.03 | Release-Notiz 1.0.0a7 | offen | offen | entfällt: Dokumentation |

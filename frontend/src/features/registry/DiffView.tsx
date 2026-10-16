@@ -94,7 +94,7 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
         <Collapsible title={uiText("features.registry.DiffView.betroffene_ausgabefelder_konservativ_1da6f9")}>
           <ul className="space-y-1 text-sm">
             {Object.entries(diff.affected_fields).map(([id, fields]) => (
-              <li key={id} className="flex flex-wrap items-center gap-2"><Link to={`/contracts/view/${encodeURIComponent(id)}`} className="font-mono text-xs text-accent hover:underline">{id}</Link>{fields.map((f) => <Badge key={f}>{f}</Badge>)}</li>
+              <li key={id} className="flex flex-wrap items-center gap-2"><Link to={`/contracts/view/${encodeURIComponent(id)}`} className="font-mono text-xs text-fg hover:underline">{id}</Link>{fields.map((f) => <Badge key={f}>{f}</Badge>)}</li>
             ))}
           </ul>
         </Collapsible>

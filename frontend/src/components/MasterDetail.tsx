@@ -62,7 +62,7 @@ export function MasterDetail({
                 type="button"
                 aria-current={item.key === selected ? 'true' : undefined}
                 onClick={() => onSelect(item.key)}
-                className={cn('flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition-colors', item.key === selected ? 'bg-accent/10 text-accent' : 'hover:bg-raised')}
+                className={cn('flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition-colors', item.key === selected ? 'bg-raised text-fg' : 'hover:bg-raised')}
               >
                 <span className="flex w-full items-center justify-between gap-2">
                   <span className="min-w-0 truncate font-mono text-xs font-medium">{item.label || uiText("components.MasterDetail.ohne_id_3527bd")}</span>

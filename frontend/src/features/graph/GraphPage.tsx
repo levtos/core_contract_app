@@ -49,7 +49,7 @@ const TerraNode = memo(function TerraNode({ data, selected }: NodeProps<Node<Nod
   const Icon = node.kind === 'source' ? Cable : node.kind === 'contract' ? FileCode2 : Sigma;
   return (
     <div
-      className={cn('rounded-[var(--radius-md)] border bg-panel px-3 py-2 shadow-sm', tone, selected && 'ring-2 ring-accent', dim && 'opacity-35')}
+      className={cn('rounded-[var(--radius-md)] border bg-panel px-3 py-2 shadow-sm', tone, selected && 'ring-2 ring-faint', dim && 'opacity-35')}
       style={{ width: WIDTH, height: HEIGHT }}
       data-testid={`node-${node.id}`}
     >

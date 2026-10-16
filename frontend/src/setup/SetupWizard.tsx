@@ -34,7 +34,7 @@ function statusError(error: string): string {
 function Check({ checked, onChange, children }: { checked: boolean; onChange: (value: boolean) => void; children: ReactNode }) {
   return (
     <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-      <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-fg)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{children}</span>
     </label>
   );
@@ -286,11 +286,11 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
             </>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button disabled={busy} onClick={() => action(refresh)}>{uiText("setup.SetupWizard.bridge_erneut_prufen_78c8e3")}</Button>
+            <Button disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => action(refresh)}>{uiText("setup.SetupWizard.bridge_erneut_prufen_78c8e3")}</Button>
             <Button variant="primary" onClick={() => action(async () => { await refresh(); setPhase(4); })}>{uiText("setup.SetupWizard.weiter_ergebnisse_ansehen_a99408")}</Button>
             {bridge === 'installed_not_configured' && (
               <Button
-                disabled={busy}
+                disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')}
                 onClick={() =>
                   action(async () => {
                     if (window.confirm(uiText("setup.SetupWizard.genau_einen_core_contracts_bridge_eintrag_in_ha__95dd29"))) {

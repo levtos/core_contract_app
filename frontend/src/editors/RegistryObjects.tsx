@@ -396,7 +396,7 @@ export function EntityPicker({ open, onOpenChange, onPick }: { open: boolean; on
         </ul>
         {!needle && query.hasNextPage && (
           <div>
-            <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+            <Button variant="outline" disabled={query.isFetchingNextPage} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void query.fetchNextPage()}>
               {uiText("editors.RegistryObjects.weitere_laden_f77bb3")}</Button>
           </div>
         )}

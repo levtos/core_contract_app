@@ -1,4 +1,5 @@
 import { codeLabel } from '@/i18n/codes';
+import { formatNumber } from '@/lib/format';
 import { t as uiText } from '@/i18n';
 import { ChevronRight, Copy, Trash2 } from 'lucide-react';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
@@ -81,32 +82,14 @@ const OP_GROUPS: { label: string; ops: string[] }[] = [
 ];
 const FALLBACK_OPS = Object.keys(OP_LABELS);
 
-const TONE: Record<string, string> = {
-  input: 'border-l-info',
-  ref: 'border-l-info',
-  literal: 'border-l-info',
-  and: 'border-l-accent',
-  or: 'border-l-accent',
-  not: 'border-l-accent',
-  compare: 'border-l-accent',
-  map: 'border-l-accent',
-  first_match: 'border-l-accent',
-  not_applicable: 'border-l-accent',
-  formula: 'border-l-ok',
-  fusion: 'border-l-ok',
-  bucket: 'border-l-warn',
-  temporal: 'border-l-warn',
-  machine: 'border-l-warn',
+const COMPARISONS: Record<string, string> = {
+  eq: uiText("editors.RuleEditor.gleich_dcabf6"),
+  ne: uiText("editors.RuleEditor.ungleich_d4ec9a"),
+  lt: uiText("editors.RuleEditor.kleiner_fa34fb"),
+  le: uiText("editors.RuleEditor.hochstens_a9e2ae"),
+  gt: uiText("editors.RuleEditor.gro_er_ccbed1"),
+  ge: uiText("editors.RuleEditor.mindestens_dc2ecc"),
 };
-
-const COMPARISONS: [string, string][] = [
-  [uiText("editors.RuleEditor.eq_7d601f"), uiText("editors.RuleEditor.gleich_dcabf6")],
-  [uiText("editors.RuleEditor.ne_cb58e4"), uiText("editors.RuleEditor.ungleich_d4ec9a")],
-  [uiText("editors.RuleEditor.lt_67d414"), uiText("editors.RuleEditor.kleiner_fa34fb")],
-  [uiText("editors.RuleEditor.le_61098a"), uiText("editors.RuleEditor.hochstens_a9e2ae")],
-  [uiText("editors.RuleEditor.gt_e294af"), uiText("editors.RuleEditor.gro_er_ccbed1")],
-  [uiText("editors.RuleEditor.ge_309d20"), uiText("editors.RuleEditor.mindestens_dc2ecc")],
-];
 
 const TEMPORAL_HINTS: Record<string, string> = {
   stable_for: uiText("editors.RuleEditor.wahr_erst_wenn_der_wahrheitswert_uber_die_dauer__cdd9b0"),
@@ -123,9 +106,9 @@ function summary(rule: Rule): string {
     case 'ref':
       return str(rule.name) || '—';
     case 'literal':
-      return typeof rule.value === 'boolean' ? codeLabel(String(rule.value)) : JSON.stringify(rule.value);
+      return typeof rule.value === 'boolean' ? codeLabel(String(rule.value)) : typeof rule.value === 'number' ? formatNumber(rule.value) : isObject(rule.value) || Array.isArray(rule.value) ? uiText('alpha7.copy.structuredValue') : String(rule.value ?? uiText('alpha7.copy.noValue'));
     case 'compare':
-      return COMPARISONS.find(([k]) => k === rule.comparison)?.[1] ?? '';
+      return COMPARISONS[str(rule.comparison)] ?? '';
     case 'bucket':
     case 'temporal':
       return `${str(rule.id)}${rule.operation ? ` · ${codeLabel(rule.operation)}` : ''}`;
@@ -134,7 +117,7 @@ function summary(rule: Rule): string {
     case 'fusion':
       return codeLabel(rule.strategy);
     default:
-      return Array.isArray(rule.args) ? `${rule.args.length} Argument${rule.args.length === 1 ? '' : 'e'}` : '';
+      return Array.isArray(rule.args) ? uiText(rule.args.length === 1 ? 'alpha7.copy.oneArgument' : 'alpha7.copy.arguments', { n: rule.args.length }) : '';
   }
 }
 
@@ -163,7 +146,7 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
   const wrap = (wrapper: 'not' | 'and' | 'or') => onChange({ op: wrapper, args: wrapper === 'not' ? [value] : [value, newRule('input', env.ctx, defaults)] });
 
   return (
-    <div className={cn('rounded-[var(--radius-md)] border border-line border-l-[3px] bg-sunken/60', TONE[op] ?? 'border-l-faint')} data-op={op} data-pointer={pointer}>
+    <div className="rounded-[var(--radius-md)] border border-line border-l-[3px] border-l-faint bg-sunken/60" data-op={op} data-pointer={pointer}>
       <div className="flex flex-wrap items-center gap-2 px-2.5 py-2">
         <button type="button" aria-label={open ? uiText("editors.RuleEditor.zuklappen_41b22f") : uiText("editors.RuleEditor.aufklappen_0f644f")} aria-expanded={open} className="cursor-pointer text-muted hover:text-fg" onClick={() => setOpen((v) => !v)}>
           <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
@@ -176,19 +159,19 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
           disabled={env.locked}
           onChange={(e) => switchOp(e.target.value)}
         >
-          {!known && <option value={op}>{op} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
+          {!known && <option value={op}>{uiText('alpha7.copy.unknownCalculation')}</option>}
           {OP_GROUPS.map((group) => {
             const ops = group.ops.filter((o) => available.includes(o));
             return ops.length === 0 ? null : (
               <optgroup key={group.label} label={group.label}>
                 {ops.map((o) => (
-                  <option key={o} value={o}>{OP_LABELS[o] ?? o}</option>
+                  <option key={o} value={o}>{OP_LABELS[o] ?? codeLabel(o)}</option>
                 ))}
               </optgroup>
             );
           })}
           {available.filter((o) => !OP_GROUPS.some((g) => g.ops.includes(o))).map((o) => (
-            <option key={o} value={o}>{OP_LABELS[o] ?? o}</option>
+            <option key={o} value={o}>{OP_LABELS[o] ?? codeLabel(o)}</option>
           ))}
         </Select>
         {!open && <span className="mono min-w-0 truncate text-xs text-muted">{summary(value)}</span>}
@@ -256,7 +239,7 @@ function Child({ parent, pointer, depth, ...props }: { parent: Rule; onChange: (
   );
 }
 
-function ArgList({ value, onChange, pointer, depth, min = 1, max, labels, addLabel = 'Argument' }: { value: Rule; onChange: (next: Rule) => void; pointer: string; depth: number; min?: number; max?: number; labels?: string[]; addLabel?: string }) {
+function ArgList({ value, onChange, pointer, depth, min = 1, max, labels, addLabel = uiText('alpha7.copy.argument') }: { value: Rule; onChange: (next: Rule) => void; pointer: string; depth: number; min?: number; max?: number; labels?: string[]; addLabel?: string }) {
   const env = useEnv();
   const defaults = useMemo(() => operatorDefaults(env.caps), [env.caps]);
   const args = asArray(value.args);
@@ -312,7 +295,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       const current = str(value.name);
       const declared = ctx.inputs.find((i) => i.name === current);
       return (
-        <Fld label={uiText("editors.RuleEditor.eingang_d8af5e")} pointer={join(pointer, 'name')} hint={declared ? uiText("editors.RuleEditor.typ_v0_v1_e5ef47", { v0: (declared.schema.type), v1: (declared.schema.unit ? uiText("editors.RuleEditor.v0_8b43bb", { v0: (String(declared.schema.unit)) }) : '') }) : uiText("editors.RuleEditor.dieser_name_ist_in_der_definition_nicht_als_eing_bd4b8c")}>
+        <Fld label={uiText("editors.RuleEditor.eingang_d8af5e")} pointer={join(pointer, 'name')} hint={declared ? uiText("editors.RuleEditor.typ_v0_v1_e5ef47", { v0: codeLabel(declared.schema.type), v1: (declared.schema.unit ? uiText("editors.RuleEditor.v0_8b43bb", { v0: (String(declared.schema.unit)) }) : '') }) : uiText("editors.RuleEditor.dieser_name_ist_in_der_definition_nicht_als_eing_bd4b8c")}>
           {(p) => (
             <Select {...p} value={current} onChange={(e) => set({ name: e.target.value })}>
               {!names.includes(current) && <option value={current}>{current || uiText("editors.RuleEditor.wahlen_602246")}</option>}
@@ -357,15 +340,15 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     case 'or':
       return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} addLabel={uiText("editors.RuleEditor.operand_c81de8")} />;
     case 'not':
-      return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={1} max={1} labels={['Operand']} />;
+      return <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={1} max={1} labels={[uiText('editors.RuleEditor.operand_c81de8')]} />;
     case 'compare':
       return (
         <div className="flex flex-col gap-3">
           <Fld label={uiText("editors.RuleEditor.vergleich_79a63c")} pointer={join(pointer, 'comparison')} className="max-w-56">
             {(p) => (
               <Select {...p} value={str(value.comparison)} onChange={(e) => set({ comparison: e.target.value })}>
-                {(enumAt(caps?.schemas.definition, 'CompareRule', 'comparison', COMPARISONS.map(([k]) => k))).map((k) => (
-                  <option key={k} value={k}>{COMPARISONS.find(([c]) => c === k)?.[1] ?? k}</option>
+                {(enumAt(caps?.schemas.definition, 'CompareRule', 'comparison', Object.keys(COMPARISONS))).map((k) => (
+                  <option key={k} value={k}>{COMPARISONS[k] ?? codeLabel(k)}</option>
                 ))}
               </Select>
             )}
@@ -440,7 +423,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       return (
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Fld label={uiText("editors.RuleEditor.formel_244289")} pointer={join(pointer, 'name')} hint={selected ? uiText("editors.RuleEditor.eingange_v0_v1_v2_cd9f97", { v0: (selected.input_schema.type), v1: (selected.input_schema.unit ? uiText("editors.RuleEditor.v0_37b56e", { v0: (String(selected.input_schema.unit)) }) : ''), v2: (selected.output_schema.type) }) : undefined}>
+            <Fld label={uiText("editors.RuleEditor.formel_244289")} pointer={join(pointer, 'name')} hint={selected ? uiText("editors.RuleEditor.eingange_v0_v1_v2_cd9f97", { v0: codeLabel(selected.input_schema.type), v1: (selected.input_schema.unit ? uiText("editors.RuleEditor.v0_37b56e", { v0: (String(selected.input_schema.unit)) }) : ''), v2: codeLabel(selected.output_schema.type) }) : undefined}>
               {(p) => (
                 <Select
                   {...p}
@@ -452,7 +435,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                 >
                   {!names.includes(str(value.name)) && <option value={str(value.name)}>{str(value.name) || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
                   {names.map((n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>{codeLabel(n)}</option>
                   ))}
                 </Select>
               )}
@@ -519,7 +502,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                     set({ operation: e.target.value, args });
                   }}
                 >
-                  {!meta && <option value={operation}>{operation || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
+                  {!meta && <option value={operation}>{uiText('alpha7.copy.unknownCalculation')}</option>}
                   {operations.map((o) => (
                     <option key={o.operation} value={o.operation}>{codeLabel(o.operation)}</option>
                   ))}
@@ -532,7 +515,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
             </div>
           </div>
           {TEMPORAL_HINTS[operation] && <p className="text-xs text-muted">{TEMPORAL_HINTS[operation]}</p>}
-          <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={arity} max={arity} labels={arity === 2 ? ['Aktuell', 'Vergleich'] : ['Eingang']} />
+          <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={arity} max={arity} labels={arity === 2 ? [uiText('alpha7.copy.current'), uiText('alpha7.copy.comparison')] : [uiText('editors.RuleEditor.eingang_d8af5e')]} />
         </div>
       );
     }

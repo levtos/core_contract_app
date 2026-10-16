@@ -107,7 +107,7 @@ export interface ValueEditorProps {
   depth?: number;
 }
 
-export function ValueEditor({ value, onChange, pointer, label = 'Wert', allowedKinds = ALL_KINDS, expert = true, depth = 0 }: ValueEditorProps) {
+export function ValueEditor({ value, onChange, pointer, label = uiText('editors.SchemaForm.wert_7e347d'), allowedKinds = ALL_KINDS, expert = true, depth = 0 }: ValueEditorProps) {
   const kind = kindOf(value);
   const issues = useIssues(pointer);
   const kinds = allowedKinds.includes(kind) ? allowedKinds : [kind, ...allowedKinds];

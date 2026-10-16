@@ -68,19 +68,19 @@ export function MachineRestartPanel({ contractId }: { contractId: string }) {
       {blocked && <p className="text-sm text-muted">{blocked}</p>}
     </div>
     <Dialog open={!!subject} onOpenChange={value => !value && !send.isPending && setSubject(null)} title={t('alpha7.restart.title')} description={t('alpha7.restart.warning')} size="lg" footer={<>
-      <Button disabled={send.isPending} onClick={() => setSubject(null)}>{t('alpha7.restart.close')}</Button>
+      <Button disabled={send.isPending} disabledReason={t('alpha7.copy.inProgress')} onClick={() => setSubject(null)}>{t('alpha7.restart.close')}</Button>
       <Button variant="danger" disabled={!!disabledReason} onClick={() => send.mutate()}>{t('alpha7.restart.execute')}</Button>
     </>}>
       {subject && <div className="space-y-4">
         <p className="text-sm">{t('alpha7.restart.target', { name: contractName(active.data, subject.contract_id), state: subject.initial ?? t('alpha7.restart.unknown'), version: subject.registry_revision })}</p>
-        <div className="grid gap-4 sm:grid-cols-2">{(['direct_contracts', 'indirect_contracts'] as const).map(key => <section key={key}><h3 className="text-sm font-semibold">{t(`alpha7.restart.${key}`)}</h3>{subject[key].length ? <ul className="mt-2 space-y-1 text-sm">{subject[key].map(id => <li key={id}><Link className="text-accent hover:underline" to={`/contracts/view/${encodeURIComponent(id)}`}>{contractName(active.data, id)}</Link></li>)}</ul> : <p className="mt-2 text-sm text-muted">{t('alpha7.restart.noContracts')}</p>}</section>)}</div>
+        <div className="grid gap-4 sm:grid-cols-2">{(['direct_contracts', 'indirect_contracts'] as const).map(key => <section key={key}><h3 className="text-sm font-semibold">{t(`alpha7.restart.${key}`)}</h3>{subject[key].length ? <ul className="mt-2 space-y-1 text-sm">{subject[key].map(id => <li key={id}><Link className="text-fg hover:underline" to={`/contracts/view/${encodeURIComponent(id)}`}>{contractName(active.data, id)}</Link></li>)}</ul> : <p className="mt-2 text-sm text-muted">{t('alpha7.restart.noContracts')}</p>}</section>)}</div>
         <p className="text-sm">{t('alpha7.restart.external')}</p>
         <Field label={t('alpha7.restart.reason')}>{props => <Textarea {...props} value={reason} maxLength={256} disabled={send.isPending || !!sent} onChange={event => setReason(event.target.value)} />}</Field>
         <Checkbox label={t('alpha7.restart.confirm')} checked={checked} disabled={send.isPending || !!sent} onCheckedChange={setChecked} />
         {disabledReason && <p role="status" className="text-sm text-muted">{disabledReason}</p>}
         {sent?.result && <p role="status" className="text-sm">{sent.result.status === 'accepted' ? t('alpha7.restart.success') : t('alpha7.restart.rejected', { reason: reasonLabel(sent.result.reason ?? sent.result.status) })}</p>}
         {sent?.error && <p role="alert" className="text-sm text-bad">{sent.error}</p>}
-        {sent && !sent.result && !send.isPending && <div className="space-y-2"><p className="text-sm text-muted">{t('alpha7.restart.lostResponse')}</p><Button disabled={recover.isPending} onClick={() => recover.mutate(sent.id)}>{t('alpha7.restart.recover')}</Button>{recover.isPending && <p className="text-sm text-muted">{t('alpha7.restart.recovering')}</p>}</div>}
+        {sent && !sent.result && !send.isPending && <div className="space-y-2"><p className="text-sm text-muted">{t('alpha7.restart.lostResponse')}</p><Button disabled={recover.isPending} disabledReason={t('alpha7.copy.inProgress')} onClick={() => recover.mutate(sent.id)}>{t('alpha7.restart.recover')}</Button>{recover.isPending && <p className="text-sm text-muted">{t('alpha7.restart.recovering')}</p>}</div>}
       </div>}
     </Dialog>
   </Panel>;

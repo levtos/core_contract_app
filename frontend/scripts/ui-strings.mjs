@@ -10,7 +10,7 @@ export function sourceFiles(root) {
   });
 }
 
-const visibleNames = new Set(['label', 'title', 'description', 'placeholder', 'aria-label', 'alt', 'caption', 'confirmLabel', 'hint', 'message', 'detail', 'text', 'error', 'singular', 'what', 'header', 'addLabel', 'display_name', 'lockReason']);
+const visibleNames = new Set(['label', 'labels', 'title', 'description', 'placeholder', 'aria-label', 'alt', 'caption', 'confirmLabel', 'hint', 'message', 'detail', 'text', 'error', 'singular', 'what', 'header', 'addLabel', 'display_name', 'lockReason', 'disabledReason']);
 const technicalAttributes = new Set(['className', 'class', 'id', 'key', 'to', 'href', 'value', 'name', 'type', 'role', 'view', 'data-testid', 'data-pointer', 'accept', 'autoComplete', 'method', 'variant', 'tone', 'size', 'aria-sort', 'aria-live', 'aria-current']);
 const technicalCalls = /^(?:cva|cn|querySelector|querySelectorAll|setAttribute|includes|startsWith|endsWith|join|split|replace|replaceAll|match|test|fetch|api|setupRequest|setAt|getAt|deleteAt|localStorage|sessionStorage|addEventListener|removeEventListener)$/;
 const words = /[A-Za-zÄÖÜäöüß]/;
@@ -77,7 +77,19 @@ export function candidates(text, file = 'screen.tsx', jsxOnly = false) {
         if (technicalAttributes.has(context.name.getText(source))) return;
         if (visibleNames.has(context.name.getText(source))) { add(node, value, 'attribute'); return; }
       }
+      // Labels inside arrays/conditional branches still reach the visible attribute.
+      for (let ancestor = parent; ancestor && !ts.isFunctionLike(ancestor); ancestor = ancestor.parent) {
+        if (ts.isCallExpression(ancestor)) {
+          const callName = ts.isIdentifier(ancestor.expression) ? ancestor.expression.text : ts.isPropertyAccessExpression(ancestor.expression) ? ancestor.expression.name.text : '';
+          if (technicalCalls.test(callName)) break;
+        }
+        if (ts.isJsxAttribute(ancestor)) {
+          if (visibleNames.has(ancestor.name.getText(source))) { add(node, value, 'attribute'); return; }
+          break;
+        }
+      }
       if (jsxOnly) return;
+      if (ts.isBindingElement(parent) && parent.initializer === node && visibleNames.has(parent.name.getText(source))) { add(node, value, 'default'); return; }
       if (ts.isPropertyAssignment(context)) {
         const name = context.name.getText(source).replace(/['"]/g, '');
         if (isLabelMapEntry(context)) { add(node, value, 'dictionary'); return; }

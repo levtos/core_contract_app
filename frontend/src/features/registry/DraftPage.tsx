@@ -43,8 +43,8 @@ function JsonExpert() {
       <Textarea aria-label={uiText("features.registry.DraftPage.registry_json_dceba9")} rows={18} spellCheck={false} value={text} onChange={(e) => { setText(e.target.value); setError(''); }} />
       {error && <p role="alert" className="text-xs text-bad">{error}</p>}
       <div className="flex gap-2">
-        <Button size="sm" variant="primary" disabled={text === current} onClick={() => { const parsed = parseRegistryJson(text); if (parsed.ok) { doc.replaceAll(parsed.config); setError(''); } else setError(parsed.error); }}>{uiText("features.registry.DraftPage.ubernehmen_936378")}</Button>
-        <Button size="sm" disabled={text === current} onClick={() => { setText(current); setError(''); }}>{uiText("features.registry.DraftPage.zurucksetzen_1ba046")}</Button>
+        <Button size="sm" variant="primary" disabled={text === current} disabledReason={uiText('alpha7.copy.unchanged')} onClick={() => { const parsed = parseRegistryJson(text); if (parsed.ok) { doc.replaceAll(parsed.config); setError(''); } else setError(parsed.error); }}>{uiText("features.registry.DraftPage.ubernehmen_936378")}</Button>
+        <Button size="sm" disabled={text === current} disabledReason={uiText('alpha7.copy.unchanged')} onClick={() => { setText(current); setError(''); }}>{uiText("features.registry.DraftPage.zurucksetzen_1ba046")}</Button>
       </div>
     </div>
   );

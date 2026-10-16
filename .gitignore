@@ -19,3 +19,4 @@ client/dist/
 dev/secrets/
 dev/staged/
 work/
+*.tsbuildinfo

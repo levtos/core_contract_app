@@ -90,7 +90,7 @@ export function CreateDraftDialog({
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>{uiText("features.authoring.CreateDraftDialog.abbrechen_f7ff11")}</Button>
-           <Button variant="primary" disabled={atLimit || create.isPending || (origin === 'import' && !text.trim())} onClick={submit}>
+           <Button variant="primary" disabled={atLimit || create.isPending || (origin === 'import' && !text.trim())} disabledReason={atLimit ? uiText('alpha7.import.limit') : create.isPending ? uiText('alpha7.copy.inProgress') : uiText('alpha7.import.empty')} onClick={submit}>
             {uiText("features.authoring.CreateDraftDialog.draft_anlegen_0355d8")}</Button>
         </>
       }
@@ -101,8 +101,8 @@ export function CreateDraftDialog({
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-xs font-medium text-muted">{uiText("features.authoring.CreateDraftDialog.ausgangspunkt_4c2d40")}</legend>
           {options.map((option) => (
-            <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-accent/60 bg-accent/5' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
-              <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-accent)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
+            <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-faint bg-raised' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
+              <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-fg)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
               <span>
                 <span className="font-medium">{option.label}</span>
                 <span className="block text-xs text-muted">{option.hint}</span>

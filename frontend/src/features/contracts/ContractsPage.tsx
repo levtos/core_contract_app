@@ -71,6 +71,7 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
           <Button
             variant="primary"
             disabled={!valid}
+            disabledReason={taken ? uiText('features.contracts.ContractsPage.diese_id_ist_bereits_vergeben_20f34e') : uiText('alpha7.copy.checkIdentifier')}
             onClick={() => {
               if (!chosen) return;
               const contractId = id.trim();
@@ -86,7 +87,7 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
     >
       <div className="flex flex-col gap-4">
         <Field label={uiText("features.contracts.ContractsPage.contract_id_f9f7ff")} hint={ID_HINT} errors={taken ? [{ code: 'duplicate_identity', message: uiText("features.contracts.ContractsPage.diese_id_ist_bereits_vergeben_20f34e") }] : id && !validIdentifier(id.trim()) ? [{ code: 'identity_invalid', message: ID_HINT }] : []}>
-          {(p) => <Input {...p} autoFocus maxLength={ID_LIMIT} value={id} placeholder={uniqueName('fixture.neu', ids)} onChange={(e) => setId(e.target.value)} />}
+          {(p) => <Input {...p} autoFocus maxLength={ID_LIMIT} value={id} placeholder={uniqueName(uiText('alpha7.copy.newContractId'), ids)} onChange={(e) => setId(e.target.value)} />}
         </Field>
         <Field label={uiText("features.contracts.ContractsPage.typ_version_1b7183")}>
           {(p) => (
@@ -168,7 +169,7 @@ export default function ContractsPage() {
   );
 
   const columns = [
-    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-accent" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link>{cell.row.original.name && <span title={cell.row.original.id} className="block truncate text-xs text-muted">{cell.row.original.id}</span>}</div> }),
+    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-fg" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link>{cell.row.original.name && <span title={cell.row.original.id} className="block truncate text-xs text-muted">{cell.row.original.id}</span>}</div> }),
     col.accessor('value', { header: uiText('alpha7.contract.value'), cell: cell => <span className="tabular-nums">{cell.getValue()}</span> }),
     col.accessor(row => row.envelope?.contract_health ?? '', { id: 'state', header: uiText('alpha7.contract.state'), cell: cell => <ContractStateChip envelope={cell.row.original.envelope} enabled={cell.row.original.enabled} draftOnly={cell.row.original.draftOnly} stale={cell.row.original.stale} /> }),
     col.accessor('source', { header: uiText('alpha7.contract.source'), cell: cell => <span className="block truncate" title={cell.getValue()}>{cell.getValue()}</span> }),
@@ -180,7 +181,7 @@ export default function ContractsPage() {
         title={uiText("features.contracts.ContractsPage.contracts_definitionen_499616")}
         description={uiText("features.contracts.ContractsPage.instanzen_binden_einen_typ_an_quellen_definition_c07fc7")}
         actions={
-          <Button variant="primary" disabled={doc.starting} onClick={() => void start()}>
+          <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.ContractsPage.neue_instanz_e3e518")}</Button>
         }
       />

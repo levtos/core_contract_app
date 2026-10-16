@@ -137,7 +137,7 @@ export function CommandsPanel({ contractId, onContract, fixed = false }: { contr
               {spec.schema && <SchemaForm root={spec.schema} node={spec.schema} value={args} pointer="/args" onChange={(v) => setArgs(isObject(v) ? v : {})} />}
               {spec.fields && Object.keys(spec.fields).length === 0 && <p className="text-xs text-muted">{uiText("features.diagnostics.CommandsPanel.dieser_befehl_hat_keine_argumente_cc8092")}</p>}
               <div>
-                <Button variant="primary" disabled={send.isPending} onClick={() => setConfirming(true)}><Send size={14} /> {uiText("features.diagnostics.CommandsPanel.command_senden_8e5910")}</Button>
+                <Button variant="primary" disabled={send.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => setConfirming(true)}><Send size={14} /> {uiText("features.diagnostics.CommandsPanel.command_senden_8e5910")}</Button>
               </div>
             </>
           )}
@@ -155,7 +155,7 @@ export function CommandsPanel({ contractId, onContract, fixed = false }: { contr
           )}
           {sent?.error && (
             <Notice tone="warn" title={uiText("features.diagnostics.CommandsPanel.antwort_unbekannt_e79d9d")}>
-              {sent.error} {uiText("features.diagnostics.CommandsPanel.der_command_kann_trotzdem_verarbeitet_worden_sei_a1e8f2")}<div className="mt-2"><Button size="sm" disabled={recover.isPending} onClick={() => recover.mutate(sent.id)}>{uiText("features.diagnostics.CommandsPanel.gespeichertes_ergebnis_abfragen_f219ee")}</Button></div>
+              {sent.error} {uiText("features.diagnostics.CommandsPanel.der_command_kann_trotzdem_verarbeitet_worden_sei_a1e8f2")}<div className="mt-2"><Button size="sm" disabled={recover.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => recover.mutate(sent.id)}>{uiText("features.diagnostics.CommandsPanel.gespeichertes_ergebnis_abfragen_f219ee")}</Button></div>
             </Notice>
           )}
           {sent && <KeyValue items={[{ label: uiText("features.diagnostics.CommandsPanel.command_id_8aab8c"), value: <code className="break-all text-xs">{sent.id}</code> }]} />}

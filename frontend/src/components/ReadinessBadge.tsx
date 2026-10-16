@@ -21,7 +21,7 @@ export function ConditionRow({ condition }: { condition: Condition }) {
   const action = ACTIONS[condition.kind];
   return <li className="flex items-start justify-between gap-4 border-b border-line py-3 last:border-0">
     <span className="min-w-0 text-sm">{action.message}</span>
-    <Link to={action.to} className="shrink-0 text-sm font-medium text-accent underline underline-offset-4">{action.label}</Link>
+    <Link to={action.to} className="shrink-0 text-sm font-medium text-fg underline underline-offset-4">{action.label}</Link>
   </li>;
 }
 
@@ -51,7 +51,7 @@ export function ReadinessBadge({ conditions, ready, revision, children }: { cond
       {open && <div id={id} role="dialog" aria-label={t('alpha7.status.conditions')} className="absolute left-0 top-full z-40 w-[min(34rem,85vw)] pt-2" onFocus={() => setPinned(true)}>
         <div className="rounded-xl border border-line-strong bg-panel p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-3"><p className="font-semibold">{t('alpha7.status.conditions')}</p><Button variant="ghost" size="icon" aria-label={t('alpha7.status.close')} onClick={close}><X size={15} /></Button></div>
-          {conditions.length ? <ul>{conditions.map(condition => <ConditionRow key={condition.kind} condition={condition} />)}</ul> : waiting ? <p className="py-3 text-sm text-muted">{t('alpha7.status.waiting')} <Link to="/settings/connections" className="text-accent underline">{t('alpha7.status.connection')}</Link></p> : <p className="py-3 text-sm text-muted">{t('alpha7.status.allGood')}</p>}
+          {conditions.length ? <ul>{conditions.map(condition => <ConditionRow key={condition.kind} condition={condition} />)}</ul> : waiting ? <p className="py-3 text-sm text-muted">{t('alpha7.status.waiting')} <Link to="/settings/connections" className="text-fg underline">{t('alpha7.status.connection')}</Link></p> : <p className="py-3 text-sm text-muted">{t('alpha7.status.allGood')}</p>}
         </div>
       </div>}
     </div>

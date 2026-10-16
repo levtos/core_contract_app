@@ -118,14 +118,14 @@ function MovablePanel({ slot, span, view, index, count, adjusting, onMove, onDro
     });
     return () => { drag(); drop(); };
   }, [adjusting, slot.id, view]);
-  return <div ref={element} data-layout-panel={slot.id} data-span={span} className={cn('min-w-0', span === 1 ? 'xl:col-span-1' : span === 2 ? 'xl:col-span-2' : 'xl:col-span-3', over && 'rounded-[var(--radius-lg)] ring-2 ring-accent')}>
+  return <div ref={element} data-layout-panel={slot.id} data-span={span} className={cn('min-w-0', span === 1 ? 'xl:col-span-1' : span === 2 ? 'xl:col-span-2' : 'xl:col-span-3', over && 'rounded-[var(--radius-lg)] ring-2 ring-faint')}>
     {adjusting && <div className="mb-1 flex flex-wrap items-center gap-1 rounded-[var(--radius-sm)] border border-line bg-raised p-1">
       <button ref={handle} type="button" aria-label={uiText("components.PanelLayout.panel_v0_verschieben_ee4a83", { v0: (slot.title) })} className="flex min-h-11 min-w-11 cursor-grab items-center gap-1 px-2 text-xs active:cursor-grabbing" onKeyDown={(e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); onMove(index - 1); }
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); onMove(index + 1); }
       }}><GripVertical size={14} /><span>{slot.title}</span></button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_vorne_f637f0", { v0: (slot.title) })} disabled={index === 0} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_hinten_9b7af0", { v0: (slot.title) })} disabled={index === count - 1} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_vorne_f637f0", { v0: (slot.title) })} disabled={index === 0} disabledReason={uiText('alpha7.copy.firstRow')} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_hinten_9b7af0", { v0: (slot.title) })} disabled={index === count - 1} disabledReason={uiText('alpha7.copy.lastRow')} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
       <Select className="ml-auto min-h-11 w-auto min-w-32" aria-label={uiText("components.PanelLayout.v0_panelbreite_116978", { v0: (slot.title) })} value={span} onChange={(e) => onSize(Number(e.target.value) as Span)}><option value="1">{uiText("components.PanelLayout.schmal_ec22ce")}</option><option value="2">{uiText("components.PanelLayout.mittel_660427")}</option><option value="3">{uiText("components.PanelLayout.ganze_zeile_701a57")}</option></Select>
     </div>}
     {slot.children}

@@ -73,14 +73,14 @@ export default function DefinitionsPage() {
 
   const columns = useMemo(
     () => [
-      col.accessor('typeId', { header: uiText("features.contracts.DefinitionsPage.typ_id_b7db41"), cell: (c) => <code className="text-xs text-accent">{c.getValue()}</code> }),
+      col.accessor('typeId', { header: uiText("features.contracts.DefinitionsPage.typ_id_b7db41"), cell: (c) => <code className="text-xs text-fg">{c.getValue()}</code> }),
       col.accessor('version', { header: uiText("features.contracts.DefinitionsPage.version_dd1679"), cell: (c) => <Badge tone="neutral">{uiText("features.contracts.DefinitionsPage.v_4c9448")}{c.getValue()}</Badge> }),
       col.accessor('name', { header: uiText("features.contracts.DefinitionsPage.name_dcd1d5"), cell: (c) => c.getValue() || <span className="text-faint">—</span> }),
       col.accessor('inputs', { header: uiText("features.contracts.DefinitionsPage.eingange_53fb39") }),
       col.accessor('outputs', { header: uiText("features.contracts.DefinitionsPage.ausgaben_44e52a") }),
       col.accessor('machine', { header: uiText("features.contracts.DefinitionsPage.machine_8f1cc4"), cell: (c) => (c.getValue() ? <Badge tone="accent">{uiText("features.contracts.DefinitionsPage.ja_3702fc")}</Badge> : <span className="text-faint">–</span>) }),
       col.accessor('usedBy', { header: uiText("features.contracts.DefinitionsPage.instanzen_a94c7e") }),
-      col.accessor((r) => r.lockedSince ?? 0, { id: 'status', header: uiText("features.contracts.DefinitionsPage.status_920e41"), cell: (c) => (c.row.original.lockedSince !== null ? <span className="flex items-center gap-1.5"><LockBadge /><span className="text-[11px] text-faint">{uiText("features.contracts.DefinitionsPage.seit_rev_6ccd9c")}{c.row.original.lockedSince}</span></span> : <Badge tone="warn">{uiText("features.contracts.DefinitionsPage.entwurf_2ba46e")}</Badge>) }),
+      col.accessor((r) => r.lockedSince ?? 0, { id: 'status', header: uiText("features.contracts.DefinitionsPage.status_920e41"), cell: (c) => (c.row.original.lockedSince !== null ? <span className="flex items-center gap-1.5"><LockBadge /><span className="text-[11px] text-faint">{uiText("features.contracts.DefinitionsPage.seit_rev_6ccd9c")}{c.row.original.lockedSince}</span></span> : <Badge tone="info">{uiText("features.contracts.DefinitionsPage.entwurf_2ba46e")}</Badge>) }),
       col.accessor('errors', { header: uiText("features.contracts.DefinitionsPage.fehler_f6cc01"), cell: (c) => (c.getValue() ? <Badge tone="bad">{c.getValue()}</Badge> : null) }),
     ],
     [],
@@ -98,7 +98,7 @@ export default function DefinitionsPage() {
         title={uiText(builtin ? 'alpha7.nav.builtinTemplates' : 'alpha7.nav.ownTemplates')}
         description={uiText("features.contracts.DefinitionsPage.definitionen_sind_deklarative_typen_mit_unverand_5b643c")}
         actions={
-          !builtin && <Button variant="primary" disabled={doc.starting} onClick={() => void start()}>
+          !builtin && <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.DefinitionsPage.neue_definition_fcff16")}</Button>
         }
       />
@@ -141,7 +141,7 @@ export default function DefinitionsPage() {
             <Button onClick={() => setCreating(false)}>{uiText("features.contracts.DefinitionsPage.abbrechen_f7ff11")}</Button>
             <Button
               variant="primary"
-              disabled={!validId || exists}
+              disabled={!validId || exists} disabledReason={exists ? uiText('features.contracts.DefinitionsPage.diese_typ_id_existiert_bereits_fur_anderungen_ei_01c137') : uiText('alpha7.copy.checkIdentifier')}
               onClick={() => {
                 const id = fullId;
                 // Declarative definitions require fingerprint_version 2 (explicit in the document).

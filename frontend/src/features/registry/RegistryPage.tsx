@@ -49,7 +49,7 @@ function DraftsTab() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">{list.length} {uiText("features.registry.RegistryPage.von_100_drafts_drafts_sind_niemals_live_sie_durf_c3fc1f")}</p>
-        <Button variant="primary" disabled={list.length >= 100} title={list.length >= 100 ? uiText("features.registry.RegistryPage.es_sind_bereits_100_entwurfe_vorhanden_zuerst_ei_f0bbd8") : undefined} onClick={() => setCreating(true)}><FilePlus2 size={15} /> {uiText("features.registry.RegistryPage.neuer_draft_610fb2")}</Button>
+        <Button variant="primary" disabled={list.length >= 100} disabledReason={uiText('alpha7.import.limit')} title={list.length >= 100 ? uiText("features.registry.RegistryPage.es_sind_bereits_100_entwurfe_vorhanden_zuerst_ei_f0bbd8") : undefined} onClick={() => setCreating(true)}><FilePlus2 size={15} /> {uiText("features.registry.RegistryPage.neuer_draft_610fb2")}</Button>
       </div>
       {error && <Notice tone="bad" title={uiText("features.registry.RegistryPage.aktion_fehlgeschlagen_3a20cc")}>{error}</Notice>}
       <Panel>
@@ -64,7 +64,7 @@ function DraftsTab() {
               <li key={draft.draft_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-medium">
-                    <Link className="truncate hover:text-accent" to={`/changes/drafts/${encodeURIComponent(draft.draft_id)}`}>{draftLabel(draft)}</Link>
+                    <Link className="truncate hover:text-fg" to={`/changes/drafts/${encodeURIComponent(draft.draft_id)}`}>{draftLabel(draft)}</Link>
                     {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">{doc.dirty ? uiText("features.registry.RegistryPage.geoffnet_ungespeichert_62ba6c") : uiText("features.registry.RegistryPage.geoffnet_ec5e95")}</Badge>}
                   </p>
                   <p className="mono truncate text-[11px] text-faint">{draft.draft_id}</p>
@@ -150,7 +150,7 @@ function RevisionsTab() {
               const actorLabel = actor?.kind === 'internal' ? uiText('alpha7.versions.actorSystem') : actor?.role === 'admin' && (actor.kind === 'token' || actor.kind === 'ingress') ? uiText(actor.kind === 'token' ? 'alpha7.versions.actorToken' : 'alpha7.versions.actorApp') : uiText('alpha7.versions.actorUnknown');
               return (
                 <li key={row.revision} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-                  <input type="checkbox" aria-label={uiText("features.registry.RegistryPage.revision_v0_zum_vergleich_wahlen_d77c8e", { v0: (row.revision) })} className="size-4 accent-[var(--color-accent)]" checked={selected.includes(row.revision)} onChange={(e) => setSelected((s) => (e.target.checked ? [...s, row.revision].slice(-2) : s.filter((n) => n !== row.revision)))} />
+                  <input type="checkbox" aria-label={uiText("features.registry.RegistryPage.revision_v0_zum_vergleich_wahlen_d77c8e", { v0: (row.revision) })} className="size-4 accent-[var(--color-fg)]" checked={selected.includes(row.revision)} onChange={(e) => setSelected((s) => (e.target.checked ? [...s, row.revision].slice(-2) : s.filter((n) => n !== row.revision)))} />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       {uiText("features.registry.RegistryPage.revision_e330d8")}{row.revision}

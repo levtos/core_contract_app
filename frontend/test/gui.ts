@@ -36,7 +36,7 @@ export function gui(user: UserEvent) {
     const formula = `${root}/args/2/left`;
     await setOp(formula, 'formula');
     await type(first(`${formula}/args/0`, 'Wert'), '1');
-    await user.click(within(node(formula)).getAllByRole('button', { name: 'Argument' })[0]!);
+    await user.click(within(node(formula)).getAllByRole('button', { name: 'Eingangswert' })[0]!);
     await setOp(`${formula}/args/1`, 'literal');
     await user.click(within(node(`${formula}/args/1`)).getByRole('button', { name: 'Erweitert: Werteart' }));
     await user.selectOptions(first(`${formula}/args/1`, 'Typ'), 'number');

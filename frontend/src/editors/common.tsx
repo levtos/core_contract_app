@@ -59,7 +59,7 @@ export function IssueCount({ pointer }: { pointer: string }) {
   const issues = useIssuesUnder(pointer);
   if (issues.length === 0) return null;
   return (
-    <Tip label={issues.map((i) => `${i.code}: ${explain(i)}`).join('\n')}>
+    <Tip label={issues.map(explain).join('\n')}>
       <span tabIndex={0}>
         <Badge tone="bad">{issues.length} {issues.length === 1 ? uiText("editors.common.fehler_f6cc01") : uiText("editors.common.fehler_f6cc01")}</Badge>
       </span>
@@ -67,10 +67,10 @@ export function IssueCount({ pointer }: { pointer: string }) {
   );
 }
 
-export function IconButton({ label, onClick, disabled, children, tone }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode; tone?: 'danger' }) {
+export function IconButton({ label, onClick, disabled, disabledReason, children, tone }: { label: string; onClick: () => void; disabled?: boolean; disabledReason?: string; children: ReactNode; tone?: 'danger' }) {
   return (
     <Tip label={label}>
-      <Button variant="ghost" size="icon" aria-label={label} disabled={disabled} onClick={onClick} className={cn(tone === 'danger' && 'hover:text-bad')}>
+      <Button variant="ghost" size="icon" aria-label={label} disabled={disabled} disabledReason={disabledReason ?? label} onClick={onClick} className={cn(tone === 'danger' && 'hover:text-fg')}>
         {children}
       </Button>
     </Tip>
@@ -80,13 +80,13 @@ export function IconButton({ label, onClick, disabled, children, tone }: { label
 export function RowActions({ index, count, onMove, onRemove, removeDisabled }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove: () => void; removeDisabled?: boolean }) {
   return (
     <div className="flex shrink-0 items-center">
-      <IconButton label={uiText("editors.common.nach_oben_ed1652")} disabled={index === 0} onClick={() => onMove(index, index - 1)}>
+      {index > 0 && <IconButton label={uiText("editors.common.nach_oben_ed1652")} onClick={() => onMove(index, index - 1)}>
         <ArrowUp size={14} />
-      </IconButton>
-      <IconButton label={uiText("editors.common.nach_unten_542457")} disabled={index >= count - 1} onClick={() => onMove(index, index + 1)}>
+      </IconButton>}
+      {index < count - 1 && <IconButton label={uiText("editors.common.nach_unten_542457")} onClick={() => onMove(index, index + 1)}>
         <ArrowDown size={14} />
-      </IconButton>
-      <IconButton label={uiText("editors.common.entfernen_382837")} tone="danger" disabled={removeDisabled} onClick={onRemove}>
+      </IconButton>}
+      <IconButton label={uiText("editors.common.entfernen_382837")} tone="danger" disabled={removeDisabled} disabledReason={uiText('alpha7.copy.requiredRow')} onClick={onRemove}>
         <Trash2 size={14} />
       </IconButton>
     </div>
@@ -138,7 +138,7 @@ export function StringListEditor({ value, onChange, pointer, label, placeholder 
                 }
               }}
             />
-            <Button variant="outline" onClick={commit} disabled={!draft.trim()}>
+            <Button variant="outline" onClick={commit} disabled={!draft.trim()} disabledReason={uiText('alpha7.copy.copyNeedsValue')}>
               {uiText("editors.common.hinzufugen_cbb95c")}</Button>
           </div>
         </div>
@@ -158,7 +158,7 @@ export function isoToLocalInput(value: string): string {
 }
 
 /** Value editor that follows a FieldSchema: type-specific widgets, never free JSON for scalars. */
-export function TypedValueEditor({ schema, value, onChange, pointer, label = 'Wert' }: { schema: FieldSchema; value: Json; onChange: (next: Json) => void; pointer: string; label?: string }) {
+export function TypedValueEditor({ schema, value, onChange, pointer, label = uiText('editors.SchemaForm.wert_7e347d') }: { schema: FieldSchema; value: Json; onChange: (next: Json) => void; pointer: string; label?: string }) {
   const catalog = Array.isArray(schema.value_catalog) ? (schema.value_catalog as string[]) : [];
   switch (schema.type) {
     case 'bool':

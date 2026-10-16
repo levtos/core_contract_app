@@ -84,8 +84,8 @@ export default function DefinitionDetailPage() {
         actions={
           <>
             <Badge>{uiText("features.contracts.DefinitionDetailPage.v_4c9448")}{version}</Badge>
-            {lockedSince !== null ? <LockBadge /> : <Badge tone="warn">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
-            <Button size="sm" disabled={doc.starting} onClick={() => void beginVersion()}><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>
+            {lockedSince !== null ? <LockBadge /> : <Badge tone="info">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
+            <Button size="sm" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void beginVersion()}><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>
             {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} />{uiText('features.contracts.DefinitionDetailPage.entfernen_382837')}</Button>}
           </>
         }
@@ -105,7 +105,7 @@ export default function DefinitionDetailPage() {
         />
       </fieldset>
       </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">
-        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/view/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
+        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/view/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-fg hover:underline">{id}</Link>)}
       </section>
       </LayoutPanel></PanelLayout>
 

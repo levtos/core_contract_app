@@ -14,8 +14,8 @@ import { codeLabel } from '@/i18n/codes';
 export const FIELD_STATUS: Record<FieldStatus, { label: string; tone: Tone; hint: string }> = {
   valid: { label: uiText("lib.status.gultig_87b71a"), tone: 'ok', hint: uiText("lib.status.wert_ist_aktuell_und_belegt_40eba5") },
   held: { label: uiText("lib.status.gehalten_9ce589"), tone: 'info', hint: uiText("lib.status.letzter_gultiger_wert_wird_bis_zum_ende_der_grac_763ba7") },
-  unknown: { label: uiText("lib.status.unbekannt_a418e6"), tone: 'warn', hint: uiText("lib.status.kein_verwendbarer_wert_das_ist_weder_aus_noch_fa_23fda0") },
-  unresolved: { label: uiText("lib.status.ungelost_1a4c83"), tone: 'warn', hint: uiText("lib.status.der_wert_konnte_nicht_eindeutig_bestimmt_werden_508be4") },
+  unknown: { label: uiText("lib.status.unbekannt_a418e6"), tone: 'neutral', hint: uiText("lib.status.kein_verwendbarer_wert_das_ist_weder_aus_noch_fa_23fda0") },
+  unresolved: { label: uiText("lib.status.ungelost_1a4c83"), tone: 'neutral', hint: uiText("lib.status.der_wert_konnte_nicht_eindeutig_bestimmt_werden_508be4") },
   not_applicable: { label: uiText("lib.status.nicht_anwendbar_d9b971"), tone: 'neutral', hint: uiText("lib.status.positiv_festgestellt_trifft_in_dieser_lage_nicht_96ea6e") },
 };
 

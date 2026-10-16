@@ -59,7 +59,7 @@ describe('values are shown as the server reports them', () => {
 describe('explain shows only what was recorded', () => {
   it('says so when there is no trace instead of inventing one', () => {
     wrap(<ExplainPanel trace={null} />);
-    expect(screen.getByText("Kein Erklärung-Erklärungsverlauf vorhanden")).toBeInTheDocument();
+    expect(screen.getByText('Noch kein Erklärungsverlauf vorhanden')).toBeInTheDocument();
   });
 
   it('renders operator status, guard decisions and fusion selection from the trace', () => {

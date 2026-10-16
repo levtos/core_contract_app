@@ -24,6 +24,6 @@ export function EventFeed({ limit = 8, logLink = true }: { limit?: number; logLi
       </li>)}
     </ol>}
     <p className="text-xs text-faint">{t('alpha7.overview.connectionScope')}</p>
-    {logLink && <Link to="/settings/log" className="inline-block text-sm text-accent underline underline-offset-4">{t('alpha7.overview.allLog')}</Link>}
+    {logLink && <Link to="/settings/log" className="inline-block text-sm text-fg underline underline-offset-4">{t('alpha7.overview.allLog')}</Link>}
   </div>;
 }
