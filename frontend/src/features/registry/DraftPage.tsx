@@ -23,12 +23,12 @@ import { DiffView } from './DiffView';
 import { IssueList } from './IssueList';
 
 const SECTIONS: { key: string; label: string; to: string }[] = [
-  { key: 'dependencies', label: uiText("features.registry.DraftPage.dependencies_2e41b1"), to: '/sources?tab=dependencies' },
-  { key: 'sources', label: uiText("features.registry.DraftPage.sources_caf85b"), to: '/sources' },
-  { key: 'bindings', label: uiText("features.registry.DraftPage.bindings_7697ab"), to: '/sources?tab=bindings' },
-  { key: 'catalogs', label: uiText("features.registry.DraftPage.kataloge_daf282"), to: '/sources?tab=catalogs' },
-  { key: 'definitions', label: uiText("features.registry.DraftPage.definitionen_871a91"), to: '/definitions' },
-  { key: 'contracts', label: uiText("features.registry.DraftPage.contracts_0488ac"), to: '/contracts' },
+  { key: 'dependencies', label: uiText("features.registry.DraftPage.dependencies_2e41b1"), to: "/sources/dependencies?tab=dependencies" },
+  { key: 'sources', label: uiText("features.registry.DraftPage.sources_caf85b"), to: "/sources/devices" },
+  { key: 'bindings', label: uiText("features.registry.DraftPage.bindings_7697ab"), to: "/sources/bindings?tab=bindings" },
+  { key: 'catalogs', label: uiText("features.registry.DraftPage.kataloge_daf282"), to: "/sources/catalogs?tab=catalogs" },
+  { key: 'definitions', label: uiText("features.registry.DraftPage.definitionen_871a91"), to: "/templates/own" },
+  { key: 'contracts', label: uiText("features.registry.DraftPage.contracts_0488ac"), to: "/contracts/list/all" },
 ];
 
 function JsonExpert() {
@@ -78,7 +78,7 @@ export default function DraftPage() {
         <Back />
         <Notice tone="warn" title={uiText("features.registry.DraftPage.ein_anderer_draft_hat_ungespeicherte_anderungen_261d0b")}>
           {uiText("features.registry.DraftPage.geoffnet_ist_e6c05b")}{doc.draft ? draftLabel(doc.draft) : ''}{uiText("features.registry.DraftPage.speichern_sie_ihn_zuerst_oder_verwerfen_sie_die__baa37d")}<div className="mt-2 flex gap-2">
-            <Link to={`/registry/drafts/${encodeURIComponent(doc.draft?.draft_id ?? '')}`}><Button size="sm">{uiText("features.registry.DraftPage.zum_geoffneten_draft_855199")}</Button></Link>
+            <Link to={`/changes/drafts/${encodeURIComponent(doc.draft?.draft_id ?? '')}`}><Button size="sm">{uiText("features.registry.DraftPage.zum_geoffneten_draft_855199")}</Button></Link>
             <Button size="sm" variant="danger" onClick={() => setSwitching(true)}>{uiText("features.registry.DraftPage.verwerfen_und_wechseln_88c2d1")}</Button>
           </div>
         </Notice>
@@ -173,7 +173,7 @@ export default function DraftPage() {
 
 function Back() {
   return (
-    <Link to="/registry" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
+    <Link to="/changes/drafts" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
       <ArrowLeft size={13} /> {uiText("features.registry.DraftPage.registry_studio_995ef2")}</Link>
   );
 }

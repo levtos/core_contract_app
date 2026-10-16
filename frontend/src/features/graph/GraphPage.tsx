@@ -178,9 +178,9 @@ function Details({ node, graph, envelope }: { node: GraphNode; graph: Graph; env
           <p className="flex flex-wrap gap-1.5">{downstream.length ? downstream.map((id) => <Badge key={id}>{label(id)}</Badge>) : <span className="text-xs text-faint">–</span>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {node.kind === 'contract' && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/${encodeURIComponent(node.label)}`)}>{uiText("features.graph.GraphPage.detailansicht_9d72e5")}</Button>}
+          {node.kind === 'contract' && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/view/${encodeURIComponent(node.label)}`)}>{uiText("features.graph.GraphPage.detailansicht_9d72e5")}</Button>}
           {node.kind === 'contract' && <Link to={`/diagnostics?contract=${encodeURIComponent(node.label)}`}><Button size="sm">{uiText("features.graph.GraphPage.diagnose_64dd65")}</Button></Link>}
-          {node.kind === 'result' && node.contractId && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/${encodeURIComponent(node.contractId!)}`)}>{uiText("features.graph.GraphPage.contract_offnen_019eff")}</Button>}
+          {node.kind === 'result' && node.contractId && <Button size="sm" variant="primary" onClick={() => navigate(`/contracts/view/${encodeURIComponent(node.contractId!)}`)}>{uiText("features.graph.GraphPage.contract_offnen_019eff")}</Button>}
           {node.kind === 'source' && <Button size="sm" variant="primary" onClick={() => navigate(`/sources?tab=sources&item=${node.index ?? 0}`)}>{uiText("features.graph.GraphPage.quelle_offnen_16c604")}</Button>}
         </div>
       </div>

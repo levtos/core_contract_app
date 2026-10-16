@@ -13,12 +13,12 @@ import { classifySystem, connectionLabel, REASON_LABELS } from '@/lib/status';
 import type { ApiError } from '@/lib/api';
 
 const ENTRIES = [
-  { to: '/contracts', icon: FileCode2, title: uiText("features.overview.OverviewPage.contracts_definitionen_499616"), text: uiText("features.overview.OverviewPage.instanzen_und_deklarative_definitionen_anlegen_u_6ed8e5") },
-  { to: '/sources', icon: Cable, title: uiText("features.overview.OverviewPage.sources_bindings_613cff"), text: uiText("features.overview.OverviewPage.quellen_ha_entitaten_mqtt_bindings_und_transform_9679a6") },
-  { to: '/registry', icon: FlaskConical, title: uiText("features.overview.OverviewPage.registry_studio_995ef2"), text: uiText("features.overview.OverviewPage.drafts_validierung_diff_aktivierung_und_rollback_cc7809") },
-  { to: '/graph', icon: Network, title: uiText("features.overview.OverviewPage.graph_32ab01"), text: uiText("features.overview.OverviewPage.abhangigkeiten_zwischen_quellen_und_contracts_60e113") },
-  { to: '/diagnostics', icon: Activity, title: uiText("features.overview.OverviewPage.diagnose_historie_63b2ee"), text: uiText("features.overview.OverviewPage.werte_evidence_explain_temporal_history_und_comm_87c382") },
-  { to: '/admin', icon: Settings2, title: uiText("features.overview.OverviewPage.administration_4b42c6"), text: uiText("features.overview.OverviewPage.readiness_bridge_tokens_und_audit_verlauf_629726") },
+  { to: "/contracts/list/all", icon: FileCode2, title: uiText("features.overview.OverviewPage.contracts_definitionen_499616"), text: uiText("features.overview.OverviewPage.instanzen_und_deklarative_definitionen_anlegen_u_6ed8e5") },
+  { to: "/sources/devices", icon: Cable, title: uiText("features.overview.OverviewPage.sources_bindings_613cff"), text: uiText("features.overview.OverviewPage.quellen_ha_entitaten_mqtt_bindings_und_transform_9679a6") },
+  { to: "/changes/drafts", icon: FlaskConical, title: uiText("features.overview.OverviewPage.registry_studio_995ef2"), text: uiText("features.overview.OverviewPage.drafts_validierung_diff_aktivierung_und_rollback_cc7809") },
+  { to: "/contracts/relations/graph", icon: Network, title: uiText("features.overview.OverviewPage.graph_32ab01"), text: uiText("features.overview.OverviewPage.abhangigkeiten_zwischen_quellen_und_contracts_60e113") },
+  { to: "/settings/diagnostics", icon: Activity, title: uiText("features.overview.OverviewPage.diagnose_historie_63b2ee"), text: uiText("features.overview.OverviewPage.werte_evidence_explain_temporal_history_und_comm_87c382") },
+  { to: "/settings/system", icon: Settings2, title: uiText("features.overview.OverviewPage.administration_4b42c6"), text: uiText("features.overview.OverviewPage.readiness_bridge_tokens_und_audit_verlauf_629726") },
 ];
 
 function failureKind(error: unknown): 'network' | 'unavailable' | 'persistence' | 'other' | null {

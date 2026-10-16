@@ -40,7 +40,7 @@ export function ConditionList({ conditions }: { conditions: Condition[] }) {
 
 export function ContractLink({ id }: { id: string }) {
   return (
-    <Link className="mono text-accent underline-offset-2 hover:underline" to={`/contracts/${encodeURIComponent(id)}`}>
+    <Link className="mono text-accent underline-offset-2 hover:underline" to={`/contracts/view/${encodeURIComponent(id)}`}>
       {id}
     </Link>
   );

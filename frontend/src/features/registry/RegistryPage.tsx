@@ -1,13 +1,11 @@
 import { t as uiText } from '@/i18n';
 import { Copy, Download, FilePlus2, FolderOpen, GitCompare, History, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
-import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
-import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
-import { Empty, KeyValue, Notice, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
+import { Empty, Notice, PageHeader, Panel, Spinner } from '@/components/ui/layout';
 import { CreateDraftDialog } from '@/features/authoring/CreateDraftDialog';
 import { draftLabel } from '@/features/authoring/DraftBar';
 import { downloadText, exportRegistry, safeFilename } from '@/features/authoring/importExport';
@@ -33,14 +31,14 @@ function DraftsTab() {
   useEffect(() => {
     if (opening && doc.draft?.draft_id === opening.draft_id) {
       setOpening(null);
-      navigate(`/registry/drafts/${encodeURIComponent(opening.draft_id)}`);
+      navigate(`/changes/drafts/${encodeURIComponent(opening.draft_id)}`);
     } else if (opening && doc.switchRequest === null && doc.draft?.draft_id !== opening.draft_id) setOpening(null);
   }, [opening, doc.draft?.draft_id, doc.switchRequest, navigate]);
   const [error, setError] = useState('');
   const list = drafts.data ?? [];
 
   const open = (draft: Draft) => {
-    if (doc.requestOpen(draft) !== 'pending') navigate(`/registry/drafts/${encodeURIComponent(draft.draft_id)}`);
+    if (doc.requestOpen(draft) !== 'pending') navigate(`/changes/drafts/${encodeURIComponent(draft.draft_id)}`);
     else setOpening(draft);
   };
 
@@ -63,7 +61,7 @@ function DraftsTab() {
               <li key={draft.draft_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-medium">
-                    <Link className="truncate hover:text-accent" to={`/registry/drafts/${encodeURIComponent(draft.draft_id)}`}>{draftLabel(draft)}</Link>
+                    <Link className="truncate hover:text-accent" to={`/changes/drafts/${encodeURIComponent(draft.draft_id)}`}>{draftLabel(draft)}</Link>
                     {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">{doc.dirty ? uiText("features.registry.RegistryPage.geoffnet_ungespeichert_62ba6c") : uiText("features.registry.RegistryPage.geoffnet_ec5e95")}</Badge>}
                   </p>
                   <p className="mono truncate text-[11px] text-faint">{draft.draft_id}</p>
@@ -80,7 +78,7 @@ function DraftsTab() {
           </ul>
         )}
       </Panel>
-      <CreateDraftDialog open={creating} onOpenChange={setCreating} onCreated={(d) => navigate(`/registry/drafts/${encodeURIComponent(d.draft_id)}`)} />
+      <CreateDraftDialog open={creating} onOpenChange={setCreating} onCreated={(d) => navigate(`/changes/drafts/${encodeURIComponent(d.draft_id)}`)} />
       {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: draftLabel(copyOf) }} />}
       <ConfirmDialog
         open={deleting !== null}
@@ -169,7 +167,7 @@ function RevisionsTab() {
         </Dialog>
       )}
       {rolling && <RollbackDialog key={rolling.revision} revision={rolling} open onOpenChange={(o) => !o && setRolling(null)} />}
-      {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: `Revision ${copyOf.revision}` }} onCreated={(d) => navigate(`/registry/drafts/${encodeURIComponent(d.draft_id)}`)} />}
+      {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: `Revision ${copyOf.revision}` }} onCreated={(d) => navigate(`/changes/drafts/${encodeURIComponent(d.draft_id)}`)} />}
       {comparing && pair && (
         <Dialog open onOpenChange={(o) => !o && setComparing(false)} size="lg" title={uiText("features.registry.RegistryPage.revision_v0_v1_1a2b5a", { v0: (pair[0]!.revision), v1: (pair[1]!.revision) })} description={uiText("features.registry.RegistryPage.strukturelle_differenz_der_konfigurationsdokumen_aee6e2")}>
           {(() => {
@@ -189,29 +187,11 @@ function RevisionsTab() {
 }
 
 export default function RegistryPage() {
-  const active = useActiveRevision();
+  const versions = useLocation().pathname === '/changes/versions';
   return (
     <>
-      <PageHeader title={uiText("features.registry.RegistryPage.registry_studio_995ef2")} description={uiText("features.registry.RegistryPage.drafts_bearbeiten_validieren_vergleichen_und_aus_803689")} />
-      <PanelLayout view="registry"><LayoutPanel id="active" title={uiText("features.registry.RegistryPage.aktive_registry_f208c4")}><Panel>
-        <PanelHeader
-          title={uiText("features.registry.RegistryPage.aktive_registry_f208c4")}
-          aside={active.data && <a className="text-xs text-accent hover:underline" href="./api/v1/registry/active/export" download="registry.json">{uiText("features.registry.RegistryPage.aktive_konfiguration_exportieren_d516a1")}</a>}
-        />
-        <div className="p-4">
-          {active.isPending ? <Spinner /> : active.data ? (
-            <KeyValue items={[{ label: uiText("features.registry.RegistryPage.revision_2e516d"), value: active.data.revision }, { label: uiText("features.registry.RegistryPage.prufsumme_86da55"), value: <code>{active.data.checksum.slice(0, 24)}…</code> }, { label: uiText("features.registry.RegistryPage.aktiviert_10639c"), value: formatTime(active.data.created_at) }]} />
-          ) : (
-            <Notice tone="info" title={uiText("features.registry.RegistryPage.noch_keine_registry_aktiv_861e71")}>{uiText("features.registry.RegistryPage.das_ist_ein_gultiger_anfangszustand_legen_sie_ei_9d85fe")}</Notice>
-          )}
-        </div>
-      </Panel>
-      </LayoutPanel><LayoutPanel id="drafts-revisions" title={uiText("features.registry.RegistryPage.drafts_revisionen_31e523")}><Tabs
-        items={[
-          { value: 'drafts', label: uiText("features.registry.RegistryPage.drafts_f592e6"), content: <DraftsTab /> },
-          { value: 'revisions', label: uiText("features.registry.RegistryPage.revisionen_e0511e"), content: <RevisionsTab /> },
-        ]}
-      /></LayoutPanel></PanelLayout>
+      <PageHeader title={uiText(versions ? 'alpha7.nav.versions' : 'alpha7.nav.drafts')} description={uiText('alpha7.draft.explanation')} />
+      {versions ? <RevisionsTab /> : <DraftsTab />}
     </>
   );
 }

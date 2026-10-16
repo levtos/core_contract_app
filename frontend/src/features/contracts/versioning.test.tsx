@@ -31,8 +31,8 @@ function Harness({ draft, path }: { draft: Draft; path: string }) {
         <WorkingDocumentProvider validateDebounceMs={3_600_000}>
           <Open />
           <Routes>
-            <Route path="/definitions/:typeId/:version" element={<DefinitionDetailPage />} />
-            <Route path="/definitions" element={<p>Liste</p>} />
+          <Route path="/templates/details/:typeId/:version" element={<DefinitionDetailPage />} />
+          <Route path="/templates/own" element={<p>Liste</p>} />
           </Routes>
         </WorkingDocumentProvider>
       </MemoryRouter>
@@ -44,7 +44,7 @@ const config = () => JSON.parse(screen.getByTestId('cfg').textContent!) as { def
 describe('definition versions are immutable once activated', () => {
   it('locks an activated version, keeps editorial fields editable and creates a new version with instance migration', async () => {
     const api = installFakeApi({ revisions: [{ revision: 3, config: registry(), checksum: 'c'.repeat(64), created_at: 'x' }], drafts: [makeDraft('d1', registry())] });
-    render(<Harness draft={api.drafts.get('d1') as unknown as Draft} path="/definitions/test.truth/1" />);
+    render(<Harness draft={api.drafts.get('d1') as unknown as Draft} path="/templates/details/test.truth/1" />);
     await user.click(screen.getByText('open-draft'));
     await screen.findByText(/Aktivierte Version – semantisch unveränderlich/);
 
@@ -64,7 +64,7 @@ describe('definition versions are immutable once activated', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('checkbox', { name: 'fixture.right' })); // keep fixture.right on v1
     await user.click(within(dialog).getByRole('button', { name: 'Version anlegen' }));
-    await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/definitions/test.truth/2'));
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/templates/details/test.truth/2'));
     const next = config();
     const versions = next.definitions.filter((d) => d.type_id === 'test.truth').map((d) => d.type_version);
     expect(versions).toEqual([1, 2]);
@@ -81,7 +81,7 @@ describe('definition versions are immutable once activated', () => {
     const defs = cfg.definitions as JsonObject[];
     defs.push({ ...clone(defs[0]!), type_version: 2 });
     api.drafts.set('d2', makeDraft('d2', cfg));
-    render(<Harness draft={api.drafts.get('d2') as unknown as Draft} path="/definitions/test.truth/2" />);
+    render(<Harness draft={api.drafts.get('d2') as unknown as Draft} path="/templates/details/test.truth/2" />);
     await user.click(screen.getByText('open-draft'));
     await user.click(await screen.findByRole('tab', { name: /Ausgaben/ }));
     expect((await screen.findAllByRole('combobox', { name: /^Operator/ }))[0]).toBeEnabled();

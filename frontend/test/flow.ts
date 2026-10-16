@@ -2,14 +2,17 @@ import { screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { expect } from 'vitest';
 import { gui } from './gui';
+import { legacyTarget } from '../src/lib/navigation';
 
 /** Application-level user flows, shared by the in-memory and the real-engine tests. */
 export function flow(user: UserEvent) {
   const steps = gui(user);
 
   const go = async (hash: string) => {
+    const [path = '/', query] = hash.slice(1).split('?');
+    const target = '#' + legacyTarget(path, query ? '?' + query : '');
     window.location.hash = hash;
-    await waitFor(() => expect(window.location.hash).toBe(hash));
+    await waitFor(() => expect(window.location.hash).toBe(target));
   };
 
   const createDraft = async (name: string, origin: 'Leere Konfiguration' | 'Einlesen (JSON)', json?: string) => {
@@ -33,13 +36,13 @@ export function flow(user: UserEvent) {
     await go('#/sources?tab=dependencies');
     await user.click(await screen.findByRole('button', { name: "Abhängigkeit hinzufügen" }));
     await steps.type(screen.getByLabelText("Abhängigkeit-ID"), 'dep.test');
-    await user.click(screen.getByRole('tab', { name: "Quellen" }));
+    await go('#/sources/devices');
     for (const [id, key] of [['source.a', 'physical.a'], ['source.b', 'physical.b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Quelle hinzufügen" }));
       await steps.type(screen.getByLabelText("Quelle-ID"), id);
       await steps.type(screen.getByLabelText('Physischer Schlüssel'), key);
     }
-    await user.click(screen.getByRole('tab', { name: "Verknüpfungen" }));
+    await go('#/sources/bindings');
     for (const [id, source, entity] of [['binding.a', 'source.a', 'sensor.example_1'], ['binding.b', 'source.b', 'input_boolean.cc_alpha_test_b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Verknüpfung hinzufügen" }));
       await steps.type(screen.getByLabelText("Verknüpfung-ID"), id);
@@ -76,7 +79,7 @@ export function flow(user: UserEvent) {
     ];
     for (const [id, type, refs] of contracts) {
       await go('#/contracts');
-      await user.click(await screen.findByRole('button', { name: /Neue Instanz/ }));
+      await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
       const dialog = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
       await steps.type(within(dialog).getByLabelText("Vertrag-ID"), id);
       await user.selectOptions(within(dialog).getByLabelText('Typ & Version'), type);

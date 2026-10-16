@@ -61,7 +61,7 @@ export default function DefinitionDetailPage() {
       );
     });
     setVersioning(false);
-    navigate(`/definitions/${encodeURIComponent(typeId)}/${String(nextVersion.type_version)}`);
+    navigate(`/templates/details/${encodeURIComponent(typeId)}/${String(nextVersion.type_version)}`);
   };
 
   return (
@@ -96,7 +96,7 @@ export default function DefinitionDetailPage() {
         />
       </fieldset>
       </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">
-        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
+        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/view/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
       </section>
       </LayoutPanel></PanelLayout>
 
@@ -128,7 +128,7 @@ export default function DefinitionDetailPage() {
         onConfirm={() => {
           doc.edit((c) => setAt(c, pointer, undefined));
           setRemoving(false);
-          navigate('/definitions');
+          navigate("/templates/own");
         }}
       />
     </>
@@ -138,7 +138,7 @@ export default function DefinitionDetailPage() {
 function Back() {
   return (
     <>
-      <Link to="/definitions" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
+      <Link to="/templates/own" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
         <ArrowLeft size={13} /> {uiText("features.contracts.DefinitionDetailPage.alle_definitionen_bd3333")}</Link>
       <ContractsTabs />
     </>

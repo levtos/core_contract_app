@@ -34,14 +34,14 @@ function mount(api: FakeApi, ui: React.ReactNode) {
   void api;
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/registry']}>
+      <MemoryRouter initialEntries={['/changes/drafts']}>
         <LiveProvider store={idleLive()}>
           <WorkingDocumentProvider validateDebounceMs={3_600_000}>
             <Probe />
             <DraftBar />
             <Routes>
-              <Route path="/registry" element={ui} />
-              <Route path="/registry/drafts/:id" element={ui} />
+              <Route path="/changes/drafts" element={ui} />
+              <Route path="/changes/drafts/:id" element={ui} />
               <Route path="*" element={<p>andere Seite</p>} />
             </Routes>
           </WorkingDocumentProvider>
@@ -74,7 +74,7 @@ describe('re-selecting the open draft', () => {
     mount(twoDrafts(), <RegistryPage />);
     const alpha = async () => (await screen.findByRole('link', { name: 'Alpha' })).closest('li')!;
     await user.click(within(await alpha()).getByRole('button', { name: /Bearbeiten/ }));
-    await waitFor(() => expect(read()).toMatchObject({ id: 'a', loc: '/registry/drafts/a' }));
+    await waitFor(() => expect(read()).toMatchObject({ id: 'a', loc: '/changes/drafts/a' }));
     await user.click(screen.getByText('edit'));
     await user.click(within(await alpha()).getByRole('button', { name: /Bearbeiten/ }));
     expect(screen.queryByRole('alertdialog')).toBeNull();

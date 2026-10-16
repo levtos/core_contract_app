@@ -1,11 +1,11 @@
 import { t as uiText } from '@/i18n';
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
+import { NAVIGATION } from '@/lib/navigation';
 import { MasterDetail } from '@/components/MasterDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { Empty, PageHeader } from '@/components/ui/layout';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
@@ -124,18 +124,22 @@ const chips = (label: string, ids: string[], to?: (id: string) => string) =>
     </span>
   );
 
+function SourceSection({ items }: { items: { value: string; label: string; content: ReactNode }[] }) {
+  const section = useLocation().pathname.split('/')[2] ?? 'devices';
+  return <>{items.find(item => item.value === (section === 'devices' ? 'sources' : section))?.content}</>;
+}
+
 export default function SourcesPage() {
   const caps = useCapabilities();
-  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const pageTitle = NAVIGATION.find(module => module.id === 'sources')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.devices');
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const registrySchema = caps.data?.schemas.registry;
   return (
     <>
-      <PageHeader title={uiText("features.sources.SourcesPage.sources_bindings_613cff")} description={uiText("features.sources.SourcesPage.quellen_ihre_frische_und_herkunft_bindings_an_ho_823b53")} />
+      <PageHeader title={pageTitle} />
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
-      <Tabs
-        value={params.get('tab') ?? 'sources'}
-        onValueChange={(tab) => setParams({ tab }, { replace: true })}
+      <SourceSection
         items={[
           {
             value: 'sources',

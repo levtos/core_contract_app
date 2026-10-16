@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { DataTable } from '@/components/DataTable';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,7 @@ interface Row {
 const col = createColumnHelper<Row>();
 
 export default function DefinitionsPage() {
+  const builtin = useLocation().pathname === '/templates/built-in';
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
   const caps = useCapabilities();
@@ -81,27 +82,27 @@ export default function DefinitionsPage() {
   return (
     <>
       <PageHeader
-        title={uiText("features.contracts.DefinitionsPage.contracts_definitionen_499616")}
+        title={uiText(builtin ? 'alpha7.nav.builtinTemplates' : 'alpha7.nav.ownTemplates')}
         description={uiText("features.contracts.DefinitionsPage.definitionen_sind_deklarative_typen_mit_unverand_5b643c")}
         actions={
-          <Button variant="primary" disabled={!src.editable} onClick={() => setCreating(true)} title={src.editable ? undefined : uiText("features.contracts.DefinitionsPage.zuerst_einen_arbeits_draft_offnen_2a193a")}>
+          !builtin && <Button variant="primary" disabled={!src.editable} onClick={() => setCreating(true)} title={src.editable ? undefined : uiText("features.contracts.DefinitionsPage.zuerst_einen_arbeits_draft_offnen_2a193a")}>
             <Plus size={15} /> {uiText("features.contracts.DefinitionsPage.neue_definition_fcff16")}</Button>
         }
       />
       <ContractsTabs />
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionsPage.definitionen_871a91")} />
-      <PanelLayout view="definitions"><LayoutPanel id="definitions" title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")}><Panel>
+      <PanelLayout view={builtin ? 'templates.builtin' : 'templates.own'}>{!builtin && <LayoutPanel id="definitions" title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")}><Panel>
         <PanelHeader title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")} description={uiText("features.contracts.DefinitionsPage.aktivierte_versionen_sind_gesperrt_eine_logikand_5deacf")} />
         <DataTable
           caption={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")}
           data={rows}
           columns={columns}
           getRowId={(r) => r.key}
-          onRowClick={(r) => navigate(`/definitions/${encodeURIComponent(r.typeId)}/${r.version}`)}
+          onRowClick={(r) => navigate(`/templates/details/${encodeURIComponent(r.typeId)}/${r.version}`)}
           empty={<Empty title={uiText("features.contracts.DefinitionsPage.noch_keine_definitionen_57fe40")}>{uiText("features.contracts.DefinitionsPage.legen_sie_in_einem_draft_die_erste_deklarative_d_063da9")}</Empty>}
         />
       </Panel>
-      </LayoutPanel><LayoutPanel id="packages" title={uiText("features.contracts.DefinitionsPage.paket_typen_a517d6")}><Panel>
+      </LayoutPanel>}{builtin && <LayoutPanel id="packages" title={uiText("features.contracts.DefinitionsPage.paket_typen_a517d6")}><Panel>
         <PanelHeader title={uiText("features.contracts.DefinitionsPage.paket_typen_a517d6")} description={uiText("features.contracts.DefinitionsPage.fest_im_code_der_app_nicht_uber_die_workbench_an_49f18f")} />
         <ul className="divide-y divide-line">
           {packageTypes.map((t) => (
@@ -114,7 +115,7 @@ export default function DefinitionsPage() {
           {packageTypes.length === 0 && <li className="px-4 py-3 text-sm text-muted">{uiText("features.contracts.DefinitionsPage.keine_paket_typen_gemeldet_e04f62")}</li>}
         </ul>
       </Panel>
-      </LayoutPanel></PanelLayout>
+      </LayoutPanel>}</PanelLayout>
       <Dialog
         open={creating}
         onOpenChange={setCreating}
@@ -131,7 +132,7 @@ export default function DefinitionsPage() {
                 // Declarative definitions require fingerprint_version 2 (explicit in the document).
                 doc.edit((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), newDefinition(id, 1)] }));
                 setCreating(false);
-                navigate(`/definitions/${encodeURIComponent(id)}/1`);
+                navigate(`/templates/details/${encodeURIComponent(id)}/1`);
               }}
             >
               {uiText("features.contracts.DefinitionsPage.anlegen_d34c0e")}</Button>

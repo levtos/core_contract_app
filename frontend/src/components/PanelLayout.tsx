@@ -1,6 +1,6 @@
 import { t as uiText } from '@/i18n';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ArrowDown, ArrowUp, GripVertical, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, RotateCcw } from 'lucide-react';
 import { Children, createContext, isValidElement, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from './ui/button';
 import { Select } from './ui/form';
@@ -67,8 +67,13 @@ export function PanelLayout({ view, children, defaultOrder }: { view: string; ch
     setAnnouncement(uiText("components.PanelLayout.v0_position_v1_von_v2_528978", { v0: (slots.find((s) => s.id === id)?.title), v1: (to + 1), v2: (order.length) }));
   };
   return <section aria-label={uiText("components.PanelLayout.funktionspanels_82acad")}>
-    <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-      <Button size="sm" className="min-h-11" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}><SlidersHorizontal size={13} /> {uiText("components.PanelLayout.layout_anpassen_9d4ca3")}</Button>
+    <div className="relative flex flex-wrap items-center justify-end gap-2">
+      <details className="absolute right-0 -top-11 z-10 rounded-lg bg-panel">
+        <summary className="grid size-8 cursor-pointer list-none place-items-center rounded-lg text-muted hover:bg-raised" aria-label={uiText('alpha7.layout.menu')}><MoreHorizontal size={17} /></summary>
+        <div className="absolute right-0 top-9 min-w-48 rounded-lg border border-line bg-panel p-2 shadow-xl">
+          <Button size="sm" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}>{uiText("components.PanelLayout.layout_anpassen_9d4ca3")}</Button>
+        </div>
+      </details>
       {adjusting && <Button size="sm" className="min-h-11" onClick={() => { save(metadata(null, slots)); setAnnouncement(uiText("components.PanelLayout.standardlayout_wiederhergestellt_6a6783")); }}><RotateCcw size={13} /> {uiText("components.PanelLayout.layout_zurucksetzen_5c6f02")}</Button>}
     </div>
     {adjusting && <p className="mb-3 text-xs text-muted">{uiText("components.PanelLayout.panels_am_griff_ziehen_oder_mit_den_pfeiltasten__f2377c")}</p>}

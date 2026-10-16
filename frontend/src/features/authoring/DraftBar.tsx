@@ -86,7 +86,7 @@ export function ConflictDialog() {
     setBusy(true);
     try {
       const createdId = await doc.resolveConflict(choice);
-      if (createdId && location.pathname.startsWith('/registry/drafts/')) navigate(`/registry/drafts/${encodeURIComponent(createdId)}`, { replace: true });
+      if (createdId && location.pathname.startsWith('/changes/drafts/')) navigate(`/changes/drafts/${encodeURIComponent(createdId)}`, { replace: true });
     } finally {
       setBusy(false);
     }
@@ -122,7 +122,7 @@ export function ValidationChip() {
   if (validation.state === 'failed') return <Tip label={validation.error ?? uiText("features.authoring.DraftBar.validierung_nicht_moglich_ce6c4d")}><span tabIndex={0}><Badge tone="warn"><CircleAlert size={11} /> {uiText("features.authoring.DraftBar.prufung_nicht_moglich_9c9bd1")}</Badge></span></Tip>;
   if (validation.state === 'idle') return <Badge tone="neutral">{autoValidate ? uiText("features.authoring.DraftBar.wird_gepruft_90f584") : uiText("features.authoring.DraftBar.ungepruft_08112f")}</Badge>;
   const count = validation.issues.length;
-  if (count > 0) return <Link to={`/registry/drafts/${encodeURIComponent(draft?.draft_id ?? '')}?focus=validation`}><Badge tone="bad"><CircleAlert size={11} /> {count} {count === 1 ? uiText("features.authoring.DraftBar.fehler_f6cc01") : uiText("features.authoring.DraftBar.fehler_f6cc01")}{validation.stale ? uiText("features.authoring.DraftBar.veraltet_14c672") : ''}</Badge></Link>;
+  if (count > 0) return <Link to={`/changes/drafts/${encodeURIComponent(draft?.draft_id ?? '')}?focus=validation`}><Badge tone="bad"><CircleAlert size={11} /> {count} {count === 1 ? uiText("features.authoring.DraftBar.fehler_f6cc01") : uiText("features.authoring.DraftBar.fehler_f6cc01")}{validation.stale ? uiText("features.authoring.DraftBar.veraltet_14c672") : ''}</Badge></Link>;
   return <Badge tone={validation.stale ? 'neutral' : 'ok'}><CheckCircle2 size={11} /> {uiText("features.authoring.DraftBar.gultig_87b71a")}{validation.stale ? uiText("features.authoring.DraftBar.veraltet_14c672") : ''}</Badge>;
 }
 
@@ -146,7 +146,7 @@ export function DraftBar() {
     <div className="flex flex-wrap items-center gap-2" aria-label={uiText("features.authoring.DraftBar.arbeits_draft_00218f")}>
       {doc.draft ? (
         <>
-          <Link to={`/registry/drafts/${encodeURIComponent(doc.draft.draft_id)}`} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-line-strong bg-raised px-2.5 py-1 text-xs hover:border-accent/60">
+          <Link to={`/changes/drafts/${encodeURIComponent(doc.draft.draft_id)}`} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-line-strong bg-raised px-2.5 py-1 text-xs hover:border-accent/60">
             <FileEdit size={13} className="text-accent" />
             <span className="max-w-40 truncate font-medium">{draftLabel({ ...doc.draft, display_name: doc.displayName })}</span>
             <span className="text-faint">{uiText("features.authoring.DraftBar.v_4c9448")}{doc.draft.draft_version}</span>

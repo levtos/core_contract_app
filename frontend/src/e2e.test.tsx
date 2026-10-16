@@ -165,7 +165,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await f.go(`#/registry/drafts/${draftId}`);
     await waitFor(() => expect(screen.getByLabelText("Entwurf-Name")).toHaveValue('E2E'), { timeout: 65_000 });
     await f.go('#/contracts');
-    await user.click(await screen.findByRole('button', { name: /Neue Instanz/ }));
+    await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
     const create = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
     await f.type(within(create).getByLabelText("Vertrag-ID"), 'fixture.extra');
     await user.click(within(create).getByRole('button', { name: 'Anlegen' }));

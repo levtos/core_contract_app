@@ -1,7 +1,8 @@
 import { codeLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
+import { useLocation } from 'react-router';
+import { NAVIGATION } from '@/lib/navigation';
 import { Copy, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ConditionList } from '@/components/status-parts';
@@ -224,16 +225,21 @@ function AuditPanel() {
 }
 
 export default function AdminPage() {
+  const location = useLocation();
+  const section = location.pathname.split('/')[2] ?? 'system';
+  const title = NAVIGATION.find(module => module.id === 'settings')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.system');
+  const live = useLive();
   return (
     <>
-      <PageHeader title={uiText("features.admin.AdminPage.administration_4b42c6")} description={uiText("features.admin.AdminPage.installation_und_einrichtung_bereitschaft_bridge_53e08f")} />
-      <PanelLayout view="admin">
-        <LayoutPanel id="installation" title={uiText("features.admin.AdminPage.installation_c3fc54")} span={1}><InstallationPanel /></LayoutPanel>
-        <LayoutPanel id="readiness" title={uiText("features.admin.AdminPage.readiness_d53d98")} span={2}><ReadinessPanel /></LayoutPanel>
-        <LayoutPanel id="bridge" title={uiText("features.admin.AdminPage.bridge_3892e1")} span={1}><BridgePanel /></LayoutPanel>
-        <LayoutPanel id="tokens" title={uiText("features.admin.AdminPage.tokens_a039df")} span={2}><TokensPanel /></LayoutPanel>
-        <LayoutPanel id="audit" title={uiText("features.admin.AdminPage.audit_bb6aea")}><AuditPanel /></LayoutPanel>
-      </PanelLayout>
+      <PageHeader title={title} />
+      {section === 'system' && <ReadinessPanel />}
+      {section === 'installation' && <InstallationPanel />}
+      {section === 'connections' && <div className="space-y-5"><BridgePanel /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
+        { label: uiText('alpha7.settings.database'), value: connectionLabel(live.service?.persistence ?? 'unknown') },
+        { label: uiText('alpha7.settings.mqtt'), value: connectionLabel(live.service?.mqtt ?? 'unknown') },
+      ]} /></div></Panel></div>}
+      {section === 'keys' && <TokensPanel />}
+      {section === 'log' && <AuditPanel />}
     </>
   );
 }

@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { DataTable } from '@/components/DataTable';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
@@ -23,13 +23,7 @@ import { useLive } from '@/lib/live-context';
 import type { Envelope } from '@/lib/types';
 
 export function ContractsTabs() {
-  const link = ({ isActive }: { isActive: boolean }) => `rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium ${isActive ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-raised hover:text-fg'}`;
-  return (
-    <nav aria-label={uiText("features.contracts.ContractsPage.contracts_und_definitionen_2304b3")} className="mb-5 flex gap-1">
-      <NavLink to="/contracts" end className={link}>{uiText("features.contracts.ContractsPage.instanzen_a94c7e")}</NavLink>
-      <NavLink to="/definitions" className={link}>{uiText("features.contracts.ContractsPage.definitionen_871a91")}</NavLink>
-    </nav>
-  );
+  return null;
 }
 
 interface Row {
@@ -135,7 +129,7 @@ export default function ContractsPage() {
 
   const columns = useMemo(
     () => [
-      col.accessor('id', { header: uiText("features.contracts.ContractsPage.contract_a6f5b0"), cell: (c) => <Link to={`/contracts/${encodeURIComponent(c.getValue())}`} className="font-mono text-xs text-accent hover:underline" onClick={(e) => e.stopPropagation()}>{c.getValue()}</Link> }),
+      col.accessor('id', { header: uiText("features.contracts.ContractsPage.contract_a6f5b0"), cell: (c) => <Link to={`/contracts/view/${encodeURIComponent(c.getValue())}`} className="font-mono text-xs text-accent hover:underline" onClick={(e) => e.stopPropagation()}>{c.getValue()}</Link> }),
       col.accessor('name', { header: uiText("features.contracts.ContractsPage.name_dcd1d5"), cell: (c) => c.getValue() || <span className="text-faint">—</span> }),
       col.accessor((r) => `${r.type}@${r.version}`, { id: 'type', header: uiText("features.contracts.ContractsPage.typ_1b0241"), cell: (c) => <code className="text-xs text-muted">{c.getValue()}</code> }),
       col.accessor('enabled', { header: uiText("features.contracts.ContractsPage.status_920e41"), cell: (c) => (c.getValue() ? <Badge tone="accent">{uiText("features.contracts.ContractsPage.aktiviert_acb27b")}</Badge> : <Badge>{uiText("features.contracts.ContractsPage.deaktiviert_10f33e")}</Badge>) }),
@@ -202,7 +196,7 @@ export default function ContractsPage() {
             columns={columns}
             globalFilter={search}
             getRowId={(r) => r.id}
-            onRowClick={(r) => navigate(`/contracts/${encodeURIComponent(r.id)}`)}
+            onRowClick={(r) => navigate(`/contracts/view/${encodeURIComponent(r.id)}`)}
             empty={
               <Empty title={rows.length === 0 ? uiText("features.contracts.ContractsPage.noch_keine_contract_instanzen_c7f1ae") : uiText("features.contracts.ContractsPage.keine_treffer_6df7e9")}>
                 {rows.length === 0 ? uiText("features.contracts.ContractsPage.legen_sie_in_einem_draft_die_erste_instanz_an_od_1842ad") : uiText("features.contracts.ContractsPage.filter_oder_suche_anpassen_3493b0")}
@@ -213,7 +207,7 @@ export default function ContractsPage() {
       </Panel>
       </LayoutPanel></PanelLayout>
       {live.stale && live.contracts && <p className="mt-2 text-xs text-warn">{uiText("features.contracts.ContractsPage.live_zustand_moglicherweise_veraltet_57c06a")}{live.connection}).</p>}
-      <NewContractDialog open={creating} onOpenChange={setCreating} onCreated={(id) => navigate(`/contracts/${encodeURIComponent(id)}`)} />
+      <NewContractDialog open={creating} onOpenChange={setCreating} onCreated={(id) => navigate(`/contracts/view/${encodeURIComponent(id)}`)} />
     </>
   );
 }

@@ -119,7 +119,7 @@ export default function ContractDetailPage() {
                         <li key={i} className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-sm">
                           <code className="text-muted">{str(input.name)}</code>
                           <span>→</span>
-                          {target?.kind === 'contract' ? <Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/${encodeURIComponent(target.id)}`}>{str(input.ref)}</Link> : <code className="text-xs">{str(input.ref)}</code>}
+                          {target?.kind === 'contract' ? <Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/view/${encodeURIComponent(target.id)}`}>{str(input.ref)}</Link> : <code className="text-xs">{str(input.ref)}</code>}
                           <Badge tone={target?.kind === 'source' ? 'info' : target ? 'accent' : 'bad'}>{target?.kind === 'source' ? uiText("features.contracts.ContractDetailPage.quelle_037889") : target ? uiText("features.contracts.ContractDetailPage.contract_a6f5b0") : uiText("features.contracts.ContractDetailPage.unbekannt_a418e6")}</Badge>
                         </li>
                       );
@@ -131,7 +131,7 @@ export default function ContractDetailPage() {
                   <ul className="divide-y divide-line">
                     {consumers.length === 0 && <li className="px-4 py-3 text-sm text-muted">{uiText("features.contracts.ContractDetailPage.kein_anderer_contract_nutzt_ihn_4582b8")}</li>}
                     {consumers.map((id) => (
-                      <li key={id} className="px-4 py-2.5 text-sm"><Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/${encodeURIComponent(id)}`}>{id}</Link></li>
+                      <li key={id} className="px-4 py-2.5 text-sm"><Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/view/${encodeURIComponent(id)}`}>{id}</Link></li>
                     ))}
                   </ul>
                 </Panel>
@@ -139,7 +139,7 @@ export default function ContractDetailPage() {
                   <PanelHeader title={uiText("features.contracts.ContractDetailPage.typ_1b0241")} />
                   <div className="p-4 text-sm">
                     {typeEntry?.declarative ? (
-                      <>{uiText("features.contracts.ContractDetailPage.deklarative_definition_b0121f")}<Link className="font-mono text-accent hover:underline" to={`/definitions/${encodeURIComponent(typeEntry.type_id)}/${typeEntry.type_version}`}>{typeEntry.key}</Link></>
+                      <>{uiText("features.contracts.ContractDetailPage.deklarative_definition_b0121f")}<Link className="font-mono text-accent hover:underline" to={`/templates/details/${encodeURIComponent(typeEntry.type_id)}/${typeEntry.type_version}`}>{typeEntry.key}</Link></>
                     ) : (
                       <>{uiText("features.contracts.ContractDetailPage.paket_typ_44867a")}<code>{str(contract.type_id)}@{String(contract.type_version)}</code> {uiText("features.contracts.ContractDetailPage.fest_im_code_nicht_uber_die_workbench_anderbar_ee4ae9")}</>
                     )}
@@ -160,7 +160,7 @@ export default function ContractDetailPage() {
         onConfirm={() => {
           doc.edit((c) => setAt(c, pointer, undefined));
           setRemoving(false);
-          navigate('/contracts');
+          navigate("/contracts/list/all");
         }}
       />
     </>
@@ -169,7 +169,7 @@ export default function ContractDetailPage() {
 
 function BackLink() {
   return (
-    <Link to="/contracts" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
+    <Link to="/contracts/list/all" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
       <ArrowLeft size={13} /> {uiText("features.contracts.ContractDetailPage.alle_contracts_67b49f")}</Link>
   );
 }

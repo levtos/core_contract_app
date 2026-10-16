@@ -13,6 +13,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LiveProvider } from '@/lib/live-context';
 
 const user = userEvent.setup();
+const adjust = async () => {
+  await user.click(screen.getByLabelText('Weitere Seitenaktionen'));
+  await user.click(screen.getByRole('button', { name: 'Anordnung anpassen' }));
+};
 const order = () => [...document.querySelectorAll('[data-layout-panel]')].map((n) => n.getAttribute('data-layout-panel'));
 beforeEach(() => localStorage.clear());
 
@@ -35,7 +39,7 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
   const input = screen.getByLabelText('Unsaved editor');
   await user.type(input, 'private registry text');
   const initialMounts = mounted;
-  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await adjust();
   const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
   handle.focus();
   await user.keyboard('{ArrowDown}');
@@ -55,7 +59,7 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
 
 it('persists order and widths across reload, separated by installation and view', async () => {
   const view = render(<Layout />);
-  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await adjust();
   await user.click(screen.getByRole('button', { name: 'Editor: nach hinten' }));
   await user.selectOptions(screen.getByLabelText('Editor: Panelbreite'), '1');
   view.unmount();
@@ -75,7 +79,7 @@ it('ignores corrupt metadata and writes nothing before the installation identity
   const view = render(<Layout />);
   expect(order()).toEqual(['editor', 'validation', 'diff']);
   view.rerender(<Layout installation={null} />);
-  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await adjust();
   await user.click(screen.getByRole('button', { name: 'Editor: nach hinten' }));
   expect(localStorage.length).toBe(1);
   expect(localStorage.getItem(layoutKey('one', 'test')!)).toBe('{broken');
@@ -85,7 +89,7 @@ it('moves through the real native drag adapter in StrictMode and keeps the edito
   render(<StrictMode><Layout /></StrictMode>);
   const input = screen.getByLabelText('Unsaved editor');
   await user.type(input, 'keep');
-  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await adjust();
   const data = new Map<string, string>();
   const transfer = { types: [] as string[], effectAllowed: 'all', dropEffect: 'move', setData(type: string, value: string) { data.set(type, value); this.types.push(type); }, getData: (type: string) => data.get(type) ?? '', setDragImage() {} };
   const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
@@ -119,7 +123,7 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
   await user.click(await screen.findByRole('button', { name: /source.a/ }));
   const input = screen.getByLabelText('Anzeigename');
   await user.type(input, 'unsaved');
-  await user.click(screen.getByRole('button', { name: "Anordnung anpassen" }));
+  await adjust();
   await user.click(screen.getByRole('button', { name: 'Quelle-Editor: nach vorne' }));
   await user.selectOptions(screen.getByLabelText('Quelle-Editor: Panelbreite'), '3');
   await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
@@ -133,14 +137,15 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
 it('keeps navigation accessible and marks definitions active while collapsed; sidebar survives reload', async () => {
   installFakeApi();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const ui = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/definitions']}><LiveProvider store={idleLive()}><WorkingDocumentProvider><Routes><Route element={<Shell onSetup={() => {}} />}><Route path="/definitions" element={<p>Vorlagen</p>} /></Route></Routes></WorkingDocumentProvider></LiveProvider></MemoryRouter></QueryClientProvider>;
+  const ui = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/templates/own']}><LiveProvider store={idleLive()}><WorkingDocumentProvider><Routes><Route element={<Shell onSetup={() => {}} />}><Route path="/templates/own" element={<p>Vorlagenseite</p>} /></Route></Routes></WorkingDocumentProvider></LiveProvider></MemoryRouter></QueryClientProvider>;
   const view = render(ui());
-  await screen.findByText("Vorlagen");
+  await screen.findByText("Vorlagenseite");
   await waitFor(() => expect(client.getQueryData(['info'])).toBeTruthy());
   await user.click(screen.getByRole('button', { name: 'Navigation einklappen' }));
   const nav = within(screen.getByRole('navigation', { name: 'Hauptnavigation' }));
-  expect(nav.getByRole('link', { name: "Verträge & Vorlagen" })).toHaveAttribute('aria-current', 'page');
-  expect(nav.getAllByRole('link')).toHaveLength(7);
+  expect(nav.getByRole('button', { name: 'Vorlagen' })).toHaveAttribute('aria-current', 'true');
+  expect(nav.getAllByRole('button')).toHaveLength(5);
+  expect(nav.getAllByRole('link')).toHaveLength(1);
   view.unmount();
   render(ui());
   await screen.findByRole('button', { name: 'Navigation ausklappen' });
