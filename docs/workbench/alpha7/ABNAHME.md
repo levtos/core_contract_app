@@ -29,12 +29,12 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P2.02 | Klick und Hover öffnen Bedingungen als Sätze mit Lösungslinks | umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
 | P2.03 | Keine gelben Warnkästen auf Seiten | zentrale Bedingungskästen entfernt; übrige Seitenprüfung offen | readiness.test.tsx | offen |
 | P2.04 | Kopf-Umschalter Live ansehen / Bearbeiten | mit P5 umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
-| P3.01 | Nur drei Übersichtsblöcke, keine Status-/Installations-/Bereiche-Karten | offen | offen | offen |
-| P3.02 | Neuer Vertrag, Import, Übernehmen nur bei offenem Entwurf | offen | offen | offen |
-| P3.03 | Zähler aktiv/gesund/eingeschränkt/ausgeschaltet filtern Vertragsliste | offen | offen | offen |
-| P3.04 | Probleme in Alltagssprache mit Was kann ich tun? | offen | offen | offen |
-| P3.05 | Relative menschliche Ereignisse: Übernehmen, Zurücksetzen, Vertrag veraltet/fehlerhaft, HA getrennt/verbunden | offen | offen | offen |
-| P3.06 | Entwurf anlegen/löschen nur Protokoll; Link Alle im Protokoll | offen | offen | offen |
+| P3.01 | Nur drei Übersichtsblöcke, keine Status-/Installations-/Bereiche-Karten | umgesetzt; Sichtprüfung offen | overview.test.tsx | offen |
+| P3.02 | Neuer Vertrag, Import, Übernehmen nur bei offenem Entwurf | umgesetzt; Sichtprüfung offen | overview.test.tsx; draftMode.test.tsx | offen |
+| P3.03 | Zähler aktiv/gesund/eingeschränkt/ausgeschaltet filtern Vertragsliste | umgesetzt; Servergesundheit, unbekannt bis Snapshot | overview.test.tsx | offen |
+| P3.04 | Probleme in Alltagssprache mit Was kann ich tun? | umgesetzt; Sichtprüfung offen | overview.test.tsx | offen |
+| P3.05 | Relative menschliche Ereignisse: Übernehmen, Zurücksetzen, Vertrag veraltet/fehlerhaft, HA getrennt/verbunden | umgesetzt; HA-Wechsel ausdrücklich nur aktuelle Browsersitzung, da keine persistierte Verbindungshistorie vorhanden | overview.test.tsx; live.test.ts | offen |
+| P3.06 | Entwurf anlegen/löschen nur Protokoll; Link Alle im Protokoll | umgesetzt; Sichtprüfung offen | overview.test.tsx; admin.test.tsx | offen |
 | P4.01 | Liste Name/Wert/Zustand/HA-Quellenname; ein Zustandschip mit Hoverdetails | offen | offen | offen |
 | P4.02 | Einheit, Dezimalkomma, Ja/Nein; lange IDs Ellipsis/Tooltip | offen | offen | offen |
 | P4.03 | Detail: großer Wert jetzt und Warum? als Satz | offen | offen | offen |

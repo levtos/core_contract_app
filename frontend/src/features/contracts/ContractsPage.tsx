@@ -102,8 +102,13 @@ export default function ContractsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [enabledFilter, setEnabledFilter] = useState<'all' | 'on' | 'off'>('all');
-  const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'degraded' | 'none'>('all');
+  const overviewFilter = params.get('filter');
+  const [enabledFilter, setEnabledFilter] = useState<'all' | 'on' | 'off'>(() => ['active', 'healthy', 'degraded'].includes(overviewFilter ?? '') ? 'on' : overviewFilter === 'off' ? 'off' : 'all');
+  const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'degraded' | 'none'>(() => overviewFilter === 'healthy' || overviewFilter === 'degraded' ? overviewFilter : 'all');
+  useEffect(() => {
+    setEnabledFilter(['active', 'healthy', 'degraded'].includes(overviewFilter ?? '') ? 'on' : overviewFilter === 'off' ? 'off' : 'all');
+    setHealthFilter(overviewFilter === 'healthy' || overviewFilter === 'degraded' ? overviewFilter : 'all');
+  }, [overviewFilter]);
   const [creating, setCreating] = useState(false);
   const [creationError, setCreationError] = useState('');
   const requested = useRef(false);

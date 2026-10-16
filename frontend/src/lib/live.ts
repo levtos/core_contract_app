@@ -22,6 +22,12 @@ export type Connection =
   | 'mismatch'
   | 'stopped';
 
+export interface BrowserConnectionEvent {
+  id: string;
+  at: string;
+  kind: 'ha_connected' | 'ha_disconnected';
+}
+
 export interface LiveSnapshot {
   connection: Connection;
   /** True while the shown contract state may be older than the server's. */
@@ -35,6 +41,8 @@ export interface LiveSnapshot {
   installationId: string | null;
   lastEventAt: number | null;
   resyncCount: number;
+  /** Observed server status transitions in this browser session; never persisted. */
+  connectionEvents: BrowserConnectionEvent[];
 }
 
 export interface SocketLike {
@@ -66,6 +74,7 @@ const INITIAL: LiveSnapshot = {
   installationId: null,
   lastEventAt: null,
   resyncCount: 0,
+  connectionEvents: [],
 };
 
 export class LiveStore {
@@ -76,6 +85,7 @@ export class LiveStore {
   private attempt = 0;
   private stopped = true;
   private subscriptionId = 0;
+  private eventSequence = 0;
 
   constructor(private readonly options: LiveOptions) {}
 
@@ -105,7 +115,14 @@ export class LiveStore {
   }
 
   private patch(change: Partial<LiveSnapshot>): void {
-    this.state = { ...this.state, ...change };
+    const next = { ...this.state, ...change };
+    const beforeHa = this.state.service?.ha;
+    const afterHa = change.service?.ha;
+    if (beforeHa !== undefined && afterHa !== undefined && afterHa !== beforeHa) {
+      const kind: BrowserConnectionEvent['kind'] | null = afterHa === 'connected' ? 'ha_connected' : beforeHa === 'connected' && ['disconnected', 'unavailable'].includes(afterHa) ? 'ha_disconnected' : null;
+      if (kind) next.connectionEvents = [{ id: `connection-${++this.eventSequence}`, at: new Date(this.options.now?.() ?? Date.now()).toISOString(), kind }, ...this.state.connectionEvents].slice(0, 100);
+    }
+    this.state = next;
     this.listeners.forEach((listener) => listener());
   }
 
@@ -171,7 +188,7 @@ export class LiveStore {
         this.subscribeAll(socket);
         break;
       case 'installation_mismatch':
-        this.patch({ connection: 'mismatch', stale: true });
+        this.patch({ connection: 'mismatch', stale: true, connectionEvents: [] });
         break;
       case 'service_state':
         this.patch({ service: message as unknown as ServiceState, lastEventAt: now });

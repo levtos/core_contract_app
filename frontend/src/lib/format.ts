@@ -39,3 +39,14 @@ export function formatDuration(seconds: number): string {
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 }).format(Object.is(value, -0) ? 0 : value);
 }
+
+export function relativeTime(value: string, now = Date.now()): string {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return t('alpha7.time.unknown');
+  const seconds = Math.floor((now - timestamp) / 1000);
+  if (seconds < -60) return formatTime(value);
+  if (seconds < 60) return t('alpha7.time.now');
+  if (seconds < 3600) return t('alpha7.time.minutes', { count: Math.floor(seconds / 60) });
+  if (seconds < 86400) return t('alpha7.time.hours', { count: Math.floor(seconds / 3600) });
+  return t('alpha7.time.days', { count: Math.floor(seconds / 86400) });
+}

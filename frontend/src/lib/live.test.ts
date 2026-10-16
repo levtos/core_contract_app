@@ -55,6 +55,28 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe('live protocol', () => {
+  it('records only observed HA connection transitions and clears them on installation mismatch', () => {
+    const store = create({ now: () => Date.parse('2026-10-16T12:00:00Z') });
+    const service = (ha: string) => current().receive({ type: 'service_state', ha });
+    service('connected');
+    expect(store.getSnapshot().connectionEvents).toEqual([]);
+    service('unavailable'); service('unavailable'); service('connected');
+    expect(store.getSnapshot().connectionEvents.map(event => event.kind)).toEqual(['ha_connected', 'ha_disconnected']);
+    service('not_needed');
+    expect(store.getSnapshot().connectionEvents).toHaveLength(2);
+    current().receive({ type: 'installation_mismatch' });
+    expect(store.getSnapshot().connectionEvents).toEqual([]);
+    store.stop();
+  });
+
+  it('bounds connection observations to the latest 100 events', () => {
+    const store = create();
+    current().receive({ type: 'service_state', ha: 'connected' });
+    for (let i = 0; i < 150; i++) current().receive({ type: 'service_state', ha: i % 2 ? 'connected' : 'disconnected' });
+    expect(store.getSnapshot().connectionEvents).toHaveLength(100);
+    expect(new Set(store.getSnapshot().connectionEvents.map(event => event.id)).size).toBe(100);
+    store.stop();
+  });
   it('says hello with the expected installation id, subscribes after welcome and takes the snapshot', () => {
     const store = create();
     current().open();

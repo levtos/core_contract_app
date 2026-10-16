@@ -133,13 +133,14 @@ export function historyPath(kind: string, filters: HistoryFilters, cursor?: stri
 }
 
 /** Cursor-paged history; the cursor is opaque and bound to the filter scope. */
-export const useHistory = (kind: string, filters: HistoryFilters, enabled = true) =>
+export const useHistory = (kind: string, filters: HistoryFilters, enabled = true, refetchMs: number | false = false) =>
   useInfiniteQuery({
     queryKey: keys.history(kind, filters),
     queryFn: ({ pageParam }) => api<HistoryPage>(historyPath(kind, filters, pageParam)),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
     enabled,
+    refetchInterval: refetchMs,
     placeholderData: keepPreviousData,
   });
 
@@ -201,7 +202,7 @@ export function useActivation() {
   const client = useQueryClient();
   const done = () =>
     Promise.all(
-      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics].map(
+      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics, ['history']].map(
         (key) => client.invalidateQueries({ queryKey: key }),
       ),
     );

@@ -21,6 +21,7 @@ import { classifySystem, connectionLabel, REASON_LABELS } from '@/lib/status';
 import { BRIDGE_LABELS } from '@/setup/SetupWizard';
 import { setupRequest } from '@/setup/setup';
 import type { HaEntityPage, TokenRotation } from '@/lib/types';
+import { EventFeed } from '@/features/overview/EventFeed';
 
 function InstallationPanel() {
   const info = useInfo();
@@ -207,7 +208,8 @@ function AuditPanel() {
   return (
     <Panel>
       <PanelHeader title={uiText("features.admin.AdminPage.audit_verlauf_843625")} description={uiText("features.admin.AdminPage.administrative_operationen_mit_rolle_vertrauensg_2a53f4")} />
-      <div className="p-4">
+      <div className="space-y-5 p-4">
+        <EventFeed limit={50} logLink={false} />
         <HistoryTable
           kind="diagnostics"
           filters={{ limit: 100 }}
