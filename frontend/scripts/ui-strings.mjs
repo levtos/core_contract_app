@@ -32,6 +32,16 @@ function nearestDeclaration(node) {
   return '';
 }
 
+/** Keys such as ref/type are labels here, rather than registry discriminators. */
+function isLabelMapEntry(node) {
+  if (!ts.isPropertyAssignment(node)) return false;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isCallExpression(parent) || ts.isFunctionLike(parent)) return false;
+    if (ts.isVariableDeclaration(parent)) return ts.isIdentifier(parent.name) && /(?:LABELS|NAMES|MESSAGES|TEXT)$/i.test(parent.name.text);
+  }
+  return false;
+}
+
 export function candidates(text, file = 'screen.tsx', jsxOnly = false) {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const found = [];
@@ -70,6 +80,7 @@ export function candidates(text, file = 'screen.tsx', jsxOnly = false) {
       if (jsxOnly) return;
       if (ts.isPropertyAssignment(context)) {
         const name = context.name.getText(source).replace(/['"]/g, '');
+        if (isLabelMapEntry(context)) { add(node, value, 'dictionary'); return; }
         const call = context.parent.parent;
         if (/^v\d+$/.test(name) && ts.isCallExpression(call) && ts.isIdentifier(call.expression) && ['t', 'uiText'].includes(call.expression.text)) { add(node, value, 'interpolation'); return; }
         if (name === 'error' && /^[a-z][a-z0-9]*_[a-z0-9_]+$/.test(value)) return; // response discriminator; translated when displayed

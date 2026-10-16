@@ -4,26 +4,39 @@
 Spezifikation §11 und [Identität/Backup](../operations.md).
 Ausführung erst nach Installation von `1.0.0a6` und Bennis ausdrücklichem Go
 für dieses konkrete Runbook. Ziel: App `f18065c9_core_contracts`, ausschließlich
-Datenbank `core_contracts_app`; Rolle `core_contracts_app` wird erhalten.
-Legacy `benni_core_contracts` sowie alle anderen DBs/Rollen sind tabu.
+ihre in Schritt 1 privat verifizierte Datenbank. Anwendungsrolle und Eigentümer
+werden dort ermittelt und unverändert erhalten. Dieses öffentliche Runbook nennt
+keine konkreten Datenbank-, Rollen- oder Eigentümernamen. Legacy sowie alle
+anderen DBs/Rollen sind tabu.
 
 ## Festgelegte Identität und Grenzen
 
 Die vorhandene Installations-ID bleibt erhalten. `/data/installation.json`,
 Secrets, Einrichtungsstand und Shutdown-Marker bleiben erhalten. Kein Löschen
 von `/data`, keine neue UUID, keine neue Rolle oder Passwortrotation.
-Bei abweichenden DB-/Rollennamen, Eigentümer, App-Version oder Installations-ID
-stoppen; keine Zielnamen automatisch ableiten und keine Legacy-Zugangsdaten verwenden.
+Bei Abweichungen von der privaten Zuordnung aus Schritt 1, bei unklarer
+Eigentümerschaft, falscher App-Version oder Installations-ID stoppen. Keine
+Zielnamen aus diesem Repository, Beispielen oder einer DB-Liste übernehmen und
+keine Legacy-Zugangsdaten verwenden.
 
 ## Vorbereitung und Backup
 
-1. Benni bestätigt installiertes Alpha 6, diese App, DB/Rolle und Wartungsfenster.
+1. Benni bestätigt installiertes Alpha 6, diese App und das Wartungsfenster.
    Den aktiven Verbindungsstand privat prüfen: bei Autorität `wizard` gilt
-   `/data/setup/connection.json`, sonst Supervisor-Optionen. Keine DSN/Passwörter
-   oder echten DB-Inhalte in Issues, Logs, Code oder Screenshots kopieren.
-2. App kontrolliert stoppen. Ausschließlich Verbindungen zu `core_contracts_app`
-   prüfen; weitere Writer oder fremde Sessions führen zum Abbruch. Keine
-   globalen Verbindungsabbrüche, kein HA-Neustart und kein Integrations-Reload.
+   `/data/setup/connection.json`, sonst Supervisor-Optionen. Datenbankname und
+   Anwendungsrolle ausschließlich aus dieser wirksamen Verbindung übernehmen.
+   Über genau diese Verbindung rein lesend tatsächliche Datenbank und angemeldete
+   Rolle bestätigen sowie DB-OID und Eigentümer ermitteln. Keine Gleichheit von
+   Rollenname und Eigentümer voraussetzen. Die in dieser DB gespeicherte
+   Installations-ID muss mit `/data/installation.json` dieser App übereinstimmen;
+   eine fremde Installation, Legacy-/System-/gemeinsam genutzte Datenbank oder
+   unklare App-Zuordnung führt zum Abbruch. Host/Ziel, DB-Name/OID, Anwendungsrolle,
+   Eigentümer und Installations-ID nur privat als zusammengehörige geprüfte
+   Zuordnung festhalten und durch Benni bestätigen lassen. Keine konkreten Namen,
+   DSN/Passwörter oder echten DB-Inhalte in Issues, Logs, Code oder Screenshots kopieren.
+2. App kontrolliert stoppen. Ausschließlich Verbindungen zur in Schritt 1
+   verifizierten App-DB prüfen; weitere Writer oder fremde Sessions führen zum Abbruch.
+   Keine globalen Verbindungsabbrüche, kein HA-Neustart und kein Integrations-Reload.
 3. Exakte App-DB mit `pg_dump --format=custom --file=<privater Backup-Pfad>` sichern.
    Anmeldung über geschützte PG-Service-/Passwortdatei, nicht in Argumenten.
    `/data` samt privaten Dateien und Rechten getrennt sichern. Backup-Paar,
@@ -35,13 +48,19 @@ stoppen; keine Zielnamen automatisch ableiten und keine Legacy-Zugangsdaten verw
 ## Reset nach Go
 
 5. Über ein privates Administrator-Terminal des vorher verifizierten PostgreSQL-Hosts
-   die App-DB exakt prüfen: Name `core_contracts_app`, Eigentümer `core_contracts_app`,
-   keine fremden Sessions. Bestehende Encoding-/Locale- und App-DB-spezifische Rechte
+   die private Zuordnung aus Schritt 1 unmittelbar vor dem Reset erneut prüfen:
+   Datenbankname und DB-OID, Anwendungsrolle und Eigentümer müssen unverändert
+   zum freigegebenen App-Ziel gehören; DB- und lokale Installations-ID entsprechen
+   weiterhin dem geprüften Backup-Paar. Keine fremden Sessions. Bei jeder
+   Abweichung abbrechen. Bestehende Encoding-/Locale- und App-DB-spezifische Rechte
    aus dem Backup festhalten. Rolle und ihre Attribute/Passwort unverändert lassen.
-6. Nur `core_contracts_app` entfernen und leer mit gleichem Eigentümer, Encoding/
+6. Nur die so verifizierte App-DB entfernen und leer mit gleichem Eigentümer, Encoding/
    Locale und ihren bisherigen Rechten wieder anlegen. Kein `DROP OWNED`, kein
    globales `REASSIGN OWNED`, kein Wildcard-Reset, kein Rollen-Löschen und kein SQL
-   auf Legacy. Zielnamen sind feste Literale; nicht aus einer DB-Liste generieren.
+   auf Legacy. Die Zielbezeichner stammen ausschließlich aus der privat geprüften
+   Zuordnung aus Schritt 1; SQL-Bezeichner korrekt quoten. Keine fest verdrahteten
+   Namen aus öffentlicher Dokumentation oder Ziele aus einer DB-Liste verwenden.
+   Nach Neuanlage die neue DB-OID privat derselben bestätigten Zuordnung zuordnen.
    Sitzungen werden nicht mit einem globalen `pg_terminate_backend` erzwungen.
 7. App starten. Eine leere DB bei vorhandenem `/data` wird zunächst ausdrücklich
    mit `initialize_empty_database_required` blockiert; das ist die Identitätssicherung.
@@ -70,8 +89,9 @@ stoppen; keine Zielnamen automatisch ableiten und keine Legacy-Zugangsdaten verw
 11. Keine Legacy-/HA-/anderen DB-Aktion ausführen. Erhaltene DB-/Rollen-Metadaten
     der übrigen Ressourcen anhand vorhandener Administrationsnachweise vergleichen;
     keinen Legacy-Datenexport anlegen. Benni bestätigt fehlende Legacy-Auswirkung.
-    Im Issue nur Version, Backup-Prüfung, ID-Gleichheit, leeren Stand, Health-Ergebnisse
-    und Gate-Status berichten, keine echten Daten oder Zugangsdaten.
+    Im Issue nur Version, Backup-Prüfung, bestätigte Ziel-/ID-Gleichheit, leeren
+    Stand, Health-Ergebnisse und Gate-Status berichten, keine konkreten DB-/Rollen-/
+    Eigentümernamen, echten Daten oder Zugangsdaten.
 12. Bei Fehler App stoppen. Ausschließlich dieselbe App-DB aus dem geprüften Dump
     mit `pg_restore --exit-on-error` und passendes `/data` aus dem Backup-Paar
     wiederherstellen, Rechte/Installations-ID prüfen und App erneut starten.

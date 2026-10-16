@@ -23,3 +23,22 @@ test('single words in visible interpolation branches are scanned', () => {
   const text = 'const message = uiText("key", { v0: (result.mode === "off" ? "angeboten" : codeLabel("unknown")) });';
   assert.deepEqual(candidates(text, 'screen.tsx').map(f => f.value), ['angeboten']);
 });
+
+test('label-map object values are visible even with protocol-like property names', () => {
+  const text = `
+    const OP_LABELS: Record<string, string> = {
+      ref: 'Interne Regel (Verweis)', name: 'Name', value: 'Wert',
+      kind: 'Art', type: 'Typ', 'source_id': 'Quelle',
+    };
+    const displayLabels = { group: { state: 'Zustand' } } as const;
+    const statusNames = { ref: 'Verweis', title: t('title') } satisfies Record<string, string>;
+  `;
+  assert.deepEqual(candidates(text, 'screen.tsx').map(f => f.value), [
+    'Interne Regel (Verweis)', 'Name', 'Wert', 'Art', 'Typ', 'Quelle', 'Zustand', 'Verweis',
+  ]);
+});
+
+test('ordinary protocol objects keep their identifiers outside label maps', () => {
+  const text = `const config = { ref: 'source.a', name: 'a', value: 'on', kind: 'ha_state', type: 'bool', state: 'idle' };`;
+  assert.deepEqual(candidates(text, 'registry.ts'), []);
+});

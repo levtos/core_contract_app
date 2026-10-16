@@ -16,7 +16,7 @@ interface Step extends JsonObject {
 
 const OP_NAMES: Record<string, string> = {
   input: uiText("features.diagnostics.ExplainPanel.eingang_d8af5e"),
-  ref: 'Interne Regel',
+  ref: uiText('features.diagnostics.ExplainPanel.interne_regel'),
   literal: uiText("features.diagnostics.ExplainPanel.konstante_2e2736"),
   and: uiText("features.diagnostics.ExplainPanel.und_fd2908"),
   or: uiText("features.diagnostics.ExplainPanel.oder_43e406"),
