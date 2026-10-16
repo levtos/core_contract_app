@@ -693,6 +693,14 @@ class Runtime:
             return None
         if operation == "command":
             return await self._command(state, Command.model_validate(payload))
+        if operation == "manual_restart_preview":
+            from .manual_restart import preview
+
+            return preview(self, state, payload)
+        if operation == "manual_restart":
+            from .manual_restart import execute
+
+            return await execute(self, state, payload)
         if operation == "snapshot":
             for obs in payload:
                 if (

@@ -90,6 +90,7 @@ REASONS = {
     ReasonCode.HISTORY_GAP: "Observation continuity was interrupted.",
     ReasonCode.DEADLINE_OVERDUE: "A due transition could not be decided from current evidence.",
     ReasonCode.GUARD_REJECTED: "The transition guard rejected the request.",
+    ReasonCode.MANUAL_RESTART: "An administrator asserted the initial state; valid data has not confirmed it yet.",
 }
 
 
@@ -110,6 +111,7 @@ def machine_description(machine: Machine) -> dict[str, Any]:
         "commands": machine.definition.commands,
         "deadline_seconds": machine.definition.deadline_seconds,
         "sessions": machine.definition.sessions,
+        "allow_manual_restart": machine.definition.allow_manual_restart,
         "transitions": [
             {
                 "source": t.source,
@@ -371,6 +373,16 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
             "max_parallel_deadlines": 1,
             "guard_rules": "stateless; temporal truths can be supplied through contract inputs",
             "command_effect": "guarded_transition_only",
+            "administrative_restart": {
+                "default": False,
+                "definition_flag": "allow_manual_restart",
+                "role": "admin",
+                "preview": "/api/v1/manual-restarts/preview/{contract_id}",
+                "endpoint": "/api/v1/manual-restarts",
+                "effect": "declared_initial_state_new_episode",
+                "marker": "state_machine.manual_restart",
+                "quality_until_data_confirmation": "degraded",
+            },
             "sessions": True,
             "episodes": True,
         },

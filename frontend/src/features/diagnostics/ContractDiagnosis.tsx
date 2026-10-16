@@ -86,6 +86,7 @@ export function ContractDiagnosis({ contractId }: { contractId: string }) {
           <Empty title={uiText("features.diagnostics.ContractDiagnosis.keine_state_machine_6f3191")}>{uiText("features.diagnostics.ContractDiagnosis.dieser_contract_verwendet_keine_state_machine_a52923")}</Empty>
         ) : (
           <div className="flex flex-col gap-4 p-4">
+            {current?.manual_restart === true && <p role="status" className="text-sm text-info">{uiText('alpha7.restart.marker')}</p>}
             <KeyValue
               items={[
                 { label: uiText("features.diagnostics.ContractDiagnosis.zustande_f5ef55"), value: <span className="flex flex-wrap gap-1.5">{machine.states.map((s) => <Badge key={s} tone={current?.state === s ? 'accent' : machine.initial === s ? 'info' : 'neutral'}>{s}{machine.initial === s ? uiText("features.diagnostics.ContractDiagnosis.initial_cc8413") : ''}</Badge>)}</span> },

@@ -15,6 +15,7 @@ import { CommandsPanel } from './CommandsPanel';
 import { ContractDiagnosis } from './ContractDiagnosis';
 import { EvidenceTab } from './EvidenceLookup';
 import { HistoryTab, HistoryTable } from './HistoryTab';
+import { MachineRestartPanel } from '@/features/contracts/MachineRestartPanel';
 
 function ContractPicker({ value, onChange, allowNone }: { value: string; onChange: (id: string) => void; allowNone?: boolean }) {
   const live = useLive();
@@ -143,7 +144,7 @@ export default function DiagnosticsPage() {
           { value: 'history', label: uiText("features.diagnostics.DiagnosticsPage.historie_4eaa80"), content: <HistoryTab key={contract} initialContract={contract} /> },
           { value: 'publications', label: uiText("features.diagnostics.DiagnosticsPage.publikationen_lucken_44dc70"), content: <PublicationsTab /> },
           { value: 'evidence', label: uiText("features.diagnostics.DiagnosticsPage.evidence_03867a"), content: <EvidenceTab /> },
-          { value: 'commands', label: uiText("features.diagnostics.DiagnosticsPage.commands_b269dc"), content: <CommandsPanel contractId={contract} onContract={(id) => set({ contract: id })} /> },
+          { value: 'commands', label: uiText("features.diagnostics.DiagnosticsPage.commands_b269dc"), content: <div className="space-y-4"><CommandsPanel contractId={contract} onContract={(id) => set({ contract: id })} />{contract && <MachineRestartPanel key={contract} contractId={contract} />}</div> },
         ]}
       />
     </>

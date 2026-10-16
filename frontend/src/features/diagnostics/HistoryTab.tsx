@@ -38,11 +38,13 @@ function summary(item: HistoryItem): { key: string; value: string }[] {
   const out: { key: string; value: string }[] = [];
   for (const key of SUMMARY_KEYS) {
     const value: Json | undefined = item[key];
-    if (value !== undefined && value !== null && typeof value !== 'object') out.push({ key, value: typeof value === 'boolean' ? codeLabel(String(value)) : ['kind', 'operation', 'observation_kind', 'status', 'reason', 'origin', 'contract_health'].includes(key) ? codeLabel(value) : String(value) });
+    if (value !== undefined && value !== null && typeof value !== 'object') out.push({ key, value: key === 'operation' && value === 'manual_restart' ? uiText('alpha7.restart.historyRequest') : typeof value === 'boolean' ? codeLabel(String(value)) : ['kind', 'operation', 'observation_kind', 'status', 'reason', 'origin', 'contract_health'].includes(key) ? codeLabel(value) : String(value) });
     if (out.length >= 6) break;
   }
   const command = item.command;
   if (isObject(command) && typeof command.contract_id === 'string') out.unshift({ key: 'contract_id', value: command.contract_id });
+  if (isObject(command) && command.command === 'manual_restart') out.unshift({ key: 'origin', value: uiText('alpha7.restart.historyRequest') });
+  else if (item.manual_restart === true || isObject(item.state_machine) && item.state_machine.manual_restart === true) out.unshift({ key: 'origin', value: uiText('alpha7.restart.historyManual') });
   return out;
 }
 

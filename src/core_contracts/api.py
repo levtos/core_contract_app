@@ -344,6 +344,14 @@ class API:
             result = runtime.snapshot(selected)
         elif path == "commands" and method == "POST":
             result = await runtime.submit("command", await request.json())
+        elif path.startswith("manual-restarts/preview/") and method == "GET":
+            result = await runtime.submit(
+                "manual_restart_preview", path.removeprefix("manual-restarts/preview/")
+            )
+        elif path == "manual-restarts" and method == "POST":
+            result = await runtime.submit(
+                "manual_restart", {"request": await request.json(), "_actor": request["actor"]}
+            )
         elif path.startswith("commands/") and method == "GET":
             result = await runtime.store.get("command_log", path.removeprefix("commands/"))
             if result is None:
@@ -435,6 +443,7 @@ class API:
                     "commands": machine.definition.commands,
                     "deadline_seconds": machine.definition.deadline_seconds,
                     "sessions": machine.definition.sessions,
+                    "allow_manual_restart": machine.definition.allow_manual_restart,
                     "transitions": [
                         {
                             "source": t.source,

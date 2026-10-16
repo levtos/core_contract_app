@@ -38,6 +38,35 @@ Null, scalar and array imports are rejected. Without an active registry,
 the export route returns HTTP 409 `no_active_registry`. The existing active
 revision endpoint retains its nullable response for protocol compatibility.
 
+## Alpha 7: administrative machine restart
+
+[ADR 0004](../adr/0004-manual-machine-restart.md) permits a separate, narrowly
+scoped administrative operation. `machine.allow_manual_restart` defaults to
+false; absent/false retains historical definition fingerprints. Enabling it is
+a semantic change and requires a new immutable definition version.
+
+`GET /api/v1/manual-restarts/preview/{contract_id}` is admin-only and read-only.
+It returns permission/reason, initial state, old episode, direct/transitive
+contract impact, registry revision and an opaque state token. External automation
+impact is explicitly unknown. `POST /api/v1/manual-restarts` is also admin-only;
+its closed body requires `command_id`, `contract_id`, a nonempty `reason`, boolean
+`confirm`, `issued_at`, `valid_until`, `expected_registry_revision` and
+`expected_state_token`. The ordinary `/commands` endpoint does not provide this
+administrative operation. No destination state or client identity is accepted.
+The authenticated server actor is authoritative. Ingress cross-origin write
+protection applies. Disabled/unsupported machines, missing opt-in, stale version
+or state, expired requests and missing confirmation cannot apply the effect.
+
+The operation creates an initial-state episode, command result and audit record
+in one transaction, then publishes. It shares `command_log` idempotency with
+normal commands; `GET /commands/{id}` recovers a lost reply without resubmission.
+`state_machine.manual_restart=true` and reason `manual_restart` are exposed to
+HTTP/WS consumers and persisted history. Until valid, healthy decisive data
+confirms an input transition or the declared recovery condition, the machine
+value has degraded quality and is not a healthy available projection. Timer
+events, constants, ordinary commands and restore do not confirm the marker.
+Restore never repeats the restart. See the [German operation and test notes](../workbench/alpha7/ABLAUF-NEUSTART.md).
+
 ## Definition model
 
 Set `fingerprint_version: 2` explicitly when adding declarative definitions.

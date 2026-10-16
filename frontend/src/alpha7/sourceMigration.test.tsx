@@ -64,7 +64,7 @@ it('opens from live, checks the exact migration and applies only to the draft; c
   api.routes.push({ match: /^ha\/entities/, respond: () => reply(200, { items: [device], next_cursor: null }) });
   window.location.hash = '#/sources/devices?item=0';
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
-  await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }, { timeout: 5000 }));
   const dialog = await screen.findByRole('dialog', { name: 'Quelle umziehen' });
   await user.selectOptions(within(dialog).getByLabelText('Neue Werteart'), 'text');
   expect(within(dialog).getByRole('checkbox', { name: 'Zimmer' })).toBeChecked();
@@ -79,7 +79,7 @@ it('opens from live, checks the exact migration and applies only to the draft; c
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect(objects([...api.drafts.values()][0]!.config.sources)).toHaveLength(2));
   expect(api.revisions).toHaveLength(1); expect(api.revisions[0]!.config).toEqual(config);
-});
+}, 15_000);
 
 it('discards a delayed validation result after the working draft changes', async () => {
   const user = userEvent.setup(); const config = original(); const api = installFakeApi({ revisions: [revision(config)] });

@@ -109,6 +109,11 @@ export function MachineEditor({
           {hasDeadline && <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={uiText("editors.MachineEditor.eine_deadline_pro_contract_994bde")} onChange={(n) => set({ deadline_s: n })} />}
         </section>
 
+        <section className="space-y-2">
+          <Checkbox checked={value.allow_manual_restart === true} onCheckedChange={on => set({ allow_manual_restart: on ? true : undefined })} label={uiText('alpha7.restart.allow')} />
+          <p className="text-xs text-muted">{uiText('alpha7.restart.allowHelp')}</p>
+        </section>
+
         <section>
           <SectionTitle aside={<AddButton onClick={() => set({ states: [...states, uniqueName('zustand', states)] })}>{uiText("editors.MachineEditor.zustand_630d1a")}</AddButton>}>{uiText("editors.MachineEditor.zustande_f5ef55")}</SectionTitle>
           <div className="flex flex-wrap gap-2">

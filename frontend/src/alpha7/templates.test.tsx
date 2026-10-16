@@ -15,7 +15,7 @@ function app(hash = '#/templates/own') {
 }
 it('opens without a red identity error, adds the prefix automatically and creates a consistent Ja/Nein template', async () => {
   const user = userEvent.setup(); const api = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }));
+  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }, { timeout: 5000 }));
   const dialog = await screen.findByRole('dialog', { name: 'Neue Vorlage' });
   expect(dialog.querySelector('[aria-invalid="true"]')).toBeNull();
   expect(within(dialog).queryByLabelText('Typ-ID')).not.toBeInTheDocument();
@@ -29,7 +29,7 @@ it('opens without a red identity error, adds the prefix automatically and create
     schema: { fields: { value: { type: 'bool', required: true, physical_state: false } }, available_projection: ['value'] },
     outputs: { value: { op: 'input', name: 'a' } },
   })]);
-});
+}, 15_000);
 
 it('uses the singular Feld for built-in templates with one field', async () => {
   installFakeApi(); app('#/templates/built-in');

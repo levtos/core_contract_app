@@ -15,6 +15,7 @@ import type { Envelope, FieldValue, HistoryItem, Registry } from '@/lib/types';
 import { problemAdvice } from '@/features/overview/overviewModel';
 import { contractSources, contractState } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
+import { MachineRestartPanel } from './MachineRestartPanel';
 
 interface Point { at: string; field: FieldValue | null }
 export function historyPoints(rows: HistoryItem[], contractId: string, field: string, revision?: number): Point[] {
@@ -72,6 +73,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
       {history.isPending ? <Spinner /> : history.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.contract.historyUnavailable')}</p> : Object.keys(envelope.fields).map(name => <MiniHistory key={name} name={name} schema={fields[name]} points={historyPoints(history.isPlaceholderData ? [] : history.data?.pages.flatMap(page => page.items) ?? [], envelope.contract_id, name, envelope.registry_revision)} />)}
     </div></Panel>
     {machine && <CommandsPanel contractId={envelope.contract_id} onContract={() => {}} fixed />}
+    {machine && <MachineRestartPanel key={envelope.contract_id} contractId={envelope.contract_id} />}
     <details onToggle={event => setAdvanced(event.currentTarget.open)}><summary className="cursor-pointer py-2 text-sm text-muted">{t('alpha7.contract.advanced')}</summary>{advanced && <ContractLiveState envelope={envelope} stale={stale} fields={fields} />}</details>
   </div>;
 }

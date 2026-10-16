@@ -26,6 +26,7 @@ export function problemAdvice(reasons: Reason[], config: Registry | null | undef
   const index = asArray(config?.sources).filter(isObject).findIndex(item => item.source_id === source);
   const sourceLink = index >= 0 ? `/sources/devices?tab=sources&item=${index}` : '/sources/devices';
   if (codes.has('evaluation_error') || codes.has('invalid_value')) return { text: t('alpha7.problem.invalid'), advice: t('alpha7.problem.invalidHelp'), to: `/contracts/view/${encodeURIComponent(contractId)}?tab=config`, action: t('alpha7.problem.inputs') };
+  if (codes.has('manual_restart')) return { text: t('alpha7.restart.marker'), advice: t('alpha7.restart.markerHelp'), to: `/contracts/view/${encodeURIComponent(contractId)}`, action: t('alpha7.problem.contract') };
   if ([...codes].some(code => code.startsWith('restore_context_')) || codes.has('state_unknown')) return { text: t('alpha7.problem.machine'), advice: t('alpha7.problem.machineHelp'), to: `/contracts/view/${encodeURIComponent(contractId)}`, action: t('alpha7.problem.contract') };
   if (codes.has('input_stale')) return { text: t('alpha7.problem.stale'), advice: t('alpha7.problem.staleHelp'), to: sourceLink, action: t('alpha7.problem.source') };
   if (codes.has('dependency_unavailable') || codes.has('input_unavailable')) return { text: t('alpha7.problem.unavailable'), advice: t('alpha7.problem.connectionHelp'), to: '/settings/connections', action: t('alpha7.problem.connection') };

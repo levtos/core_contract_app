@@ -242,7 +242,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={store} /></QueryClientProvider>);
     await f.createDraft('P8 Quellenumzug', 'Leere Konfiguration');
     await f.go('#/contracts/list/all');
-    await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }));
+    await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }, { timeout: 65_000 }));
     const adding = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
     await user.click(await within(adding).findByRole('radio', { name: ux12.sources[0]!.display_name }, { timeout: 65_000 }));
     await f.type(within(adding).getByLabelText('Name'), 'P8 Temperatur');
@@ -283,4 +283,51 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(retained.every(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
     await expectSameAsActive(after);
   }, 240_000);
+
+  it('restarts an opted-in machine through confirmation and observes manual and then data-confirmed state over the real WebSocket', async () => {
+    const bool = { type: 'bool', required: true, physical_state: false };
+    let machine: JsonObject = { id: 'neustart', states: ['bereit', 'fertig'], initial: 'bereit', commands: {}, transitions: [], reinitialize_when: { op: 'not', args: [{ op: 'input', name: 'a' }] } };
+    const definition: JsonObject = { type_id: 'test.manueller_neustart', type_version: 1, inputs: [{ name: 'a', schema: bool }], schema: { fields: { value: { type: 'enum', required: true, physical_state: false, value_catalog: ['bereit', 'fertig'] } }, available_projection: ['value'] }, outputs: { value: { op: 'machine' } }, machine };
+    wrap(<Stateful initial={machine} onValue={next => { machine = next; }}>{(value, set) => <MachineEditor value={value} onChange={set} pointer="/definitions/0/machine" definition={definition} caps={undefined} locked={false} />}</Stateful>);
+    const grant = screen.getByRole('checkbox', { name: 'Administratoren dürfen diesen Ablauf manuell neu starten' });
+    expect(grant).not.toBeChecked(); await user.click(grant); cleanup();
+    const originalSource = ux12.sources.find(source => source.source_type === 'boolean')!;
+    const originalBinding = ux12.bindings.find(binding => binding.source_id === originalSource.source_id)!;
+    const document: JsonObject = { config_schema_version: 1, fingerprint_version: 2,
+      dependencies: [{ dependency_id: 'dep.neustart', kind: 'ha', monitor: 'internal' }],
+      sources: [{ source_id: 'source.neustart', source_type: 'boolean', source_origin: 'local', dependency_id: 'dep.neustart', physical_source_key: 'physical.neustart', value_schema: bool, freshness: { mode: 'event_stateful', future_tolerance_s: 1 } }],
+      bindings: [{ binding_id: 'binding.neustart', source_id: 'source.neustart', adapter: { kind: 'ha_state', ha_entity_id: originalBinding.adapter.ha_entity_id }, transform: { kind: 'type_cast', target: 'bool' } }],
+      definitions: [{ ...definition, machine }], catalogs: [],
+      contracts: [{ contract_id: 'manueller_neustart', display_name: 'Ablauf zum Neustart prüfen', type_id: definition.type_id!, type_version: 1, enabled: true, inputs: [{ name: 'a', ref: 'source.neustart' }], parameters: {} }],
+    };
+    expect((await raw<{ valid: boolean }>('registry/validate', json('POST', document))).body.valid).toBe(true);
+    const active = (await raw<{ revision: number } | null>('registry/active')).body;
+    const draft = (await raw<{ draft_id: string; draft_version: number }>('registry/drafts', json('POST', { config: document }))).body;
+    const activated = await raw<{ revision: number }>(`registry/drafts/${draft.draft_id}/activate`, json('POST', { draft_version: draft.draft_version, expected_active_revision: active?.revision ?? 0 }));
+    expect(activated.status).toBe(200);
+    window.location.hash = '#/contracts/view/manueller_neustart';
+    const seen: boolean[] = [];
+    const unsubscribe = store.subscribe(() => { const state = store.getSnapshot().contracts?.manueller_neustart?.state_machine; if (state) seen.push(state.manual_restart === true); });
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={store} /></QueryClientProvider>);
+    const start = await screen.findByRole('button', { name: 'Ablauf neu starten' }, { timeout: 65_000 });
+    await waitFor(() => expect(start).toBeEnabled(), { timeout: 65_000 }); await user.click(start);
+    const confirmation = await screen.findByRole('dialog', { name: 'Ablauf neu starten' });
+    expect(within(confirmation).getByText(/Externe Automationen sind Terra nicht vollständig bekannt/)).toBeVisible();
+    await user.type(within(confirmation).getByLabelText('Warum startest du den Ablauf neu?'), 'Isolierter Engine-Test');
+    await user.click(within(confirmation).getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
+    await user.click(within(confirmation).getByRole('button', { name: 'Jetzt manuell neu starten' }));
+    await within(confirmation).findByText(/Der Ablauf wurde manuell neu gestartet/, {}, { timeout: 65_000 });
+    await waitFor(() => expect(seen).toContain(true), { timeout: 65_000 });
+    await waitFor(() => {
+      const envelope = store.getSnapshot().contracts?.manueller_neustart;
+      expect(envelope?.state_machine?.manual_restart ?? false).toBe(false);
+      expect(envelope?.state_machine?.origin).toBe('automatic');
+      expect(envelope?.contract_health).toBe('healthy');
+    }, { timeout: 65_000 });
+    const history = (await raw<{ items: JsonObject[] }>('history/query/transitions?contract_id=manueller_neustart')).body.items;
+    expect(history.some(item => item.manual_restart === true && item.origin === 'manual')).toBe(true);
+    const audit = (await raw<{ items: JsonObject[] }>('history/query/diagnostics')).body.items.filter(item => item.operation === 'manual_restart' && item.contract_id === 'manueller_neustart');
+    expect(audit).toHaveLength(1); expect(audit[0]).toMatchObject({ reason: 'Isolierter Engine-Test', origin: 'manual', actor: { role: 'admin', kind: 'ingress' } });
+    unsubscribe();
+  }, 180_000);
 });

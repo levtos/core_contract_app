@@ -22,6 +22,49 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_alpha7_manual_restart_survives_process_restart_without_replay(database, config):
+    from .test_alpha7_manual_restart import machine, request_for, restart, setup_machine
+    from .test_declarative import observation as declarative_observation
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await setup_machine(runtime, config, recovery=True)
+        body = await request_for(runtime)
+        result = await restart(runtime, body)
+        assert result["status"] == "accepted"
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        assert machine(restarted)["episode_id"] == result["episode_id"]
+        assert machine(restarted)["manual_restart"]
+        assert await restart(restarted, body) == result
+        assert (
+            len(
+                [
+                    row
+                    for row in await reopened.rows("diagnostic_event")
+                    if row.get("operation") == "manual_restart"
+                ]
+            )
+            == 1
+        )
+        restarted.clock.advance(1)
+        await restarted.submit("observation", declarative_observation(restarted, True))
+        assert not machine(restarted).get("manual_restart", False)
+        assert machine(restarted)["origin"] == "automatic"
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
 async def test_alpha6_source_lock_survives_removal_and_process_restart(database, config):
     import copy
 

@@ -65,14 +65,14 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P8.02 | Alte Quelle und Geschichte bleiben erhalten; Referenzen bewusst umstellen | umgesetzt; keine historische Umdeutung, einfache Gerätevorlagen als neue Version, eigene Regeln explizit vorbereiten | test_alpha7_source_migration.py; e2e.test.tsx | offen |
 | P8.03 | Alltagstext für immutable_source_type mit Umzugsknopf | umgesetzt; direkter Weg aus der Prüfliste, historischer Alt-Typ wird beim Umzug wiederhergestellt | sourceMigration.test.tsx; IssueList | offen |
 | P8.04 | Server-Validierung, Dialogtest und Engine-E2E | umgesetzt; Prüfung an genauen Entwurf/Formularstand gebunden, verspätete Prüfung verworfen | sourceMigration.test.tsx; test_alpha7_source_migration.py; e2e.test.tsx | offen |
-| P9.01 | ADR 0004 angenommen nach Bennis Auftrag, kein generisches set_state | offen | offen | offen |
-| P9.02 | Freigabe pro Ablauf, Standard aus, unveränderliche Definition; ohne Freigabe sichtbarer Grund | offen | offen | offen |
-| P9.03 | Nur serverseitig autorisierter Administrator, ausschließlich definierter Startzustand | offen | offen | offen |
-| P9.04 | Bestätigung und direkter/transitiver Impact, Hinweis auf unbekannte externe Automationen | offen | offen | offen |
-| P9.05 | Neue Episode, origin=manual, Zeitpunkt/Grund/Akteur und Audit atomar | offen | offen | offen |
-| P9.06 | ID, Ablaufzeit, OCC, Idempotenz, Commitfehler, kein Replay nach Restore | offen | offen | offen |
-| P9.07 | Kennzeichnung in Envelope/WS/Diagnose bis datengetriebener Bestätigung | offen | offen | offen |
-| P9.08 | API-, Engine-, Autorisierungs-, Audit-, Restore- und Frontend-Nachweise | offen | offen | offen |
+| P9.01 | ADR 0004 angenommen nach Bennis Auftrag, kein generisches set_state | umgesetzt; eigener administrativer Neustart-Pfad mit geschlossenem Anfrageschema | ADR 0004; test_alpha7_manual_restart.py | offen |
+| P9.02 | Freigabe pro Ablauf, Standard aus, unveränderliche Definition; ohne Freigabe sichtbarer Grund | umgesetzt; ausgeschalteter Standard erhält historische Fingerprints; Sichtprüfung offen | test_alpha7_manual_restart.py; manualRestart.test.tsx | offen |
+| P9.03 | Nur serverseitig autorisierter Administrator, ausschließlich definierter Startzustand | umgesetzt; Consumer/ohne Anmeldung gesperrt, Client-Identität/Zielzustände zurückgewiesen | test_alpha7_manual_restart.py | offen |
+| P9.04 | Bestätigung und direkter/transitiver Impact, Hinweis auf unbekannte externe Automationen | umgesetzt; Begründung, Bestätigung, Version und Zustandsprüfwert; Sichtprüfung offen | manualRestart.test.tsx; e2e.test.tsx | offen |
+| P9.05 | Neue Episode, origin=manual, Zeitpunkt/Grund/Akteur und Audit atomar | umgesetzt; Command, Episode, Audit und Zustand vor Publish gemeinsam persistiert | test_alpha7_manual_restart.py; e2e.test.tsx | offen |
+| P9.06 | ID, Ablaufzeit, OCC, Idempotenz, Commitfehler, kein Replay nach Restore | umgesetzt; verlorene Antwort nur abfragen; PostgreSQL-Prozessneustart für CI ergänzt | test_alpha7_manual_restart.py; test_postgres.py; manualRestart.test.tsx | offen |
+| P9.07 | Kennzeichnung in Envelope/WS/Diagnose bis datengetriebener Bestätigung | umgesetzt; manueller Wert bleibt eingeschränkt/unverfügbar bis gültigem gesundem entscheidendem Datennachweis | test_alpha7_manual_restart.py; e2e.test.tsx; presentation | offen |
+| P9.08 | API-, Engine-, Autorisierungs-, Audit-, Restore- und Frontend-Nachweise | lokal grün; PostgreSQL/MQTT/HA-Kernel/Linux und vollständige PR-CI noch offen | ABLAUF-NEUSTART.md | offen |
 | P10.01 | Ein Speichern statt zwei | offen | offen | offen |
 | P10.02 | Versionen mit Zeit, Wer und optionaler Notiz | offen | offen | offen |
 | P10.03 | Zurücksetzen nur auf ältere Versionen | offen | offen | offen |

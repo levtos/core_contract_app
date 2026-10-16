@@ -37,6 +37,7 @@ export function contractState(envelope: Envelope | null, enabled: boolean, draft
   const fields = Object.values(envelope.fields);
   const codes = fields.flatMap(field => field.reasons.map(reason => reason.code));
   if (codes.some(code => ['evaluation_error', 'invalid_value', 'config_incomplete'].includes(code))) return state('error', 'bad');
+  if (envelope.state_machine?.manual_restart === true || codes.includes('manual_restart')) return state('manual', 'info');
   if (codes.includes('input_stale')) return state('stale', 'warn');
   if (fields.some(field => field.status === 'unknown' || field.status === 'unresolved')) return state('unknown', 'neutral');
   if (envelope.contract_health === 'degraded') return state('limited', 'warn');

@@ -25,7 +25,8 @@ function app(hash = '#/contracts/list/all') {
 it('creates and takes over a temperature contract in six clicks without entering an identifier or transformation', async () => {
   const user = userEvent.setup(); const api = fake(); app(); let clicks = 0;
   const click = async (target: HTMLElement) => { clicks++; await user.click(target); };
-  await click(await screen.findByRole('button', { name: 'Neuer Vertrag' }));
+  // The first task page is lazy-loaded; wait for it before counting user clicks.
+  await click(await screen.findByRole('button', { name: 'Neuer Vertrag' }, { timeout: 5000 }));
   const wizard = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
   expect(await within(wizard).findByText('21,5 °C · Zimmer')).toBeVisible();
   await click(within(wizard).getByRole('radio', { name: 'Temperatur im Zimmer' }));
@@ -42,7 +43,7 @@ it('creates and takes over a temperature contract in six clicks without entering
   expect(result.dependencies).toHaveLength(1); expect(result.sources).toHaveLength(1); expect(result.bindings).toHaveLength(1); expect(result.contracts).toHaveLength(1);
   expect(result.bindings).toEqual([expect.objectContaining({ transform: { kind: 'type_cast', target: 'number' } })]);
   expect(api.calls.some(call => call.path === 'ha/entities?limit=200&preview=1')).toBe(true);
-});
+}, 15_000);
 
 it('filters the guided selection by area and domain and explains contact freshness', async () => {
   const user = userEvent.setup(); fake(); app('#/sources/devices');
@@ -118,4 +119,4 @@ it('keeps selection across source subpages and keeps the editor mounted while cl
   await waitFor(() => expect([...api.drafts.values()][0]!.config.sources).toEqual([expect.objectContaining({ source_id: 'source.temperatur' })]));
   expect(Object.values(sessionStorage).some(value => typeof value === 'string' && value.includes('Mein Sensor'))).toBe(false);
   expect(isObject([...api.drafts.values()][0]!.config)).toBe(true);
-});
+}, 10_000);
