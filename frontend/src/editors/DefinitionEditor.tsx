@@ -1,4 +1,5 @@
 import { t as uiText } from '@/i18n';
+import { codeLabel } from '@/i18n/codes';
 import { Lock, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -177,7 +178,7 @@ export function DefinitionEditor({
               <Collapsible
                 key={i}
                 defaultOpen
-                title={<span className="flex items-center gap-2"><code>{name}</code><Badge>{str(asObject(input.schema).type)}</Badge>{used > 0 && <span className="text-xs text-faint">{used}{uiText("editors.DefinitionEditor.verwendet_cf0908")}</span>}</span>}
+                title={<span className="flex items-center gap-2"><code>{name}</code><Badge>{codeLabel(str(asObject(input.schema).type))}</Badge>{used > 0 && <span className="text-xs text-faint">{used}{uiText("editors.DefinitionEditor.verwendet_cf0908")}</span>}</span>}
                 aside={
                   <>
                     <IssueCount pointer={ip} />

@@ -49,6 +49,7 @@ it('lets Live viewers inspect every template tab while metadata and semantic con
   for (const tab of [/Eingänge/, /Ausgaben/, /Benannte Regeln/, /Ablauf/, /JSON/]) {
     const target = screen.getByRole('tab', { name: tab });
     expect(target).toBeEnabled(); await user.click(target); expect(target).toHaveAttribute('aria-selected', 'true');
+    if (tab.source === 'Eingänge') expect(within(screen.getByRole('tabpanel')).queryByText('bool', { exact: true })).not.toBeInTheDocument();
   }
   expect(screen.getByRole('button', { name: 'Bearbeiten' })).toHaveAttribute('aria-pressed', 'false');
   expect(api.calls.some(call => ['POST', 'PUT', 'DELETE'].includes(call.method))).toBe(false);
