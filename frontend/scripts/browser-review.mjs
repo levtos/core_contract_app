@@ -178,6 +178,19 @@ async function taskPages(page, server, phase, browser) {
 async function templateTabs(page, phase, browser) {
   for (const [name, label] of [['inputs', /^Eingänge/], ['outputs', /^Ausgaben/], ['rules', /^Benannte Regeln/], ['machine', /^Ablauf/], ['json', /^JSON/]]) {
     await page.getByRole('tab', { name: label }).click(); await delay(150);
+    if (phase === 'after' && name === 'inputs') {
+      const disclosure = page.getByRole('tabpanel').getByRole('button', { expanded: true }).first();
+      await disclosure.click(); await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+      await disclosure.press('Enter'); await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('tabpanel').getByLabel('Name', { exact: true })).toBeDisabled();
+    }
+    if (phase === 'after' && name === 'outputs') {
+      await page.getByRole('button', { name: 'Zuklappen', exact: true }).first().click();
+      const collapsed = page.getByRole('button', { name: 'Aufklappen', exact: true }).first();
+      await collapsed.press('Space'); await expect(collapsed).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByLabel('Operator', { exact: true }).first()).toBeDisabled();
+      manifest.checks.push({ browser, check: 'Live template disclosures respond to mouse and keyboard while inputs remain disabled', result: 'passed' });
+    }
     await capture(page, phase, browser, `template-${name}`, 'Vorlagen-Unterbereich; Alpha 6 im geöffneten Entwurf, Alpha 7 lesend im Live-Modus');
   }
 }

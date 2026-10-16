@@ -148,9 +148,9 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
   return (
     <div className="rounded-[var(--radius-md)] border border-line border-l-[3px] border-l-faint bg-sunken/60" data-op={op} data-pointer={pointer}>
       <div className="flex flex-wrap items-center gap-2 px-2.5 py-2">
-        <button type="button" aria-label={open ? uiText("editors.RuleEditor.zuklappen_41b22f") : uiText("editors.RuleEditor.aufklappen_0f644f")} aria-expanded={open} className="cursor-pointer text-muted hover:text-fg" onClick={() => setOpen((v) => !v)}>
+        <span role="button" tabIndex={0} aria-label={open ? uiText("editors.RuleEditor.zuklappen_41b22f") : uiText("editors.RuleEditor.aufklappen_0f644f")} aria-expanded={open} className="cursor-pointer text-muted hover:text-fg" onClick={() => setOpen((v) => !v)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpen((v) => !v); } }}>
           <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
-        </button>
+        </span>
         {label && <span className="text-xs font-medium text-muted">{label}</span>}
         <Select
           aria-label={uiText("editors.RuleEditor.operator_v0_e1f310", { v0: (label ? uiText("editors.RuleEditor.v0_37b56e", { v0: (label) }) : '') })}

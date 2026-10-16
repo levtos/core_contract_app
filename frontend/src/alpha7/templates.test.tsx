@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { Workbench } from '@/Workbench';
 import { RuleEditor, RuleEnvProvider } from '@/editors/RuleEditor';
 import { newDefinition, ruleContext, type Rule } from '@/features/authoring/model';
@@ -65,6 +65,24 @@ it('shows only a constant value until its advanced schema is opened', async () =
   await user.click(screen.getByRole('button', { name: 'Erweitert: Werteart' }));
   await user.selectOptions(screen.getByLabelText('Typ'), 'number');
   expect(current).toMatchObject({ schema: { type: 'number' }, value: 0 });
+});
+
+it('keeps read-only rule details and advanced schemas accessible by mouse and keyboard without enabling edits', async () => {
+  const changed = vi.fn();
+  wrap(<fieldset disabled><RuleEnvProvider value={{ ctx: ruleContext(newDefinition('test.einfach', 1), false), caps, locked: true }}><RuleEditor value={{ op: 'literal', schema: { type: 'bool', required: true, physical_state: false }, value: false }} onChange={changed} pointer="/outputs/value" /></RuleEnvProvider></fieldset>);
+  const advanced = screen.getByRole('button', { name: 'Erweitert: Werteart' });
+  // user-event treats non-form controls inside a disabled fieldset as disabled too.
+  // Native browser coverage checks this view action separately.
+  fireEvent.click(advanced);
+  expect(await screen.findByLabelText('Typ')).toBeDisabled();
+  advanced.focus(); fireEvent.keyDown(advanced, { key: ' ' });
+  await waitFor(() => expect(screen.queryByLabelText('Typ')).not.toBeInTheDocument());
+  const collapse = screen.getByRole('button', { name: 'Zuklappen' });
+  collapse.focus(); fireEvent.keyDown(collapse, { key: 'Enter' });
+  expect(screen.queryByLabelText('Wert')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Aufklappen' }));
+  expect(screen.getByLabelText('Wert')).toBeDisabled();
+  expect(changed).not.toHaveBeenCalled();
 });
 
 it.each([

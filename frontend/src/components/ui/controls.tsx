@@ -4,7 +4,7 @@ import { Switch as BaseSwitch } from '@base-ui/react/switch';
 import { Tabs as BaseTabs } from '@base-ui/react/tabs';
 import { Tooltip as BaseTooltip } from '@base-ui/react/tooltip';
 import { Check, ChevronRight } from 'lucide-react';
-import type { ReactElement, ReactNode } from 'react';
+import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 export function Switch({ checked, onCheckedChange, label, disabled }: { checked: boolean; onCheckedChange: (v: boolean) => void; label: string; disabled?: boolean }) {
@@ -94,16 +94,18 @@ export function Tip({ label, children }: { label: ReactNode; children: ReactElem
 }
 
 export function Collapsible({ title, children, defaultOpen = false, aside, className }: { title: ReactNode; children: ReactNode; defaultOpen?: boolean; aside?: ReactNode; className?: string }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
   return (
-    <BaseCollapsible.Root defaultOpen={defaultOpen} className={cn('rounded-[var(--radius-md)] border border-line bg-panel', className)}>
+    <BaseCollapsible.Root open={open} onOpenChange={setOpen} className={cn('rounded-[var(--radius-md)] border border-line bg-panel', className)}>
       <div className="flex items-center gap-2 px-3 py-2">
-        <BaseCollapsible.Trigger className="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left text-sm font-medium">
-          <ChevronRight size={14} className="shrink-0 text-muted transition-transform group-data-[panel-open]:rotate-90" />
+        <div role="button" tabIndex={0} aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(value => !value)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpen(value => !value); } }} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left text-sm font-medium">
+          <ChevronRight size={14} className={cn('shrink-0 text-muted transition-transform', open && 'rotate-90')} />
           <span className="min-w-0 truncate">{title}</span>
-        </BaseCollapsible.Trigger>
+        </div>
         {aside}
       </div>
-      <BaseCollapsible.Panel className="border-t border-line px-3 py-3">{children}</BaseCollapsible.Panel>
+      <BaseCollapsible.Panel id={panelId} className="border-t border-line px-3 py-3">{children}</BaseCollapsible.Panel>
     </BaseCollapsible.Root>
   );
 }
