@@ -25,10 +25,10 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P1.09 | Doppelten Einrichtung-prüfen-Eintrag entfernen | umgesetzt; Sichtprüfung offen | navigation.test.tsx | offen |
 | P1.10 | Instanz/Instanzen durch Vertrag/Verträge ersetzen | umgesetzt; Sprachprüfung offen | scan:i18n; build-registry.test.tsx | offen |
 | P1.11 | Layout anpassen im kleinen ⋯-Menü | umgesetzt; Sichtprüfung offen | PanelLayout.test.tsx | offen |
-| P2.01 | Nicht bereit · n / grün Bereit; Version daneben | offen | offen | offen |
-| P2.02 | Klick und Hover öffnen Bedingungen als Sätze mit Lösungslinks | offen | offen | offen |
-| P2.03 | Keine gelben Warnkästen auf Seiten | offen | offen | offen |
-| P2.04 | Kopf-Umschalter Live ansehen / Bearbeiten | offen | offen | offen |
+| P2.01 | Nicht bereit · n / grün Bereit; Version daneben | umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
+| P2.02 | Klick und Hover öffnen Bedingungen als Sätze mit Lösungslinks | umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
+| P2.03 | Keine gelben Warnkästen auf Seiten | zentrale Bedingungskästen entfernt; übrige Seitenprüfung offen | readiness.test.tsx | offen |
+| P2.04 | Kopf-Umschalter Live ansehen / Bearbeiten | folgt mit P5 | offen | offen |
 | P3.01 | Nur drei Übersichtsblöcke, keine Status-/Installations-/Bereiche-Karten | offen | offen | offen |
 | P3.02 | Neuer Vertrag, Import, Übernehmen nur bei offenem Entwurf | offen | offen | offen |
 | P3.03 | Zähler aktiv/gesund/eingeschränkt/ausgeschaltet filtern Vertragsliste | offen | offen | offen |
@@ -96,7 +96,7 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | A11.01 | Terra überall | Alpha 6 vorhanden; Regression offen | offen | offen |
 | A11.02 | Einstellungen statt Administration | P1 umgesetzt; Sichtprüfung offen | navigation.test.tsx | offen |
 | A11.03 | Übersicht mit Aktionen/Problemen/gefilterten Ereignissen, ohne Bereiche | offen | offen | offen |
-| A11.04 | Nicht bereit · n mit Lösungslink | offen | offen | offen |
+| A11.04 | Nicht bereit · n mit Lösungslink | P2 umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
 | A11.05 | Vertragstabelle eine Spalte Zustand | offen | offen | offen |
 | A11.06 | Vorlagen eigene Unterseite | P1 umgesetzt; Sichtprüfung offen | navigation.test.tsx | offen |
 | A11.07 | Neuer Vertrag startet Entwurf, keine Hinweiskästen | offen | offen | offen |
@@ -127,6 +127,10 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
   **183 bestanden**, drei Engine-E2E laufen separat. Alte Vertrags-IDs kollidieren
   nicht mit neuen Unterseiten; Prüfung und Fehlerlinks behalten ihre JSON-Pointer.
   Browserbilder und finale CI folgen mit dem vollständigen Umbau.
+- P2: vier neue Tests für Zähler, deutsche Lösungslinks, Hover/Klick, Escape,
+  Außenklick und fehlende erfundene HA-Störung während des Verbindungsaufbaus.
+  Zusammen mit Navigation/Status 27 Tests grün; TypeScript und Sprachscan grün.
+  Der Umschalter folgt in P5 gemeinsam mit der Entwurfszustandsführung.
 
 ## Freigabegrenze
 

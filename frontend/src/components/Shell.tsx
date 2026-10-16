@@ -9,19 +9,17 @@ import {
   FlaskConical,
   LayoutDashboard,
   Settings2,
-  WifiOff,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { NAVIGATION } from '@/lib/navigation';
 import { LayoutPreferencesProvider, useCollapsedNavigation } from './PanelLayout';
 import { Link, Outlet, useLocation } from 'react-router';
-import { Badge } from '@/components/ui/badge';
+import { ReadinessBadge } from '@/components/ReadinessBadge';
 import { Button } from '@/components/ui/button';
-import { Tip } from '@/components/ui/controls';
 import { DraftBar } from '@/features/authoring/DraftBar';
 import { useLive } from '@/lib/live-context';
 import { useActiveRevision, useInfo } from '@/lib/queries';
-import { classifySystem, overallState } from '@/lib/status';
+import { classifySystem } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import { IssueFocus } from './IssueFocus';
 
@@ -38,24 +36,7 @@ export function StatusChips({ extra }: { extra?: ReactNode }) {
     hasActiveRegistry: active.data === undefined ? undefined : active.data !== null,
     apiFailure: info.isError ? 'network' : null,
   });
-  const overall = overallState(conditions, live.service);
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Tip label={conditions.length ? conditions.map((c) => c.title).join(' · ') : uiText("components.Shell.keine_offenen_bedingungen_4c615b")}>
-        <span tabIndex={0}>
-          <Badge tone={overall.tone}>{overall.label}</Badge>
-        </span>
-      </Tip>
-      {live.connection !== 'open' && live.connection !== 'stopped' && (
-        <Badge tone={live.connection === 'mismatch' ? 'bad' : 'warn'}>
-          <WifiOff size={11} />
-          {live.connection === 'connecting' ? uiText("components.Shell.verbinde_fed9bb") : live.connection === 'mismatch' ? uiText("components.Shell.andere_installation_616cdb") : live.connection === 'resyncing' ? uiText("components.Shell.synchronisiere_fd5034") : uiText("components.Shell.verbindung_unterbrochen_80731c")}
-        </Badge>
-      )}
-      <Badge tone="neutral">{uiText("components.Shell.revision_e330d8")}{active.data?.revision ?? '–'}</Badge>
-      {extra}
-    </div>
-  );
+  return <ReadinessBadge conditions={conditions} ready={live.service?.ready === true && live.connection === 'open'} revision={active.data?.revision}>{extra}</ReadinessBadge>;
 }
 
 export function Shell(_props: { onSetup: () => void }) {
