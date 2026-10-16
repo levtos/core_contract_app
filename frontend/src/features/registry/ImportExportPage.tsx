@@ -6,10 +6,10 @@ import { Field, Input, Textarea } from '@/components/ui/form';
 import { Notice, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { downloadText, exportRegistry, parseRegistryJson } from '@/features/authoring/importExport';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
+import { ReviewDraftButton } from '@/features/authoring/DraftBar';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import { useActiveExport, useDraftMutations, useDrafts } from '@/lib/queries';
 import type { Draft, ValidationResult } from '@/lib/types';
-import { ActivateDialog } from './ActivationDialogs';
 import { IssueList } from './IssueList';
 
 export default function ImportExportPage() {
@@ -25,7 +25,6 @@ export default function ImportExportPage() {
   const [checked, setChecked] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [busy, setBusy] = useState(false);
-  const [activating, setActivating] = useState(false);
   const atLimit = (drafts.data?.length ?? 0) >= 100;
   const changeText = (next: string) => { setText(next); setError(''); setImported(null); setChecked(false); setIssues([]); };
   const submit = async () => {
@@ -60,8 +59,9 @@ export default function ImportExportPage() {
       {checked && imported && <section aria-live="polite" className="space-y-4">
         <p role="status" className="text-sm">{issues.length ? t('alpha7.import.errors', { count: issues.length }) : t('alpha7.import.valid')}</p>
         <IssueList issues={issues} config={imported.config} />
-        <Button variant="primary" disabled={issues.length > 0} onClick={() => setActivating(true)}>{t('alpha7.import.review')}</Button>
+        {issues.length === 0 && doc.draft?.draft_id === imported.draft_id ? <ReviewDraftButton>{t('alpha7.import.review')}</ReviewDraftButton> : <Button disabled>{t('alpha7.import.review')}</Button>}
         {issues.length > 0 && <p className="text-sm text-muted">{t('alpha7.import.fix')}</p>}
+        {doc.draft?.draft_id !== imported.draft_id && <p className="text-sm text-muted">{t('alpha7.import.openFirst')}</p>}
       </section>}
     </div></Panel>
     {!contractImport && <Panel className="mt-5"><PanelHeader title={t('alpha7.export.title')} /><div className="flex flex-col items-start gap-3 p-5">
@@ -69,6 +69,5 @@ export default function ImportExportPage() {
       {!active.data && <p className="text-sm text-muted">{t('alpha7.export.noActive')}</p>}
       {doc.config && <Button onClick={() => downloadText(`terra-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
     </div></Panel>}
-    {activating && imported && <ActivateDialog draft={imported} open onOpenChange={setActivating} />}
   </>;
 }

@@ -73,8 +73,8 @@ it('renders exactly three overview blocks and links the count to a filtered list
   expect(within(main).queryByRole('button', { name: 'Änderungen übernehmen' })).not.toBeInTheDocument();
   expect(within(main).getByRole('link', { name: 'Alle im Protokoll' })).toHaveAttribute('href', '#/settings/log');
   await user.click(within(main).getByRole('link', { name: /1 ausgeschaltet/ }));
-  expect(await screen.findByRole('link', { name: 'off' })).toBeVisible();
-  expect(screen.queryByRole('link', { name: 'room' })).not.toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'Ausgeschalteter Vertrag' })).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Temperatur im Zimmer' })).not.toBeInTheDocument();
   expect(window.location.hash).toBe('#/contracts/list/all?filter=off');
 });
 

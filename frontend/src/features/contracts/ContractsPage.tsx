@@ -1,27 +1,28 @@
 import { t as uiText } from '@/i18n';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Plus, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { describeError } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select } from '@/components/ui/form';
 import { ID_HINT, ID_LIMIT, validIdentifier } from '@/lib/identifiers';
 import { Empty, PageHeader, Panel, Spinner } from '@/components/ui/layout';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
-import { useAllIssues } from '@/features/authoring/issues';
 import { asArray, str, uniqueName } from '@/features/authoring/model';
-import { typeKey } from '@/features/authoring/catalog';
+import { typeCatalog, typeKey } from '@/features/authoring/catalog';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
-import { QualityBadge } from '@/components/status-parts';
 import { setAt, isObject } from '@/lib/json';
 import { useLive } from '@/lib/live-context';
 import type { Envelope } from '@/lib/types';
+import { useActiveRevision, useCapabilities } from '@/lib/queries';
+import { useHaCatalog } from '@/features/sources/useHaCatalog';
+import { contractSources, contractValue, fieldsForContract } from './presentation';
+import { ContractStateChip } from './ContractStateChip';
 
 export function ContractsTabs() {
   return null;
@@ -34,9 +35,10 @@ interface Row {
   version: number;
   enabled: boolean;
   envelope: Envelope | null;
-  unknownFields: number;
-  inputs: number;
-  errors: number;
+  value: string;
+  source: string;
+  draftOnly: boolean;
+  stale: boolean;
 }
 
 const col = createColumnHelper<Row>();
@@ -98,7 +100,9 @@ export default function ContractsPage() {
   const doc = useWorkingDocument();
   const [params, setParams] = useSearchParams();
   const live = useLive();
-  const issues = useAllIssues();
+  const active = useActiveRevision();
+  const caps = useCapabilities();
+  const ha = useHaCatalog(asArray(src.config?.bindings).filter(isObject).some(binding => isObject(binding.adapter) && String(binding.adapter.kind).startsWith('ha_')));
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -128,9 +132,12 @@ export default function ContractsPage() {
   }, [params, setParams]);
 
   const configured = asArray(src.config?.contracts).filter(isObject);
-  const rows: Row[] = configured.map((c, index) => {
+  const activeContracts = asArray(active.data?.config?.contracts).filter(isObject);
+  const activeTypes = typeCatalog(caps.data, active.data?.config);
+  const rows: Row[] = configured.map((c) => {
     const id = str(c.contract_id);
-    const envelope = live.contracts?.[id] ?? null;
+    const activeContract = activeContracts.find(item => item.contract_id === id);
+    const envelope = activeContract ? live.contracts?.[id] ?? null : null;
     return {
       id,
       name: str(c.display_name),
@@ -138,9 +145,10 @@ export default function ContractsPage() {
       version: Number(c.type_version),
       enabled: c.enabled !== false,
       envelope,
-      unknownFields: envelope ? Object.values(envelope.fields).filter((f) => f.status === 'unknown' || f.status === 'unresolved').length : 0,
-      inputs: asArray(c.inputs).length,
-      errors: issues.filter((i) => i.path.startsWith(`/contracts/${index}`)).length,
+      value: contractValue(envelope, activeContract ? fieldsForContract(activeContract, active.data?.config ?? null, activeTypes) : {}),
+      source: contractSources(id, src.config, ha.entities).map(source => source.name).join(', ') || uiText('alpha7.contract.noSource'),
+      draftOnly: src.source === 'draft' && active.data !== undefined && !activeContract,
+      stale: live.stale || live.registryRevision !== active.data?.revision,
     };
   });
   const typeOptions = [...new Set(rows.map((r) => r.type))].sort();
@@ -151,28 +159,12 @@ export default function ContractsPage() {
       (healthFilter === 'all' || (healthFilter === 'none' ? !r.envelope : r.envelope?.contract_health === healthFilter)),
   );
 
-  const columns = useMemo(
-    () => [
-      col.accessor('id', { header: uiText("features.contracts.ContractsPage.contract_a6f5b0"), cell: (c) => <Link to={`/contracts/view/${encodeURIComponent(c.getValue())}`} className="font-mono text-xs text-accent hover:underline" onClick={(e) => e.stopPropagation()}>{c.getValue()}</Link> }),
-      col.accessor('name', { header: uiText("features.contracts.ContractsPage.name_dcd1d5"), cell: (c) => c.getValue() || <span className="text-faint">—</span> }),
-      col.accessor((r) => `${r.type}@${r.version}`, { id: 'type', header: uiText("features.contracts.ContractsPage.typ_1b0241"), cell: (c) => <code className="text-xs text-muted">{c.getValue()}</code> }),
-      col.accessor('enabled', { header: uiText("features.contracts.ContractsPage.status_920e41"), cell: (c) => (c.getValue() ? <Badge tone="accent">{uiText("features.contracts.ContractsPage.aktiviert_acb27b")}</Badge> : <Badge>{uiText("features.contracts.ContractsPage.deaktiviert_10f33e")}</Badge>) }),
-      col.accessor((r) => r.envelope?.contract_health ?? '', {
-        id: 'health',
-        header: uiText("features.contracts.ContractsPage.gesundheit_1c7f2f"),
-        cell: (c) => (c.row.original.envelope ? <QualityBadge quality={c.row.original.envelope.contract_health} /> : <span className="text-xs text-faint">{c.row.original.enabled ? uiText("features.contracts.ContractsPage.kein_zustand_4125d1") : '—'}</span>),
-      }),
-      col.accessor((r) => (r.envelope ? (r.envelope.available ? 1 : 0) : -1), {
-        id: 'available',
-        header: uiText("features.contracts.ContractsPage.verfugbar_3aa552"),
-        cell: (c) => (c.row.original.envelope ? <Badge tone={c.row.original.envelope.available ? 'ok' : 'warn'}>{c.row.original.envelope.available ? uiText("features.contracts.ContractsPage.ja_3702fc") : uiText("features.contracts.ContractsPage.nein_4d03db")}</Badge> : <span className="text-xs text-faint">—</span>),
-      }),
-      col.accessor('unknownFields', { header: uiText("features.contracts.ContractsPage.offene_felder_61473d"), cell: (c) => (c.getValue() ? <Badge tone="warn">{c.getValue()} {uiText("features.contracts.ContractsPage.unbekannt_a418e6")}</Badge> : <span className="text-xs text-faint">0</span>) }),
-      col.accessor('inputs', { header: uiText("features.contracts.ContractsPage.eingange_53fb39") }),
-      col.accessor('errors', { header: uiText("features.contracts.ContractsPage.fehler_f6cc01"), cell: (c) => (c.getValue() ? <Badge tone="bad">{c.getValue()}</Badge> : null) }),
-    ],
-    [],
-  );
+  const columns = [
+    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-accent" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link>{cell.row.original.name && <span title={cell.row.original.id} className="block truncate text-xs text-muted">{cell.row.original.id}</span>}</div> }),
+    col.accessor('value', { header: uiText('alpha7.contract.value'), cell: cell => <span className="tabular-nums">{cell.getValue()}</span> }),
+    col.accessor(row => row.envelope?.contract_health ?? '', { id: 'state', header: uiText('alpha7.contract.state'), cell: cell => <ContractStateChip envelope={cell.row.original.envelope} enabled={cell.row.original.enabled} draftOnly={cell.row.original.draftOnly} stale={cell.row.original.stale} /> }),
+    col.accessor('source', { header: uiText('alpha7.contract.source'), cell: cell => <span className="block truncate" title={cell.getValue()}>{cell.getValue()}</span> }),
+  ];
 
   return (
     <>
@@ -194,12 +186,12 @@ export default function ContractsPage() {
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
             <Input aria-label={uiText("features.contracts.ContractsPage.contracts_suchen_453163")} className="pl-8" placeholder={uiText("features.contracts.ContractsPage.suchen_nach_id_name_typ_43b8d8")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select aria-label={uiText("features.contracts.ContractsPage.typ_1b0241")} className="w-52" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <details className="relative"><summary className="cursor-pointer py-2 text-sm text-muted">{uiText('alpha7.contract.advanced')}</summary><Select aria-label={uiText("features.contracts.ContractsPage.typ_1b0241")} className="w-52" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="">{uiText("features.contracts.ContractsPage.alle_typen_83162a")}</option>
             {typeOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
-          </Select>
+          </Select></details>
           <Select aria-label={uiText("features.contracts.ContractsPage.aktivierung_90ba1a")} className="w-40" value={enabledFilter} onChange={(e) => setEnabledFilter(e.target.value as typeof enabledFilter)}>
             <option value="all">{uiText("features.contracts.ContractsPage.alle_3801a3")}</option>
             <option value="on">{uiText("features.contracts.ContractsPage.aktiviert_acb27b")}</option>

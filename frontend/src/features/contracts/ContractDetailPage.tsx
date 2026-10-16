@@ -2,35 +2,43 @@ import { t as uiText } from '@/i18n';
 import { ArrowLeft, Stethoscope, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ContractLiveState } from '@/components/ContractLiveState';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog } from '@/components/ui/dialog';
-import { Empty, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
+import { Empty, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
 import { ContractEditor } from '@/editors/RegistryObjects';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { asArray, str } from '@/features/authoring/model';
-import { refOptions, typeKey } from '@/features/authoring/catalog';
+import { refOptions, typeCatalog, typeKey } from '@/features/authoring/catalog';
 import { consumersOfContract, resolveRef } from '@/features/authoring/usage';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { isObject, setAt, type JsonObject } from '@/lib/json';
 import { useLive } from '@/lib/live-context';
+import { useActiveRevision, useCapabilities } from '@/lib/queries';
+import { fieldsForContract } from './presentation';
+import { ContractSummary } from './ContractSummary';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
   const live = useLive();
+  const active = useActiveRevision();
+  const caps = useCapabilities();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [removing, setRemoving] = useState(false);
   const list = asArray(src.config?.contracts).filter(isObject);
   const index = list.findIndex((c) => str(c.contract_id) === contractId);
   const contract = index >= 0 ? list[index]! : null;
-  const envelope = live.contracts?.[contractId] ?? null;
+  const activeContract = asArray(active.data?.config?.contracts).filter(isObject).find(item => item.contract_id === contractId);
+  const draftOnly = src.source === 'draft' && active.data !== undefined && !activeContract;
+  const envelope = activeContract ? live.contracts?.[contractId] ?? null : null;
+
+  if (src.loading && !contract) return <Spinner />;
 
   if (!contract) {
     return (
@@ -49,28 +57,20 @@ export default function ContractDetailPage() {
   const consumers = consumersOfContract(src.config, contractId);
   const inputs = asArray(contract.inputs).filter(isObject);
   const enabled = contract.enabled !== false;
-  const displayFields = { ...typeEntry?.fields };
-  const definition = asArray(src.config?.definitions).filter(isObject).find((d) => d.type_id === contract.type_id && d.type_version === contract.type_version);
-  if (definition && isObject(definition.outputs)) {
-    for (const [name, rule] of Object.entries(definition.outputs)) {
-      if (isObject(rule) && rule.op === 'temporal' && rule.operation === 'age' && displayFields[name]) displayFields[name] = { ...displayFields[name]!, unit: 's' };
-    }
-  }
-  if (contract.type_id === 'test.echo' && displayFields.value) {
-    const source = asArray(src.config?.sources).filter(isObject).find((s) => s.source_id === inputs[0]?.ref);
-    if (source && isObject(source.value_schema) && source.value_schema.unit) displayFields.value = { ...displayFields.value, unit: source.value_schema.unit };
-  }
+  const activeTypes = typeCatalog(caps.data, active.data?.config);
+  const displayFields = activeContract ? fieldsForContract(activeContract, active.data?.config ?? null, activeTypes) : {};
+  const activeType = activeTypes.find(item => item.type_id === activeContract?.type_id && item.type_version === activeContract?.type_version);
 
   return (
     <>
       <BackLink />
       <PageHeader
-        title={<span className="font-mono">{contractId}</span>}
-        description={uiText("features.contracts.ContractDetailPage.v0_v1_v_v2_610089", { v0: (str(contract.display_name) || uiText("features.contracts.ContractDetailPage.contract_instanz_cda79d")), v1: (str(contract.type_id)), v2: (String(contract.type_version)) })}
+        title={<span className="block truncate" title={contractId}>{str(contract.display_name) || contractId}</span>}
+        description={<span className="block max-w-xl truncate" title={contractId}>{contractId}</span>}
         actions={
           <>
-            <Badge tone={enabled ? 'accent' : 'neutral'}>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>
-            <Button size="sm" onClick={() => navigate(`/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> {uiText("features.contracts.ContractDetailPage.diagnose_64dd65")}</Button>
+            {draftOnly ? <Badge tone="info">{uiText('alpha7.contract.state.draft')}</Badge> : <Badge>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>}
+            <Button size="sm" onClick={() => navigate(`/settings/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> {uiText("features.contracts.ContractDetailPage.diagnose_64dd65")}</Button>
             {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.ContractDetailPage.entfernen_382837")}</Button>}
           </>
         }
@@ -83,10 +83,10 @@ export default function ContractDetailPage() {
           {
             value: 'state',
             label: uiText("features.contracts.ContractDetailPage.zustand_630d1a"),
-            content: !enabled ? (
+            content: draftOnly ? <Empty title={uiText('alpha7.contract.state.draft')}>{uiText('alpha7.contract.draftHelp')}</Empty> : !enabled ? (
               <Empty title={uiText("features.contracts.ContractDetailPage.contract_deaktiviert_f0d824")}>{uiText("features.contracts.ContractDetailPage.deaktivierte_contracts_liefern_keinen_zustand_de_a31528")}</Empty>
             ) : envelope ? (
-              <ContractLiveState envelope={envelope} stale={live.stale} fields={displayFields} />
+              <ContractSummary envelope={envelope} stale={live.stale || live.registryRevision !== active.data?.revision} fields={displayFields} config={active.data?.config ?? null} machine={activeType?.machine ?? false} />
             ) : (
               <Empty title={uiText("features.contracts.ContractDetailPage.kein_live_zustand_85efdc")}>
                 {live.contracts === null ? uiText("features.contracts.ContractDetailPage.es_wurde_noch_kein_snapshot_empfangen_e56b2e") : uiText("features.contracts.ContractDetailPage.der_aktive_stand_enthalt_diesen_contract_nicht_e_15aef3")}

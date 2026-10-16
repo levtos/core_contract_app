@@ -35,13 +35,13 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P3.04 | Probleme in Alltagssprache mit Was kann ich tun? | umgesetzt; Sichtprüfung offen | overview.test.tsx | offen |
 | P3.05 | Relative menschliche Ereignisse: Übernehmen, Zurücksetzen, Vertrag veraltet/fehlerhaft, HA getrennt/verbunden | umgesetzt; HA-Wechsel ausdrücklich nur aktuelle Browsersitzung, da keine persistierte Verbindungshistorie vorhanden | overview.test.tsx; live.test.ts | offen |
 | P3.06 | Entwurf anlegen/löschen nur Protokoll; Link Alle im Protokoll | umgesetzt; Sichtprüfung offen | overview.test.tsx; admin.test.tsx | offen |
-| P4.01 | Liste Name/Wert/Zustand/HA-Quellenname; ein Zustandschip mit Hoverdetails | offen | offen | offen |
-| P4.02 | Einheit, Dezimalkomma, Ja/Nein; lange IDs Ellipsis/Tooltip | offen | offen | offen |
-| P4.03 | Detail: großer Wert jetzt und Warum? als Satz | offen | offen | offen |
-| P4.04 | Detail: Woher? mit HA-Namen und Mini-Verlauf | offen | offen | offen |
-| P4.05 | Ablauf-Befehlsknöpfe auf Vertragsdetail | offen | offen | offen |
-| P4.06 | Prominenter JSON-/Textimport, automatisch Entwurf, Prüfergebnis vor Übernehmen | begonnen in P1 | navigation.test.tsx | offen |
-| P4.07 | eingeschaltet statt aktiviert; reine Entwurfsverträge klar kennzeichnen | offen | offen | offen |
+| P4.01 | Liste Name/Wert/Zustand/HA-Quellenname; ein Zustandschip mit Hoverdetails | umgesetzt; Sichtprüfung offen | contracts.test.tsx | offen |
+| P4.02 | Einheit, Dezimalkomma, Ja/Nein; lange IDs Ellipsis/Tooltip | umgesetzt; Sichtprüfung offen | contracts.test.tsx; status.test.ts | offen |
+| P4.03 | Detail: großer Wert jetzt und Warum? als Satz | umgesetzt; Live-Werte verwenden ausschließlich die aktive Schemazuordnung | contracts.test.tsx | offen |
+| P4.04 | Detail: Woher? mit HA-Namen und Mini-Verlauf | umgesetzt; maximal 60 gespeicherte Änderungen, unbekannte Werte bleiben Lücken | contracts.test.tsx | offen |
+| P4.05 | Ablauf-Befehlsknöpfe auf Vertragsdetail | umgesetzt; deklarierte Befehle mit bestehender Serverprüfung/Bestätigung | contracts.test.tsx; diagnostics.test.tsx | offen |
+| P4.06 | Prominenter JSON-/Textimport, automatisch Entwurf, Prüfergebnis vor Übernehmen | umgesetzt; Übernehmen prüft den exakten aktuellen Entwurf erneut | navigation.test.tsx; draftOwnership.test.tsx | offen |
+| P4.07 | eingeschaltet statt aktiviert; reine Entwurfsverträge klar kennzeichnen | umgesetzt für Verträge; Sprachprüfung übriger Bereiche folgt | contracts.test.tsx; scan:i18n | offen |
 | P5.01 | Live ansehen/Bearbeiten; alle Fachseiten im Bearbeiten-Modus editierbar | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
 | P5.02 | Leiste n Änderungen / Prüfen / Übernehmen | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
 | P5.03 | Sichtbare Prüfrückmeldung; n Fehler öffnet Liste | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
