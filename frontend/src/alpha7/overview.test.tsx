@@ -63,7 +63,7 @@ function app(live = idleLive()) {
 it.each(['healthy', 'degraded'] as const)('uses current %s publications instead of stale polled problem details', async health => {
   const api = installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
   api.routes.push({ match: /^diagnostics\/problems$/, respond: () => reply(200, { problems: [{ contract_id: 'room', reasons: [{ code: 'evaluation_error', since: at }] }] }) });
-  const current = { ...envelope('room', health), fields: { value: { status: 'unknown', value: null, quality: 'degraded', evidence: [], reasons: health === 'degraded' ? [{ code: 'input_stale', since: at }] : [] } } } as Envelope;
+  const current = { ...envelope('room', health), fields: { value: { status: 'unknown', value: null, quality: 'degraded', evidence: [], reasons: health === 'degraded' ? [{ code: 'input_stale', input: 'a', since: at }] : [] } } } as Envelope;
   const live = idleLive();
   vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, registryRevision: 4, contracts: { room: current } });
   app(live);

@@ -152,6 +152,8 @@ eine optionale Zusatzansicht. Dynamische Schemas: `SchemaForm` + `Extras` (siehe
 ## Review und Freigaben
 
 Die reproduzierbare Bildprüfung liegt in `frontend/scripts/browser-review.mjs`.
+Die [Bildgalerie für Alpha 7](alpha7/BROWSER.md) enthält die 162 geprüften
+Originalaufnahmen und die Zuordnung zu alten und neuen Unterseiten.
 Nach `npm ci`, `npx playwright install firefox` und dem Frontend-Build startet sie
 eigene In-Memory-Prozesse auf den freien Loopback-Ports 8196 und 8198 und beendet
 nur diese Prozesse. Beispiel aus `frontend/`:
