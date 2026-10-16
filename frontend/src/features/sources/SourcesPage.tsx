@@ -211,7 +211,7 @@ export default function SourcesPage() {
                 name="bindings"
                 idKey="binding_id"
                 singular={uiText("features.sources.SourcesPage.binding_164c69")}
-                subtitle={(b) => `${str((isObject(b.adapter) ? b.adapter : {}).kind)} → ${str(b.source_id)}`}
+                subtitle={(b) => `${codeLabel((isObject(b.adapter) ? b.adapter : {}).kind)} → ${str(b.source_id)}`}
                 make={(c, ids) => {
                   const source = asArray(c.sources).filter(isObject)[0];
                   const transform = sourceCast(source);

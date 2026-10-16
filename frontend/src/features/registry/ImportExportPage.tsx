@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'react-router';
 import { t } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Textarea } from '@/components/ui/form';
+import { Field, FileInput, Input, Textarea } from '@/components/ui/form';
 import { Notice, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { downloadText, exportRegistry, parseRegistryJson } from '@/features/authoring/importExport';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -50,7 +50,7 @@ export default function ImportExportPage() {
   return <>
     <PageHeader title={t(contractImport ? 'alpha7.nav.contractImport' : 'alpha7.nav.transfer')} description={t('alpha7.import.explanation')} />
     <Panel><PanelHeader title={t('alpha7.import.title')} /><div className="flex flex-col gap-4 p-5">
-      <Field label={t('alpha7.import.file')}>{props => <Input {...props} type="file" accept="application/json,.json" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; if (file) changeText(await file.text()); }} />}</Field>
+      <Field label={t('alpha7.import.file')}>{props => <FileInput {...props} accept="application/json,.json" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; if (file) changeText(await file.text()); }} />}</Field>
       <Field label={t('alpha7.import.text')}>{props => <Textarea {...props} rows={9} spellCheck={false} disabled={busy} value={text} onChange={event => changeText(event.target.value)} />}</Field>
       <Field label={t('alpha7.import.name')}>{props => <Input {...props} maxLength={256} value={name} onChange={event => setName(event.target.value)} />}</Field>
       <p className="text-sm text-muted">{t('alpha7.draft.explanation')}</p>

@@ -59,12 +59,21 @@ describe('P1: separate module routes and retained links', () => {
     expect(window.location.hash).toBe('#/sources/bindings?tab=bindings&item=0');
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
-  it('imports and validates on its own page without activating or changing the route', async () => {
+  it.each(['text', 'file'])('imports %s and validates on its own page without activating or changing the route', async mode => {
     const user = userEvent.setup();
     const fake = installFakeApi(); app('#/contracts/import/json');
     await screen.findByRole('heading', { name: 'Vertrag importieren', level: 1 });
-    await user.click(screen.getByLabelText('Oder Import-Text einfügen (JSON)'));
-    await user.paste(JSON.stringify(emptyRegistry()));
+    if (mode === 'file') {
+      expect(screen.getByRole('button', { name: 'Datei auswählen' })).toBeVisible();
+      expect(screen.getByText('Keine Datei ausgewählt')).toBeVisible();
+      const file = new File([JSON.stringify(emptyRegistry())], 'vertraege.json', { type: 'application/json' });
+      Object.defineProperty(file, 'text', { value: async () => JSON.stringify(emptyRegistry()) });
+      await user.upload(screen.getByLabelText('Datei auswählen (JSON)'), file);
+      expect(screen.getByText('vertraege.json')).toBeVisible();
+    } else {
+      await user.click(screen.getByLabelText('Oder Import-Text einfügen (JSON)'));
+      await user.paste(JSON.stringify(emptyRegistry()));
+    }
     await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen und prüfen' }));
     await screen.findByText('Prüfung abgeschlossen: keine Fehler. Noch gelten diese Änderungen nicht.');
     expect(fake.drafts.size).toBe(1);

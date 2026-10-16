@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { Input, Textarea } from '@/components/ui/form';
+import { FileInput, Input, Textarea } from '@/components/ui/form';
 import { Notice } from '@/components/ui/layout';
 import { Field } from '@/components/ui/form';
 import { describeError } from '@/lib/api';
@@ -114,11 +114,9 @@ export function CreateDraftDialog({
           <div className="flex flex-col gap-2">
             <Field label={uiText("features.authoring.CreateDraftDialog.registry_datei_json_be6006")}>
               {(p) => (
-                <input
+                <FileInput
                   {...p}
-                  type="file"
                   accept="application/json,.json"
-                  className="text-sm file:mr-3 file:cursor-pointer file:rounded-[var(--radius-sm)] file:border file:border-line-strong file:bg-raised file:px-3 file:py-1.5 file:text-fg"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) setText(await file.text());
