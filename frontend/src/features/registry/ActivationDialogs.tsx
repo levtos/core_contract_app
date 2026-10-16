@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/controls';
 import { Dialog } from '@/components/ui/dialog';
+import { Collapsible } from '@/components/ui/controls';
+import { Field, Input } from '@/components/ui/form';
 import { Notice, Spinner } from '@/components/ui/layout';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import type { JsonObject } from '@/lib/json';
@@ -116,12 +118,14 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
     return result;
   });
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [done, setDone] = useState<{ subject: string; revision: RevisionRow } | null>(null);
   // Confirmation is valid only for the exact (draft, version, active revision) that was checked.
   const confirmed = confirmedFor === key;
   const result = done?.subject === subject ? done.revision : null;
   useEffect(() => {
     setConfirmedFor(null);
+    setNote('');
     setDone(null);
     activate.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,7 +152,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
             <Button
               variant="primary"
               disabled={!ready || !confirmed || activate.isPending}
-              onClick={() => activate.mutate({ draft, expectedActiveRevision: expected }, { onSuccess: (revision) => setDone({ subject, revision }) })}
+              onClick={() => activate.mutate({ draft, expectedActiveRevision: expected, note }, { onSuccess: (revision) => setDone({ subject, revision }) })}
             >
               {uiText("features.registry.ActivationDialogs.jetzt_aktivieren_957b0a")}</Button>
           </>
@@ -157,7 +161,9 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
     >
       {result ? (
         <Notice tone="ok" title={uiText("features.registry.ActivationDialogs.revision_v0_ist_aktiv_ffe993", { v0: (result.revision) })}>
-          {uiText("features.registry.ActivationDialogs.prufsumme_8b50fe")}{result.checksum.slice(0, 16)}{uiText("features.registry.ActivationDialogs.die_live_zustande_werden_mit_der_neuen_revision__d6f83f")}</Notice>
+          {uiText("features.registry.ActivationDialogs.die_live_zustande_werden_mit_der_neuen_revision__d6f83f")}
+          <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mono break-all text-xs">{result.checksum}</p></Collapsible>
+        </Notice>
       ) : (
         <div className="flex flex-col gap-4">
           <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.aktivierung_andert_den_aktiven_zustand_5e5312")}>
@@ -172,6 +178,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
             </>
           )}
           {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
+          <Field label={uiText('alpha7.versions.note')} hint={uiText('alpha7.versions.noteHelp')}>{(props) => <Input {...props} maxLength={256} value={note} disabled={activate.isPending} onChange={(e) => { setNote(e.target.value); setConfirmedFor(null); }} />}</Field>
           {check.state === 'ok' && check.result.warnings?.map((warning) => <Notice key={warning.path} tone="warn" title={validationLabel(warning)}>{warning.object_id}</Notice>)}
           <Outcome error={activate.error} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />
         </div>
@@ -185,16 +192,19 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
   const subject = `revision:${revision.revision}:${revision.checksum}`;
   const { check, expected, currentRevision, restart, key } = useCheck(open, subject, () => validateConfig(revision.config));
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [done, setDone] = useState<{ subject: string; revision: RevisionRow } | null>(null);
   const confirmed = confirmedFor === key;
   const result = done?.subject === subject ? done.revision : null;
   useEffect(() => {
     setConfirmedFor(null);
+    setNote('');
     setDone(null);
     rollback.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, subject]);
-  const ready = check.state === 'ok' && check.result.valid && !rollback.error;
+  const older = revision.revision < expected;
+  const ready = check.state === 'ok' && check.result.valid && older && !rollback.error;
   return (
     <Dialog
       open={open}
@@ -215,7 +225,7 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
             <Button
               variant="danger"
               disabled={!ready || !confirmed || rollback.isPending}
-              onClick={() => rollback.mutate({ revision: revision.revision, expectedActiveRevision: expected }, { onSuccess: (r) => setDone({ subject, revision: r }) })}
+              onClick={() => rollback.mutate({ revision: revision.revision, expectedActiveRevision: expected, note }, { onSuccess: (r) => setDone({ subject, revision: r }) })}
             >
               {uiText("features.registry.ActivationDialogs.zuruckrollen_1c5e6f")}</Button>
           </>
@@ -238,6 +248,8 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
             </>
           )}
           {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
+          {check.state === 'ok' && !older && <p role="status" className="text-sm text-muted">{uiText('alpha7.versions.olderOnly')}</p>}
+          <Field label={uiText('alpha7.versions.note')} hint={uiText('alpha7.versions.noteHelp')}>{(props) => <Input {...props} maxLength={256} value={note} disabled={rollback.isPending} onChange={(e) => { setNote(e.target.value); setConfirmedFor(null); }} />}</Field>
           <Outcome error={rollback.error} onRecheck={() => { rollback.reset(); setConfirmedFor(null); void restart(); }} />
         </div>
       )}

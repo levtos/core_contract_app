@@ -73,11 +73,11 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P9.06 | ID, Ablaufzeit, OCC, Idempotenz, Commitfehler, kein Replay nach Restore | umgesetzt; verlorene Antwort nur abfragen; PostgreSQL-Prozessneustart für CI ergänzt | test_alpha7_manual_restart.py; test_postgres.py; manualRestart.test.tsx | offen |
 | P9.07 | Kennzeichnung in Envelope/WS/Diagnose bis datengetriebener Bestätigung | umgesetzt; manueller Wert bleibt eingeschränkt/unverfügbar bis gültigem gesundem entscheidendem Datennachweis | test_alpha7_manual_restart.py; e2e.test.tsx; presentation | offen |
 | P9.08 | API-, Engine-, Autorisierungs-, Audit-, Restore- und Frontend-Nachweise | lokal grün; PostgreSQL/MQTT/HA-Kernel/Linux und vollständige PR-CI noch offen | ABLAUF-NEUSTART.md | offen |
-| P10.01 | Ein Speichern statt zwei | offen | offen | offen |
-| P10.02 | Versionen mit Zeit, Wer und optionaler Notiz | offen | offen | offen |
-| P10.03 | Zurücksetzen nur auf ältere Versionen | offen | offen | offen |
-| P10.04 | Neue Objekte im Diff ohne bedrohliche Warnplaketten; Prüfsummen Erweitert | offen | offen | offen |
-| P10.05 | Eigene Import-/Export-Unterseite | begonnen in P1 | navigation.test.tsx | offen |
+| P10.01 | Ein Speichern statt zwei | umgesetzt; Sichtprüfung offen | versions.test.tsx | offen |
+| P10.02 | Versionen mit Zeit, Wer und optionaler Notiz | umgesetzt; reine Metadaten ausdrücklich freigegeben, keine erfundene persönliche Identität | versions.test.tsx; test_alpha7_version_metadata.py; VERSIONEN.md | offen |
+| P10.03 | Zurücksetzen nur auf ältere Versionen | umgesetzt; Aktion erst bei bekanntem kohärentem Aktivstand | versions.test.tsx; lifecycle.test.tsx; e2e.test.tsx | offen |
+| P10.04 | Neue Objekte im Diff ohne bedrohliche Warnplaketten; Prüfsummen Erweitert | umgesetzt; echte Auswirkungen auf Bestandskontexte bleiben sichtbar | versions.test.tsx | offen |
+| P10.05 | Eigene Import-/Export-Unterseite | umgesetzt in P1, P4 | navigation.test.tsx | offen |
 | P11.01 | Graph bei 1920 lesbar, Entwurf/live markiert | offen | offen | offen |
 | P11.02 | Kein grauer Knopf ohne Grund | offen | offen | offen |
 | P11.03 | Nachweis mit Quellenauswahl und Tabelle statt Tippfeld/JSON | offen | offen | offen |

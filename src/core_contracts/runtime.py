@@ -612,6 +612,10 @@ class Runtime:
                 "machine_definitions": machines,
             }
         if operation in {"activate", "rollback"}:
+            note = payload.get("note", "")
+            if not isinstance(note, str) or len(note) > 256:
+                raise ValueError("invalid_revision_note")
+            note = note.strip()
             if type(payload.get("expected_active_revision")) is not int:
                 raise ValueError("invalid_expected_revision")
             if payload["expected_active_revision"] != state.active_revision:
@@ -636,13 +640,17 @@ class Runtime:
                 "config": storage_document(new_config),
                 "checksum": checksum(storage_document(new_config)),
                 "created_at": now.isoformat(),
+                "actor": payload.get("_actor", {"kind": "internal", "role": "system"}),
+                **({"note": note} if note else {}),
             }
             state.tables["registry_activation"][str(revision)] = {
                 "revision": revision,
                 "at": now.isoformat(),
                 "operation": operation,
             }
-            self._audit(state, operation, payload, revision=revision)
+            self._audit(
+                state, operation, payload, revision=revision, **({"note": note} if note else {})
+            )
             next_latches = self.latches
             if config:
                 old_fp, new_fp = (

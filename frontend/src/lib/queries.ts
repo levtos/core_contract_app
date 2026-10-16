@@ -209,12 +209,13 @@ export function useActivation() {
   return {
     activate: useMutation({
       retry: false,
-      mutationFn: (input: { draft: Draft; expectedActiveRevision: number }) =>
+      mutationFn: (input: { draft: Draft; expectedActiveRevision: number; note?: string }) =>
         api<RevisionRow>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}/activate`, {
           method: 'POST',
           body: {
             draft_version: input.draft.draft_version,
             expected_active_revision: input.expectedActiveRevision,
+            ...(input.note?.trim() ? { note: input.note.trim() } : {}),
           },
         }),
       // The mutation response is the committed acknowledgement. Slow cache reads
@@ -223,10 +224,10 @@ export function useActivation() {
     }),
     rollback: useMutation({
       retry: false,
-      mutationFn: (input: { revision: number; expectedActiveRevision: number }) =>
+      mutationFn: (input: { revision: number; expectedActiveRevision: number; note?: string }) =>
         api<RevisionRow>('registry/rollback', {
           method: 'POST',
-          body: { revision: input.revision, expected_active_revision: input.expectedActiveRevision },
+          body: { revision: input.revision, expected_active_revision: input.expectedActiveRevision, ...(input.note?.trim() ? { note: input.note.trim() } : {}) },
         }),
       onSuccess: () => { void done(); },
     }),

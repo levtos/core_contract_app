@@ -82,6 +82,8 @@ export interface RevisionRow {
   config: Registry;
   checksum: string;
   created_at: string;
+  actor?: JsonObject;
+  note?: string;
 }
 
 export interface DiffGroup {

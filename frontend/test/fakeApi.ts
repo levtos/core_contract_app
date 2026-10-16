@@ -24,6 +24,8 @@ export interface FakeRevision {
   config: JsonObject;
   checksum: string;
   created_at: string;
+  actor?: JsonObject;
+  note?: string;
 }
 
 export interface FakeApi {
@@ -114,7 +116,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
         if (body.draft_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict', details: [] });
         const issues = api.issuesFor(draft.config);
         if (issues.length) return json(400, { error: 'invalid_request', valid: false, issues, details: [] });
-        const revision = { revision: api.active() + 1, config: draft.config, checksum: `sum-${api.active() + 1}`.padEnd(64, '0'), created_at: stamp() };
+        const revision = { revision: api.active() + 1, config: draft.config, checksum: `sum-${api.active() + 1}`.padEnd(64, '0'), created_at: stamp(), actor: { kind: 'ingress', role: 'admin' }, ...(body.note ? { note: body.note } : {}) };
         api.revisions.push(revision);
         api.activations.push({ revision: revision.revision, at: revision.created_at, operation: 'activate' });
         return json(200, revision);
@@ -125,7 +127,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
       if (body.expected_active_revision !== api.active()) return json(409, { error: 'active_revision_conflict', details: [] });
       const old = api.revisions.find((r) => r.revision === body.revision);
       if (!old) return json(400, { error: 'revision_not_found', details: [] });
-      const revision = { revision: api.active() + 1, config: old.config, checksum: old.checksum, created_at: stamp() };
+      const revision = { revision: api.active() + 1, config: old.config, checksum: old.checksum, created_at: stamp(), actor: { kind: 'ingress', role: 'admin' }, ...(body.note ? { note: body.note } : {}) };
       api.revisions.push(revision);
       api.activations.push({ revision: revision.revision, at: revision.created_at, operation: 'rollback' });
       return json(200, revision);

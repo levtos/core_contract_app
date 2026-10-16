@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Collapsible } from '@/components/ui/controls';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
 import { Empty, Notice, PageHeader, Panel, Spinner } from '@/components/ui/layout';
 import { CreateDraftDialog } from '@/features/authoring/CreateDraftDialog';
@@ -14,6 +15,8 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { describeError } from '@/lib/api';
 import { formatTime } from '@/lib/format';
 import { canonicalJson } from '@/lib/json';
+import { asObject } from '@/features/authoring/model';
+import { useLive } from '@/lib/live-context';
 import { useActiveRevision, useDraftMutations, useDrafts, useHistory, useRevisions } from '@/lib/queries';
 import type { Draft, RevisionRow } from '@/lib/types';
 import { RollbackDialog } from './ActivationDialogs';
@@ -112,6 +115,8 @@ function RevisionsTab() {
   const revisions = useRevisions();
   const active = useActiveRevision();
   const activations = useHistory('activations', { limit: 200 });
+  const audit = useHistory('diagnostics', { limit: 200 });
+  const live = useLive();
   const [viewing, setViewing] = useState<RevisionRow | null>(null);
   const [rolling, setRolling] = useState<RevisionRow | null>(null);
   const [copyOf, setCopyOf] = useState<RevisionRow | null>(null);
@@ -120,6 +125,9 @@ function RevisionsTab() {
   const navigate = useNavigate();
   const operations = useMemo(() => new Map((activations.data?.pages.flatMap((p) => p.items) ?? []).map((a) => [Number(a.revision), String(a.operation)])), [activations.data]);
   const rows = [...(revisions.data ?? [])].sort((a, b) => b.revision - a.revision);
+  const activeNumber = active.data?.revision ?? 0;
+  const activeKnown = active.isSuccess && (live.registryRevision === null || live.registryRevision === activeNumber) && rows.every((row) => row.revision <= activeNumber);
+  const actors = new Map((audit.data?.pages.flatMap((page) => page.items) ?? []).filter((event) => event.operation === 'activate' || event.operation === 'rollback').map((event) => [Number(asObject(event.details).revision ?? event.revision), asObject(event.actor)]));
   const pair = selected.length === 2 ? selected.map((n) => rows.find((r) => r.revision === n)!).sort((a, b) => a.revision - b.revision) : null;
 
   if (revisions.isPending) return <Spinner />;
@@ -127,16 +135,19 @@ function RevisionsTab() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">{uiText("features.registry.RegistryPage.revisionen_sind_unveranderlich_aktivierung_und_r_45199a")}</p>
-        <Button disabled={selected.length !== 2} onClick={() => setComparing(true)}><GitCompare size={14} /> {uiText("features.registry.RegistryPage.zwei_revisionen_vergleichen_ebd968")}{selected.length}/2)</Button>
+        <div className="space-y-1"><Button disabled={selected.length !== 2} onClick={() => setComparing(true)}><GitCompare size={14} /> {uiText("features.registry.RegistryPage.zwei_revisionen_vergleichen_ebd968")}{selected.length}/2)</Button>{selected.length !== 2 && <p className="text-xs text-muted">{uiText('alpha7.versions.selectTwo')}</p>}</div>
       </div>
+      {!activeKnown && rows.length > 0 && <p role="status" className="text-sm text-muted">{uiText(active.isError ? 'alpha7.versions.activeFailed' : 'alpha7.versions.activePending')}</p>}
       <Panel>
         {rows.length === 0 ? (
           <Empty title={uiText("features.registry.RegistryPage.noch_keine_revision_bf7c3f")}>{uiText("features.registry.RegistryPage.es_wurde_noch_nie_eine_registry_aktiviert_66d0b4")}</Empty>
         ) : (
           <ul className="divide-y divide-line">
             {rows.map((row) => {
-              const isActive = active.data?.revision === row.revision;
+              const isActive = activeKnown && activeNumber === row.revision;
               const op = operations.get(row.revision);
+              const actor = row.actor ?? actors.get(row.revision);
+              const actorLabel = actor?.kind === 'internal' ? uiText('alpha7.versions.actorSystem') : actor?.role === 'admin' && (actor.kind === 'token' || actor.kind === 'ingress') ? uiText(actor.kind === 'token' ? 'alpha7.versions.actorToken' : 'alpha7.versions.actorApp') : uiText('alpha7.versions.actorUnknown');
               return (
                 <li key={row.revision} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                   <input type="checkbox" aria-label={uiText("features.registry.RegistryPage.revision_v0_zum_vergleich_wahlen_d77c8e", { v0: (row.revision) })} className="size-4 accent-[var(--color-accent)]" checked={selected.includes(row.revision)} onChange={(e) => setSelected((s) => (e.target.checked ? [...s, row.revision].slice(-2) : s.filter((n) => n !== row.revision)))} />
@@ -144,16 +155,17 @@ function RevisionsTab() {
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       {uiText("features.registry.RegistryPage.revision_e330d8")}{row.revision}
                       {isActive && <Badge tone="ok">{uiText("features.registry.RegistryPage.aktiv_3139fc")}</Badge>}
-                      {op && <Badge tone={op === 'rollback' ? 'warn' : 'neutral'}>{op === 'rollback' ? uiText("features.registry.RegistryPage.rollback_c591f5") : uiText("features.registry.RegistryPage.aktivierung_90ba1a")}</Badge>}
+                      {op && <Badge>{op === 'rollback' ? uiText("features.registry.RegistryPage.rollback_c591f5") : uiText("features.registry.RegistryPage.aktivierung_90ba1a")}</Badge>}
                     </p>
-                    <p className="mono text-[11px] text-faint">{row.checksum.slice(0, 20)}…</p>
-                    <p className="text-xs text-muted">{formatTime(row.created_at)}</p>
+                    <p className="text-xs text-muted">{formatTime(row.created_at)} · {actorLabel}</p>
+                    {row.note && <p className="mt-1 text-sm">{row.note}</p>}
+                    <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mono break-all text-xs text-muted">{row.checksum}</p></Collapsible>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <Button size="sm" onClick={() => setViewing(row)}><History size={13} /> {uiText("features.registry.RegistryPage.ansehen_8e3136")}</Button>
                     <Button size="sm" onClick={() => downloadText(`registry-rev-${row.revision}.json`, exportRegistry(row.config))}><Download size={13} /> {uiText("features.registry.RegistryPage.export_366489")}</Button>
                     <Button size="sm" onClick={() => setCopyOf(row)}><FolderOpen size={13} /> {uiText("features.registry.RegistryPage.als_draft_051157")}</Button>
-                    <Button size="sm" variant="danger" disabled={isActive} onClick={() => setRolling(row)}><RotateCcw size={13} /> {uiText("features.registry.RegistryPage.zuruckrollen_1c5e6f")}</Button>
+                    {activeKnown && row.revision < activeNumber && <Button size="sm" variant="danger" onClick={() => setRolling(row)}><RotateCcw size={13} /> {uiText("features.registry.RegistryPage.zuruckrollen_1c5e6f")}</Button>}
                   </div>
                 </li>
               );
@@ -162,12 +174,13 @@ function RevisionsTab() {
         )}
       </Panel>
       {viewing && (
-        <Dialog open onOpenChange={(o) => !o && setViewing(null)} size="xl" title={uiText("features.registry.RegistryPage.revision_v0_5db9ad", { v0: (viewing.revision) })} description={uiText("features.registry.RegistryPage.prufsumme_v0_2bfef2", { v0: (viewing.checksum) })}>
+        <Dialog open onOpenChange={(o) => !o && setViewing(null)} size="xl" title={uiText("features.registry.RegistryPage.revision_v0_5db9ad", { v0: (viewing.revision) })}>
+          <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mono break-all text-xs">{viewing.checksum}</p></Collapsible>
           <pre className="max-h-[60vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{canonicalJson(viewing.config)}</pre>
         </Dialog>
       )}
       {rolling && <RollbackDialog key={rolling.revision} revision={rolling} open onOpenChange={(o) => !o && setRolling(null)} />}
-      {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: `Revision ${copyOf.revision}` }} onCreated={(d) => navigate(`/changes/drafts/${encodeURIComponent(d.draft_id)}`)} />}
+      {copyOf && <CreateDraftDialog open onOpenChange={(o) => !o && setCopyOf(null)} copyOf={{ config: copyOf.config, name: uiText('alpha7.versions.name', { n: copyOf.revision }) }} onCreated={(d) => navigate(`/changes/drafts/${encodeURIComponent(d.draft_id)}`)} />}
       {comparing && pair && (
         <Dialog open onOpenChange={(o) => !o && setComparing(false)} size="lg" title={uiText("features.registry.RegistryPage.revision_v0_v1_1a2b5a", { v0: (pair[0]!.revision), v1: (pair[1]!.revision) })} description={uiText("features.registry.RegistryPage.strukturelle_differenz_der_konfigurationsdokumen_aee6e2")}>
           {(() => {

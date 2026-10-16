@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible } from '@/components/ui/controls';
 import { Notice } from '@/components/ui/layout';
 import { ContractLink } from '@/components/status-parts';
-import { pluralize } from '@/lib/format';
 import type { Diff } from '@/lib/types';
 
 const GROUP_LABELS: Record<string, string> = {
@@ -42,34 +41,35 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
   const groups = Object.entries(diff.objects).filter(([, g]) => g.added.length + g.removed.length + g.changed.length > 0);
   const nothing = groups.length === 0 && diff.affected_contracts.length === 0 && !diff.fingerprint_version.context_migration;
+  const added = new Set([...diff.added, ...Object.values(diff.objects).flatMap((group) => group.added)]);
+  const restarted = diff.possibly_invalidated_contexts.filter((id) => !added.has(id));
+  const migrating = diff.fingerprint_version.context_migration && diff.fingerprint_version.before !== null;
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted">
         {uiText("features.registry.DiffView.statische_analyse_929ff1")}{against ? uiText("features.registry.DiffView.gegen_v0_0e5182", { v0: (against) }) : ''}{uiText("features.registry.DiffView.es_werden_weder_entwurfe_ausgewertet_noch_werte__5b260d")}</p>
       {nothing && <Notice tone="info" title={uiText("features.registry.DiffView.keine_anderung_gegenuber_der_aktiven_revision_b4a476")} />}
-      {diff.fingerprint_version.context_migration && (
+      {diff.fingerprint_version.before === null && !nothing && <p className="text-sm text-muted">{uiText('alpha7.versions.firstStart')}</p>}
+      {migrating && (
         <Notice tone="warn" title={uiText("features.registry.DiffView.fingerprint_version_wechselt_b60a4b")}>
           {uiText("features.registry.DiffView.von_704f87")}{String(diff.fingerprint_version.before)} {uiText("features.registry.DiffView.auf_9d82d9")}{diff.fingerprint_version.after}{uiText("features.registry.DiffView.betroffene_kontexte_werden_neu_initialisiert_kon_b49c90")}</Notice>
       )}
       <dl className="divide-y divide-line rounded-[var(--radius-md)] border border-line px-3">
-        <Row label={uiText("features.registry.DiffView.contracts_hinzugefugt_aa1b10")}><Chips items={diff.added} tone="ok" link /></Row>
-        <Row label={uiText("features.registry.DiffView.contracts_entfernt_5c5965")}><Chips items={diff.removed} tone="bad" /></Row>
-        <Row label={uiText("features.registry.DiffView.contracts_geandert_59d44d")}><Chips items={diff.changed} tone="warn" link /></Row>
+        <Row label={uiText("features.registry.DiffView.contracts_hinzugefugt_aa1b10")}><Chips items={diff.added} link /></Row>
+        <Row label={uiText("features.registry.DiffView.contracts_entfernt_5c5965")}><Chips items={diff.removed} /></Row>
+        <Row label={uiText("features.registry.DiffView.contracts_geandert_59d44d")}><Chips items={diff.changed} link /></Row>
         <Row label={uiText("features.registry.DiffView.direkt_betroffen_832e51")}><Chips items={diff.directly_affected_contracts} link /></Row>
         <Row label={uiText("features.registry.DiffView.transitiv_betroffen_ef01a8")}><Chips items={diff.transitively_affected_contracts} link /></Row>
-        <Row label={uiText("features.registry.DiffView.geanderte_fingerprints_eb5466")}><Chips items={diff.fingerprint_changes} tone="warn" /></Row>
-        <Row label={uiText("features.registry.DiffView.mogliche_neuinitialisierung_2361a0")}><Chips items={diff.possibly_invalidated_contexts} tone="warn" link /></Row>
-        <Row label={uiText("features.registry.DiffView.identitatswechsel_quellen_9211e3")}><Chips items={diff.source_identity_changes} tone="warn" /></Row>
-        <Row label={uiText("features.registry.DiffView.identitatswechsel_bindings_3f8a12")}><Chips items={diff.binding_identity_changes} tone="warn" /></Row>
+        {restarted.length > 0 && <Row label={uiText("features.registry.DiffView.mogliche_neuinitialisierung_2361a0")}><Chips items={restarted} tone="warn" link /></Row>}
         <Row label={uiText("features.registry.DiffView.fristen_bleiben_erhalten_bcbfe1")}>{diff.restore.retains_absolute_deadlines_if_compatible ? uiText("features.registry.DiffView.ja_bei_kompatiblem_fingerprint_219c13") : uiText("features.registry.DiffView.nein_4d03db")}</Row>
-        <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText("features.registry.DiffView.neue_revision_v0_im_snapshot_betroffen_69638e", { v0: (pluralize(diff.snapshot.affected_contracts.length, 'Contract', 'Contracts')) }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
+        <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText('alpha7.versions.affected', { n: diff.snapshot.affected_contracts.length }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
       </dl>
       {groups.map(([name, group]) => (
         <Collapsible key={name} title={uiText("features.registry.DiffView.v0_v1_neu_v2_geandert_v3_entfernt_80a78f", { v0: (GROUP_LABELS[name] ?? name), v1: (group.added.length), v2: (group.changed.length), v3: (group.removed.length) })} defaultOpen={groups.length <= 2}>
           <dl>
-            <Row label={uiText("features.registry.DiffView.hinzugefugt_1625f5")}><Chips items={group.added} tone="ok" /></Row>
-            <Row label={uiText("features.registry.DiffView.entfernt_d0124f")}><Chips items={group.removed} tone="bad" /></Row>
-            <Row label={uiText("features.registry.DiffView.geandert_d63c93")}><Chips items={group.changed} tone="warn" /></Row>
+            <Row label={uiText("features.registry.DiffView.hinzugefugt_1625f5")}><Chips items={group.added} /></Row>
+            <Row label={uiText("features.registry.DiffView.entfernt_d0124f")}><Chips items={group.removed} /></Row>
+            <Row label={uiText("features.registry.DiffView.geandert_d63c93")}><Chips items={group.changed} /></Row>
           </dl>
           {group.changed.map((key) => (
             <div key={key} className="mt-2 rounded-[var(--radius-sm)] border border-line p-2">
@@ -83,6 +83,13 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
           ))}
         </Collapsible>
       ))}
+      <Collapsible title={uiText('alpha7.versions.technicalDiff')}>
+        <dl>
+          <Row label={uiText("features.registry.DiffView.geanderte_fingerprints_eb5466")}><Chips items={diff.fingerprint_changes} /></Row>
+          <Row label={uiText("features.registry.DiffView.identitatswechsel_quellen_9211e3")}><Chips items={diff.source_identity_changes} /></Row>
+          <Row label={uiText("features.registry.DiffView.identitatswechsel_bindings_3f8a12")}><Chips items={diff.binding_identity_changes} /></Row>
+        </dl>
+      </Collapsible>
       {Object.keys(diff.affected_fields).length > 0 && (
         <Collapsible title={uiText("features.registry.DiffView.betroffene_ausgabefelder_konservativ_1da6f9")}>
           <ul className="space-y-1 text-sm">

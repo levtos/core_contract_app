@@ -1,7 +1,7 @@
 import { t as uiText } from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
-import { ArrowLeft, CheckCircle2, CircleAlert, Download, Rocket, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CircleAlert, Download, Rocket } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +108,6 @@ export default function DraftPage() {
         description={uiText("features.registry.DraftPage.draft_v0_v_v1_basis_revision_v2_zuletzt_gespeich_24aa87", { v0: (draft.draft_id), v1: (draft.draft_version), v2: (draft.base_revision ?? '–'), v3: (formatTime(draft.updated_at)) })}
         actions={
           <>
-            <Button variant="primary" disabled={!doc.dirty || doc.saving} onClick={() => void doc.save()}><Save size={14} /> {uiText("features.registry.DraftPage.speichern_f6b2ff")}</Button>
             <Button onClick={() => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config))}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
           </>
         }
