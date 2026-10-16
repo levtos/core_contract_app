@@ -18,7 +18,7 @@ export function flow(user: UserEvent) {
   const createDraft = async (name: string, origin: 'Leere Konfiguration' | 'Einlesen (JSON)', json?: string) => {
     await user.click((await screen.findAllByRole('button', { name: /Neuer Entwurf|Ersten Entwurf anlegen/ }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: "Neuer Entwurf" });
-    await user.type(within(dialog).getByLabelText("Name (freiwillig)"), name);
+    await steps.type(within(dialog).getByLabelText("Name (freiwillig)"), name);
     await user.click(within(dialog).getByRole('radio', { name: origin }));
     if (json) {
       await user.click(within(dialog).getByLabelText('oder JSON einfügen'));
@@ -93,7 +93,7 @@ export function flow(user: UserEvent) {
   /** Activation through the real dialog, after the debounced server validation has accepted the draft. */
   const activateOpenDraft = async (draftId: string) => {
     await go(`#/registry/drafts/${draftId}`);
-    const button = await screen.findByRole('button', { name: /Übernehmen/ });
+    const button = await screen.findByRole('button', { name: 'Übernehmen' });
     await waitFor(() => expect(button).toBeEnabled(), { timeout: 65_000 });
     await user.click(button);
     const dialog = await screen.findByRole('dialog', { name: "Konfiguration übernehmen" });

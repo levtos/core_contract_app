@@ -17,6 +17,7 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { BindingEditor, CatalogEditor, DependencyEditor, EntityPicker, SourceEditor, sourceCast } from '@/editors/RegistryObjects';
 import { clone, isObject, setAt, type JsonObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
+import { describeError } from '@/lib/api';
 
 type Name = 'dependencies' | 'sources' | 'bindings' | 'catalogs';
 
@@ -44,9 +45,11 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
     if (params.get('tab') === name && params.has('item')) setSelected(Number(params.get('item')));
   }, [name, params]);
   const [removing, setRemoving] = useState<number | null>(null);
+  const [addError, setAddError] = useState('');
   useEffect(() => {
+    if (!src.editable) return;
     if (selected !== null && selected >= list.length) setSelected(list.length ? list.length - 1 : null);
-  }, [list.length, selected]);
+  }, [list.length, selected, src.editable]);
 
   const ids = list.map((item) => str(item[idKey]));
   const items = list.map((item, index) => ({
@@ -55,9 +58,14 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
     sub: subtitle(item),
     errors: issues.filter((i) => i.path === `/${name}/${index}` || i.path.startsWith(`/${name}/${index}/`)).length,
   }));
-  const add = () => {
-    doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), make(c, ids)]));
-    setSelected(list.length);
+  const add = async () => {
+    setAddError('');
+    try {
+      const current = await doc.ensureDraft();
+      const index = asArray(current[name]).length;
+      doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), make(c, asArray(c[name]).filter(isObject).map(item => str(item[idKey])))]));
+      setSelected(index);
+    } catch (error) { setAddError(describeError(error)); }
   };
   const duplicate = (index: number) => {
     const copy = clone(list[index]!);
@@ -69,12 +77,13 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
 
   return (
     <>
+      {addError && <p role="alert" className="mb-3 text-sm text-bad">{addError}</p>}
       <MasterDetail
         title={singular}
         items={items}
         selected={current ? String(selected) : null}
         onSelect={(key) => setSelected(Number(key))}
-        onAdd={src.editable ? add : undefined}
+        onAdd={() => void add()}
         addLabel={uiText("features.sources.SourcesPage.v0_hinzufugen_198d5a", { v0: (singular) })}
         empty={<Empty title={uiText("features.sources.SourcesPage.v0_wahlen_24a7a9", { v0: (singular) })}>{src.editable ? uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_oder_legen_sie_mi_17add4") : uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_zur_ansicht_257139")}</Empty>}
       >

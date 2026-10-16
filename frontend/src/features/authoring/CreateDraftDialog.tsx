@@ -12,6 +12,7 @@ import type { Draft, Registry } from '@/lib/types';
 import { emptyRegistry } from './model';
 import { parseRegistryJson } from './importExport';
 import { useWorkingDocument } from './WorkingDocument';
+import { defaultDraftName } from './draftName';
 
 type Origin = 'empty' | 'active' | 'import' | 'copy';
 
@@ -43,7 +44,7 @@ export function CreateDraftDialog({
   useEffect(() => {
     if (!open) return;
     setOrigin(copyOf ? 'copy' : active.data ? 'active' : 'empty');
-    setName(copyOf ? `${copyOf.name} (Kopie)` : '');
+    setName(copyOf ? `${copyOf.name} (Kopie)` : defaultDraftName());
     setText('');
     setError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,7 +53,7 @@ export function CreateDraftDialog({
   const submit = async () => {
     setError('');
     let config: Registry;
-    let display = name.trim();
+    let display = name.trim() || defaultDraftName();
     if (origin === 'empty') config = emptyRegistry();
     else if (origin === 'active') config = clone(active.data ?? emptyRegistry());
     else if (origin === 'copy' && copyOf) config = clone(copyOf.config);

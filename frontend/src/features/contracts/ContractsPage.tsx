@@ -1,8 +1,9 @@
 import { t as uiText } from '@/i18n';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Plus, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { describeError } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +95,8 @@ export function NewContractDialog({ open, onOpenChange, onCreated }: { open: boo
 
 export default function ContractsPage() {
   const src = useAuthoringSource();
+  const doc = useWorkingDocument();
+  const [params, setParams] = useSearchParams();
   const live = useLive();
   const issues = useAllIssues();
   const navigate = useNavigate();
@@ -102,6 +105,22 @@ export default function ContractsPage() {
   const [enabledFilter, setEnabledFilter] = useState<'all' | 'on' | 'off'>('all');
   const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'degraded' | 'none'>('all');
   const [creating, setCreating] = useState(false);
+  const [creationError, setCreationError] = useState('');
+  const requested = useRef(false);
+  const start = async () => {
+    setCreationError('');
+    try { await doc.ensureDraft(); setCreating(true); }
+    catch (error) { setCreationError(describeError(error)); }
+  };
+  useEffect(() => {
+    if (params.get('new') !== '1') { requested.current = false; return; }
+    if (requested.current) return;
+    requested.current = true;
+    const next = new URLSearchParams(params); next.delete('new'); setParams(next, { replace: true });
+    void start();
+    // start reads the current provider; the query is consumed exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, setParams]);
 
   const configured = asArray(src.config?.contracts).filter(isObject);
   const rows: Row[] = configured.map((c, index) => {
@@ -156,10 +175,12 @@ export default function ContractsPage() {
         title={uiText("features.contracts.ContractsPage.contracts_definitionen_499616")}
         description={uiText("features.contracts.ContractsPage.instanzen_binden_einen_typ_an_quellen_definition_c07fc7")}
         actions={
-          <Button variant="primary" disabled={!src.editable} onClick={() => setCreating(true)} title={src.editable ? undefined : uiText("features.contracts.ContractsPage.zuerst_einen_arbeits_draft_offnen_2a193a")}>
+          <Button variant="primary" disabled={doc.starting} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.ContractsPage.neue_instanz_e3e518")}</Button>
         }
       />
+      {creationError && <p role="alert" className="mb-3 text-sm text-bad">{creationError}</p>}
+      {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ContractsTabs />
       <ReadOnlyNotice what={uiText("features.contracts.ContractsPage.contract_instanzen_1a0c12")} />
       <PanelLayout view="contracts"><LayoutPanel id="filters" title={uiText("features.contracts.ContractsPage.filter_638e24")}><Panel>

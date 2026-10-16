@@ -17,6 +17,7 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { isObject, setAt } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { ContractsTabs } from './ContractsPage';
+import { describeError } from '@/lib/api';
 
 export default function DefinitionDetailPage() {
   const { typeId = '', version = '' } = useParams();
@@ -28,6 +29,7 @@ export default function DefinitionDetailPage() {
   const [versioning, setVersioning] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [migrate, setMigrate] = useState<Set<string>>(new Set());
+  const [versionError, setVersionError] = useState('');
 
   const definitions = asArray(src.config?.definitions).filter(isObject);
   const index = definitions.findIndex((d) => str(d.type_id) === typeId && String(d.type_version) === version);
@@ -37,7 +39,7 @@ export default function DefinitionDetailPage() {
     return (
       <>
         <Back />
-        <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152")}</Empty>
+        <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{versionError || (src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152"))}</Empty>
       </>
     );
   }
@@ -48,6 +50,15 @@ export default function DefinitionDetailPage() {
   const pointer = `/definitions/${index}`;
   const users = contractsUsingDefinition(src.config, typeId, Number(version));
   const nextVersion = nextVersionOf(definition, definitions);
+  const beginVersion = async () => {
+    setVersionError('');
+    try {
+      const config = await doc.ensureDraft();
+      if (!asArray(config.definitions).filter(isObject).some(item => str(item.type_id) === typeId && String(item.type_version) === version)) throw new Error(uiText('alpha7.draft.templateMissing'));
+      setMigrate(new Set(contractsUsingDefinition(config, typeId, Number(version))));
+      setVersioning(true);
+    } catch (error) { setVersionError(describeError(error)); }
+  };
 
   const createVersion = () => {
     doc.edit((c) => {
@@ -74,15 +85,13 @@ export default function DefinitionDetailPage() {
           <>
             <Badge>{uiText("features.contracts.DefinitionDetailPage.v_4c9448")}{version}</Badge>
             {lockedSince !== null ? <LockBadge /> : <Badge tone="warn">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
-            {src.editable && (
-              <>
-                <Button size="sm" onClick={() => { setMigrate(new Set(users)); setVersioning(true); }}><GitBranchPlus size={14} /> {uiText("features.contracts.DefinitionDetailPage.neue_version_e81cfe")}</Button>
-                <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.DefinitionDetailPage.entfernen_382837")}</Button>
-              </>
-            )}
+            <Button size="sm" disabled={doc.starting} onClick={() => void beginVersion()}><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>
+            {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} />{uiText('features.contracts.DefinitionDetailPage.entfernen_382837')}</Button>}
           </>
         }
       />
+      {versionError && <p role="alert" className="mb-3 text-sm text-bad">{versionError}</p>}
+      {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionDetailPage.definition_9813fa")} />
       <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><fieldset disabled={!src.editable} className="min-w-0">
         <DefinitionEditor

@@ -1,15 +1,19 @@
 import { t as uiText } from '@/i18n';
-import { CheckCircle2, CircleAlert, FileEdit, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Loader2, MoreHorizontal, Redo2, Save, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tip } from '@/components/ui/controls';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
 import { Notice, Spinner } from '@/components/ui/layout';
 import { formatTime } from '@/lib/format';
 import { canonicalJson } from '@/lib/json';
-import { useDrafts } from '@/lib/queries';
+import { describeError } from '@/lib/api';
+import { useActiveExport, useDrafts } from '@/lib/queries';
+import { ActivateDialog } from '@/features/registry/ActivationDialogs';
+import { IssueList } from '@/features/registry/IssueList';
+import { changedPaths } from './locate';
+import { emptyRegistry } from './model';
 import type { Draft } from '@/lib/types';
 import { CreateDraftDialog } from './CreateDraftDialog';
 import { useWorkingDocument } from './WorkingDocument';
@@ -117,23 +121,57 @@ export function ConflictDialog() {
 }
 
 export function ValidationChip() {
-  const { draft, validation, autoValidate } = useWorkingDocument();
-  if (validation.state === 'checking') return <Badge tone="neutral"><Loader2 size={11} className="animate-spin" /> {uiText("features.authoring.DraftBar.pruft_e99f77")}</Badge>;
-  if (validation.state === 'failed') return <Tip label={validation.error ?? uiText("features.authoring.DraftBar.validierung_nicht_moglich_ce6c4d")}><span tabIndex={0}><Badge tone="warn"><CircleAlert size={11} /> {uiText("features.authoring.DraftBar.prufung_nicht_moglich_9c9bd1")}</Badge></span></Tip>;
-  if (validation.state === 'idle') return <Badge tone="neutral">{autoValidate ? uiText("features.authoring.DraftBar.wird_gepruft_90f584") : uiText("features.authoring.DraftBar.ungepruft_08112f")}</Badge>;
+  const doc = useWorkingDocument();
+  const { validation, autoValidate } = doc;
+  const [show, setShow] = useState(false);
   const count = validation.issues.length;
-  if (count > 0) return <Link to={`/changes/drafts/${encodeURIComponent(draft?.draft_id ?? '')}?focus=validation`}><Badge tone="bad"><CircleAlert size={11} /> {count} {count === 1 ? uiText("features.authoring.DraftBar.fehler_f6cc01") : uiText("features.authoring.DraftBar.fehler_f6cc01")}{validation.stale ? uiText("features.authoring.DraftBar.veraltet_14c672") : ''}</Badge></Link>;
-  return <Badge tone={validation.stale ? 'neutral' : 'ok'}><CheckCircle2 size={11} /> {uiText("features.authoring.DraftBar.gultig_87b71a")}{validation.stale ? uiText("features.authoring.DraftBar.veraltet_14c672") : ''}</Badge>;
+  let content;
+  if (validation.state === 'checking') content = <Badge tone="neutral"><Loader2 size={11} className="animate-spin" />{uiText('alpha7.draft.checking')}</Badge>;
+  else if (validation.state === 'failed') content = <Badge tone="bad">{uiText('alpha7.draft.checkFailed')}</Badge>;
+  else if (validation.state === 'idle') content = <Badge tone="neutral">{autoValidate ? uiText("features.authoring.DraftBar.wird_gepruft_90f584") : uiText("features.authoring.DraftBar.ungepruft_08112f")}</Badge>;
+  else if (count) content = <Badge tone="bad"><CircleAlert size={11} />{uiText('alpha7.draft.errors', { count })}{validation.stale ? uiText('alpha7.draft.recheck') : ''}</Badge>;
+  else content = <Badge tone={validation.stale ? 'neutral' : 'ok'}><CheckCircle2 size={11} />{validation.stale ? uiText('alpha7.draft.changed') : uiText('alpha7.draft.noErrors')}</Badge>;
+  return <>
+    {count || validation.state === 'failed' ? <button type="button" aria-haspopup="dialog" className="cursor-pointer rounded-full" onClick={() => setShow(true)}>{content}</button> : <span role="status" aria-live="polite">{content}</span>}
+    <Dialog open={show} onOpenChange={setShow} title={uiText('alpha7.draft.checkResult')} footer={<Button onClick={() => setShow(false)}>{uiText('alpha7.draft.close')}</Button>}>
+      {validation.error && <p role="alert" className="mb-3 text-sm text-bad">{validation.error}</p>}
+      {validation.stale && <p className="mb-3 text-sm">{uiText('alpha7.draft.changed')}</p>}
+      <IssueList issues={validation.issues} config={doc.config} />
+    </Dialog>
+  </>;
+}
+
+export function ReviewDraftButton({ children }: { children?: React.ReactNode }) {
+  const doc = useWorkingDocument();
+  const [target, setTarget] = useState<Draft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const review = async () => {
+    setBusy(true); setError('');
+    try { setTarget(await doc.prepareActivation()); }
+    catch (failure) { setError(describeError(failure)); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <Button size="sm" variant="primary" disabled={!doc.draft || busy || doc.saving} onClick={() => void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText('alpha7.draft.apply')}</Button>
+    {!doc.draft && <span className="text-xs text-muted">{uiText('alpha7.draft.noDraft')}</span>}
+    {error && <span role="alert" className="text-xs text-bad">{error}</span>}
+    {target && <ActivateDialog draft={target} open onOpenChange={open => !open && setTarget(null)} />}
+  </>;
 }
 
 export function DraftBar() {
   const doc = useWorkingDocument();
+  const active = useActiveExport();
   const [picker, setPicker] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [startError, setStartError] = useState('');
+  const changes = doc.config ? changedPaths(active.data ?? emptyRegistry(), doc.config).length : 0;
+  const begin = async () => { setStartError(''); try { await doc.ensureDraft(); } catch (error) { setStartError(describeError(error)); } };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && doc.draft) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && doc.draft && doc.editing) {
         event.preventDefault();
         if (doc.dirty && !doc.saving) void doc.save();
       }
@@ -144,25 +182,30 @@ export function DraftBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label={uiText("features.authoring.DraftBar.arbeits_draft_00218f")}>
-      {doc.draft ? (
+      <div role="group" aria-label={uiText('alpha7.mode.label')} className="flex rounded-lg border border-line p-0.5">
+        <Button variant="ghost" size="sm" aria-pressed={!doc.editing} disabled={doc.starting} className={!doc.editing ? 'bg-raised text-fg' : ''} onClick={() => doc.setEditing(false)}>{uiText('alpha7.mode.live')}</Button>
+        <Button variant="ghost" size="sm" aria-pressed={doc.editing} disabled={doc.starting} className={doc.editing ? 'bg-raised text-fg' : ''} onClick={() => void begin()}>{uiText('alpha7.mode.edit')}</Button>
+      </div>
+      {doc.starting && <span role="status" className="text-xs text-muted">{uiText('alpha7.draft.preparing')}</span>}
+      {startError && <span role="alert" className="text-xs text-bad">{startError}</span>}
+      {doc.draft && doc.editing ? (
         <>
-          <Link to={`/changes/drafts/${encodeURIComponent(doc.draft.draft_id)}`} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-line-strong bg-raised px-2.5 py-1 text-xs hover:border-accent/60">
-            <FileEdit size={13} className="text-accent" />
-            <span className="max-w-40 truncate font-medium">{draftLabel({ ...doc.draft, display_name: doc.displayName })}</span>
-            <span className="text-faint">{uiText("features.authoring.DraftBar.v_4c9448")}{doc.draft.draft_version}</span>
-          </Link>
-          {doc.dirty ? <Badge tone="warn">{uiText("features.authoring.DraftBar.ungespeichert_e2fde8")}</Badge> : <Badge tone="neutral">{uiText("features.authoring.DraftBar.gespeichert_53f27e")}</Badge>}
+          <span title={doc.displayName} className="max-w-36 truncate text-xs text-muted">{doc.displayName}</span>
+          <span className="text-sm font-medium">{uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
+          <span className="text-xs text-muted">{doc.dirty ? uiText('alpha7.draft.notSaved') : uiText('alpha7.draft.saved')}</span>
           <ValidationChip />
-          <Tip label={uiText("features.authoring.DraftBar.ruckgangig_dd7bd2")}><Button variant="ghost" size="icon" aria-label={uiText("features.authoring.DraftBar.ruckgangig_dd7bd2")} disabled={!doc.canUndo} onClick={doc.undo}><Undo2 size={15} /></Button></Tip>
-          <Tip label={uiText("features.authoring.DraftBar.wiederholen_e0ef00")}><Button variant="ghost" size="icon" aria-label={uiText("features.authoring.DraftBar.wiederholen_e0ef00")} disabled={!doc.canRedo} onClick={doc.redo}><Redo2 size={15} /></Button></Tip>
-          <Button size="sm" variant="primary" disabled={!doc.dirty || doc.saving} onClick={() => void doc.save()} title={uiText("features.authoring.DraftBar.strg_s_bda7e5")}>
-            {doc.saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} {uiText("features.authoring.DraftBar.speichern_f6b2ff")}</Button>
+          <Button size="sm" disabled={!doc.dirty || doc.saving} onClick={() => void doc.save()} title={uiText("features.authoring.DraftBar.strg_s_bda7e5")}>
+            {doc.saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}{uiText(doc.saving ? 'alpha7.draft.saving' : 'features.authoring.DraftBar.speichern_f6b2ff')}</Button>
           <Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button>
-          <Tip label={uiText("features.authoring.DraftBar.draft_schlie_en_e8650e")}><Button variant="ghost" size="icon" aria-label={uiText("features.authoring.DraftBar.draft_schlie_en_e8650e")} onClick={() => (doc.dirty ? setClosing(true) : doc.close())}><X size={15} /></Button></Tip>
+          <ReviewDraftButton />
+          <details className="relative"><summary aria-label={uiText('alpha7.draft.more')} className="grid size-8 cursor-pointer list-none place-items-center rounded-lg hover:bg-raised"><MoreHorizontal size={16} /></summary><div className="absolute right-0 top-9 z-30 flex min-w-48 flex-col items-start gap-1 rounded-lg border border-line bg-panel p-2 shadow-xl">
+            {doc.canUndo && <Button size="sm" variant="ghost" onClick={doc.undo}><Undo2 size={13} />{uiText('features.authoring.DraftBar.ruckgangig_dd7bd2')}</Button>}
+            {doc.canRedo && <Button size="sm" variant="ghost" onClick={doc.redo}><Redo2 size={13} />{uiText('features.authoring.DraftBar.wiederholen_e0ef00')}</Button>}
+            <Button size="sm" variant="ghost" onClick={() => setPicker(true)}>{uiText('alpha7.draft.switch')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => doc.dirty ? setClosing(true) : doc.close()}>{uiText('features.authoring.DraftBar.draft_schlie_en_e8650e')}</Button>
+          </div></details>
         </>
-      ) : (
-        <Button size="sm" onClick={() => setPicker(true)}><FileEdit size={13} /> {uiText("features.authoring.DraftBar.arbeits_draft_wahlen_d0f546")}</Button>
-      )}
+      ) : doc.dirty ? <span className="text-xs text-muted">{uiText('alpha7.draft.kept')}</span> : null}
       <DraftPicker open={picker} onOpenChange={setPicker} />
       <ConflictDialog />
       <SwitchDialog />
@@ -174,21 +217,6 @@ export function DraftBar() {
 
 /** Shown above authoring pages that currently display the (read-only) active registry. */
 export function ReadOnlyNotice({ what }: { what: string }) {
-  const doc = useWorkingDocument();
-  const [picker, setPicker] = useState(false);
-  const [creating, setCreating] = useState(false);
-  if (doc.config) return null;
-  return (
-    <>
-      <Notice tone="info" title={uiText("features.authoring.DraftBar.v0_schreibgeschutzte_ansicht_der_aktiven_registr_d18159", { v0: (what) })} className="mb-4">
-        <p>{uiText("features.authoring.DraftBar.zum_bearbeiten_einen_arbeits_draft_offnen_drafts_00df6c")}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button size="sm" variant="primary" onClick={() => setCreating(true)}>{uiText("features.authoring.DraftBar.neuen_draft_anlegen_2247df")}</Button>
-          <Button size="sm" onClick={() => setPicker(true)}>{uiText("features.authoring.DraftBar.bestehenden_draft_wahlen_58d464")}</Button>
-        </div>
-      </Notice>
-      <DraftPicker open={picker} onOpenChange={setPicker} />
-      <CreateDraftDialog open={creating} onOpenChange={setCreating} />
-    </>
-  );
+  void what;
+  return null;
 }

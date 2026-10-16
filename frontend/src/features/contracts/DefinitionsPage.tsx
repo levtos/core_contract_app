@@ -21,6 +21,7 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { isObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { ContractsTabs } from './ContractsPage';
+import { describeError } from '@/lib/api';
 
 interface Row {
   key: string;
@@ -45,6 +46,12 @@ export default function DefinitionsPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [typeId, setTypeId] = useState('test.');
+  const [creationError, setCreationError] = useState('');
+  const start = async () => {
+    setCreationError('');
+    try { await doc.ensureDraft(); setCreating(true); }
+    catch (error) { setCreationError(describeError(error)); }
+  };
 
   const definitions = asArray(src.config?.definitions).filter(isObject);
   const rows: Row[] = definitions.map((d, index) => ({
@@ -85,10 +92,12 @@ export default function DefinitionsPage() {
         title={uiText(builtin ? 'alpha7.nav.builtinTemplates' : 'alpha7.nav.ownTemplates')}
         description={uiText("features.contracts.DefinitionsPage.definitionen_sind_deklarative_typen_mit_unverand_5b643c")}
         actions={
-          !builtin && <Button variant="primary" disabled={!src.editable} onClick={() => setCreating(true)} title={src.editable ? undefined : uiText("features.contracts.DefinitionsPage.zuerst_einen_arbeits_draft_offnen_2a193a")}>
+          !builtin && <Button variant="primary" disabled={doc.starting} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.DefinitionsPage.neue_definition_fcff16")}</Button>
         }
       />
+      {creationError && <p role="alert" className="mb-3 text-sm text-bad">{creationError}</p>}
+      {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ContractsTabs />
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionsPage.definitionen_871a91")} />
       <PanelLayout view={builtin ? 'templates.builtin' : 'templates.own'}>{!builtin && <LayoutPanel id="definitions" title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")}><Panel>

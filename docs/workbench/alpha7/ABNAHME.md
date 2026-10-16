@@ -28,7 +28,7 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P2.01 | Nicht bereit · n / grün Bereit; Version daneben | umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
 | P2.02 | Klick und Hover öffnen Bedingungen als Sätze mit Lösungslinks | umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
 | P2.03 | Keine gelben Warnkästen auf Seiten | zentrale Bedingungskästen entfernt; übrige Seitenprüfung offen | readiness.test.tsx | offen |
-| P2.04 | Kopf-Umschalter Live ansehen / Bearbeiten | folgt mit P5 | offen | offen |
+| P2.04 | Kopf-Umschalter Live ansehen / Bearbeiten | mit P5 umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
 | P3.01 | Nur drei Übersichtsblöcke, keine Status-/Installations-/Bereiche-Karten | offen | offen | offen |
 | P3.02 | Neuer Vertrag, Import, Übernehmen nur bei offenem Entwurf | offen | offen | offen |
 | P3.03 | Zähler aktiv/gesund/eingeschränkt/ausgeschaltet filtern Vertragsliste | offen | offen | offen |
@@ -42,13 +42,13 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P4.05 | Ablauf-Befehlsknöpfe auf Vertragsdetail | offen | offen | offen |
 | P4.06 | Prominenter JSON-/Textimport, automatisch Entwurf, Prüfergebnis vor Übernehmen | begonnen in P1 | navigation.test.tsx | offen |
 | P4.07 | eingeschaltet statt aktiviert; reine Entwurfsverträge klar kennzeichnen | offen | offen | offen |
-| P5.01 | Live ansehen/Bearbeiten; alle Fachseiten im Bearbeiten-Modus editierbar | offen | offen | offen |
-| P5.02 | Leiste n Änderungen / Prüfen / Übernehmen | offen | offen | offen |
-| P5.03 | Sichtbare Prüfrückmeldung; n Fehler öffnet Liste | offen | offen | offen |
-| P5.04 | Übernehmen öffnet Bestätigungsdialog | offen | offen | offen |
-| P5.05 | Anlegen/Import startet automatisch Entwurf, ohne Sprung auf andere Seite | offen | offen | offen |
-| P5.06 | Name optional mit Änderungen vom Datum Uhrzeit; erklärender Satz | begonnen beim Import | navigation.test.tsx | offen |
-| P5.07 | Schreibschutz-Hinweiskästen entfernen; deaktivierte Knöpfe mit sichtbarem Grund | offen | offen | offen |
+| P5.01 | Live ansehen/Bearbeiten; alle Fachseiten im Bearbeiten-Modus editierbar | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
+| P5.02 | Leiste n Änderungen / Prüfen / Übernehmen | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
+| P5.03 | Sichtbare Prüfrückmeldung; n Fehler öffnet Liste | umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
+| P5.04 | Übernehmen öffnet Bestätigungsdialog | umgesetzt; exakter Kandidat nach asynchronem Speichern gesichert | draftMode.test.tsx; draftOwnership.test.tsx | offen |
+| P5.05 | Anlegen/Import startet automatisch Entwurf, ohne Sprung auf andere Seite | umgesetzt für Verträge, Vorlagen/Versionen und alle Quellenarten; Sichtprüfung offen | draftMode.test.tsx; navigation.test.tsx; versioning.test.tsx | offen |
+| P5.06 | Name optional mit Änderungen vom Datum Uhrzeit; erklärender Satz | umgesetzt; Sichtprüfung offen | draftMode.test.tsx; navigation.test.tsx | offen |
+| P5.07 | Schreibschutz-Hinweiskästen entfernen; deaktivierte Knöpfe mit sichtbarem Grund | Kästen entfernt, Entwurfsaktionen begründet; weitere Seitenprüfung folgt | draftMode.test.tsx | offen |
 | P6.01 | Geräteführung wählt HA-Entität mit Bereichs-/Domänenfilter und aktuellem Wert | offen | offen | offen |
 | P6.02 | Quelle/Abhängigkeit/Verknüpfung/ausdrückliche passende Typumwandlung automatisch | offen | offen | offen |
 | P6.03 | Fach-IDs vorgeschlagen; Fachfelder nur Erweitert | offen | offen | offen |
@@ -99,8 +99,8 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | A11.04 | Nicht bereit · n mit Lösungslink | P2 umgesetzt; Sichtprüfung offen | readiness.test.tsx | offen |
 | A11.05 | Vertragstabelle eine Spalte Zustand | offen | offen | offen |
 | A11.06 | Vorlagen eigene Unterseite | P1 umgesetzt; Sichtprüfung offen | navigation.test.tsx | offen |
-| A11.07 | Neuer Vertrag startet Entwurf, keine Hinweiskästen | offen | offen | offen |
-| A11.08 | Live/Bearbeiten und n Änderungen/Prüfen/Übernehmen | offen | offen | offen |
+| A11.07 | Neuer Vertrag startet Entwurf, keine Hinweiskästen | P5 umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
+| A11.08 | Live/Bearbeiten und n Änderungen/Prüfen/Übernehmen | P5 umgesetzt; Sichtprüfung offen | draftMode.test.tsx | offen |
 | A11.09 | Grau = unbekannt | offen | offen | offen |
 | A11.10 | Texte in de.json | Alpha 6 vorhanden; Regression laufend | scan:i18n | offen |
 | TOP.01 | Zahl-/Ja-Nein-Quellen richtig lesen oder warnen | Alpha 6 vorhanden; Geräteführung offen | offen | offen |
@@ -131,6 +131,11 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
   Außenklick und fehlende erfundene HA-Störung während des Verbindungsaufbaus.
   Zusammen mit Navigation/Status 27 Tests grün; TypeScript und Sprachscan grün.
   Der Umschalter folgt in P5 gemeinsam mit der Entwurfszustandsführung.
+- P5: sieben neue GUI-Tests und drei Besitz-/Parallelitätstests. Automatischer Entwurf,
+  Ansichtswechsel ohne Verlust, Fehlerdialog ohne Navigation und Übernahmevorbereitung
+  mit exakt gespeichertem Kandidaten. Zwei gleichzeitige Anfragen erzeugen einen Entwurf;
+  späte Antworten nach Bearbeiten/Entwurfswechsel werden abgewiesen. Gesamtlauf:
+  **197 Frontend-Tests bestanden**, drei Engine-E2E separat; Build, TypeScript und Sprachprüfungen grün.
 
 ## Freigabegrenze
 

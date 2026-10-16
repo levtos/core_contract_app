@@ -5,6 +5,8 @@ import { clone, deepEqual, getAt, setAt, type Json } from '@/lib/json';
 import { useDraftMutations, validateConfig } from '@/lib/queries';
 import { IssuesProvider } from './issues';
 import type { Draft, Registry, ValidationResult } from '@/lib/types';
+import { emptyRegistry } from './model';
+import { defaultDraftName } from './draftName';
 
 /**
  * The single editable registry document ("Arbeits-Draft").
@@ -32,6 +34,11 @@ export interface Conflict {
 }
 
 export interface WorkingDocument {
+  editing: boolean;
+  starting: boolean;
+  setEditing: (editing: boolean) => void;
+  ensureDraft: () => Promise<Registry>;
+  prepareActivation: () => Promise<Draft>;
   draft: Draft | null;
   config: Registry | null;
   displayName: string;
@@ -97,6 +104,9 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   const { create, update } = useDraftMutations();
   const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, name: '', past: [], future: [] });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef<Promise<Registry> | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [validation, setValidation] = useState<ValidationView>(IDLE);
@@ -115,7 +125,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   const open = useCallback((draft: Draft, options?: { reload?: boolean }) => {
     // Selecting the draft that is already open must never drop its local edits or undo history.
-    if (latest.current.draft?.draft_id === draft.draft_id && !options?.reload) return;
+    if (latest.current.draft?.draft_id === draft.draft_id && !options?.reload) { setEditing(true); return; }
     documentId.current += 1;
     clearTimeout(retryTimer.current);
     rememberDraftId(draft.draft_id);
@@ -124,14 +134,42 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     setValidation(IDLE);
     setSaveError(null);
     setConflict(null);
+    setEditing(true);
     setSnap({ draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] });
   }, []);
+
+  /** Creating a draft is shared by all pages and never navigates or activates. */
+  const ensureDraft = useCallback((): Promise<Registry> => {
+    if (latest.current.draft && latest.current.config) {
+      setEditing(true);
+      return Promise.resolve(clone(latest.current.config));
+    }
+    if (startingRef.current) return startingRef.current;
+    const owner = ++documentId.current;
+    setStarting(true);
+    const request = (async () => {
+      let config: Registry;
+      try { config = await api<Registry>('registry/active/export'); }
+      catch (error) {
+        if (!(error instanceof ApiError) || error.code !== 'no_active_registry') throw error;
+        config = emptyRegistry();
+      }
+      if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+      const created = await create.mutateAsync({ config, display_name: defaultDraftName() });
+      if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+      open(created);
+      return clone(created.config);
+    })();
+    const pending = request.finally(() => { if (startingRef.current === pending) { startingRef.current = null; setStarting(false); } });
+    startingRef.current = pending;
+    return pending;
+  }, [create, open]);
 
   const [switchRequest, setSwitchRequest] = useState<Draft | null>(null);
   const requestOpen = useCallback(
     (draft: Draft) => {
       const current = latest.current;
-      if (current.draft?.draft_id === draft.draft_id) return 'noop' as const;
+      if (current.draft?.draft_id === draft.draft_id) { setEditing(true); return 'noop' as const; }
       const isDirty = current.draft !== null && current.config !== null && (!deepEqual(current.config, current.draft.config) || current.name !== (current.draft.display_name ?? ''));
       if (isDirty) {
         setSwitchRequest(draft);
@@ -159,6 +197,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     setValidation(IDLE);
     setConflict(null);
     setSwitchRequest(null);
+    setEditing(false);
     setSnap({ draft: null, config: null, name: '', past: [], future: [] });
   }, []);
 
@@ -166,11 +205,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   useEffect(() => {
     const id = storedDraftId();
     if (!id) return;
+    const owner = documentId.current;
     api<Draft>(`registry/drafts/${encodeURIComponent(id)}`)
       .then((draft) => {
-        if (latest.current.draft === null) open(draft);
+        if (owner === documentId.current && latest.current.draft === null) open(draft);
       })
-      .catch(() => rememberDraftId(null));
+      .catch(() => { if (owner === documentId.current) rememberDraftId(null); });
   }, [open]);
 
   const edit = useCallback((updater: (config: Registry) => Registry) => {
@@ -281,6 +321,21 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     }
   }, [update]);
 
+  /** Confirmation always receives the exact saved candidate, even after an async save. */
+  const prepareActivation = useCallback(async (): Promise<Draft> => {
+    const current = latest.current;
+    const owner = documentId.current;
+    if (!current.draft || !current.config) throw new Error(uiText('alpha7.draft.noDraft'));
+    if (!deepEqual(current.config, current.draft.config) || current.name !== (current.draft.display_name ?? '')) {
+      if (await save() !== 'saved') throw new Error(uiText('alpha7.draft.saveBeforeReview'));
+    }
+    const saved = await api<Draft>(`registry/drafts/${encodeURIComponent(current.draft.draft_id)}`);
+    if (owner !== documentId.current || latest.current.config !== current.config || latest.current.name !== current.name || !deepEqual(saved.config, current.config) || (saved.display_name ?? '') !== current.name) {
+      throw new Error(uiText('alpha7.draft.changedDuringAction'));
+    }
+    return saved;
+  }, [save]);
+
   const resolveConflict = useCallback(
     async (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => {
       const current = conflict;
@@ -316,6 +371,11 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   const value = useMemo<WorkingDocument>(
     () => ({
+      editing,
+      starting,
+      setEditing,
+      ensureDraft,
+      prepareActivation,
       draft: snap.draft,
       config: snap.config,
       displayName: snap.name,
@@ -344,7 +404,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, conflict, validation, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (
