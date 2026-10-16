@@ -179,14 +179,14 @@ async function templateTabs(page, phase, browser) {
   for (const [name, label] of [['inputs', /^Eingänge/], ['outputs', /^Ausgaben/], ['rules', /^Benannte Regeln/], ['machine', /^Ablauf/], ['json', /^JSON/]]) {
     await page.getByRole('tab', { name: label }).click(); await delay(150);
     if (phase === 'after' && name === 'inputs') {
-      const disclosure = page.getByRole('tabpanel').getByRole('button', { expanded: true }).first();
+      const disclosure = page.getByRole('tabpanel').locator('[role="button"][aria-expanded]').first();
       await disclosure.click(); await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
       await disclosure.press('Enter'); await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
       await expect(page.getByRole('tabpanel').getByLabel('Name', { exact: true })).toBeDisabled();
     }
     if (phase === 'after' && name === 'outputs') {
-      await page.getByRole('button', { name: 'Zuklappen', exact: true }).first().click();
-      const collapsed = page.getByRole('button', { name: 'Aufklappen', exact: true }).first();
+      const collapsed = page.getByRole('tabpanel').locator('[data-op]').first().locator('[role="button"][aria-expanded]').first();
+      await collapsed.click(); await expect(collapsed).toHaveAttribute('aria-expanded', 'false');
       await collapsed.press('Space'); await expect(collapsed).toHaveAttribute('aria-expanded', 'true');
       await expect(page.getByLabel('Operator', { exact: true }).first()).toBeDisabled();
       manifest.checks.push({ browser, check: 'Live template disclosures respond to mouse and keyboard while inputs remain disabled', result: 'passed' });
