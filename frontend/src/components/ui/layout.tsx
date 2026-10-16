@@ -21,7 +21,7 @@ export function PanelHeader({ title, aside, description }: { title: ReactNode; a
 
 export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 pr-12">
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 max-w-3xl text-sm text-muted">{description}</p>}

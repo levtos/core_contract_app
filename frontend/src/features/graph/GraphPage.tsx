@@ -202,7 +202,7 @@ export default function GraphPage() {
     <>
       <PageHeader title={uiText("features.graph.GraphPage.graph_32ab01")} description={uiText("features.graph.GraphPage.quellen_contracts_und_abgeleitete_ergebnisse_kan_5cf87d")} />
       <p className="mb-3 flex items-center gap-2 text-sm"><Badge tone={src.source === 'draft' ? 'info' : 'neutral'}>{uiText(src.source === 'draft' ? 'alpha7.graph.draft' : 'alpha7.graph.live')}</Badge>{uiText(src.source === 'draft' ? 'alpha7.graph.draftHelp' : 'alpha7.graph.liveHelp', { n: active.data?.revision ?? '—' })}</p>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3 pr-12">
         <Input aria-label={uiText("features.graph.GraphPage.knoten_suchen_5bcf84")} className="w-56" placeholder={uiText("features.graph.GraphPage.knoten_suchen_64e35f")} value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && match && select(match.id)} />
         <Button size="sm" disabled={!match} onClick={() => match && select(match.id)}>{uiText("features.graph.GraphPage.auswahlen_0bf1ed")}</Button>
         {!match && <span className="text-xs text-muted">{uiText(search.trim() ? 'alpha7.graph.noMatch' : 'alpha7.graph.searchFirst')}</span>}

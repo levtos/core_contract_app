@@ -32,6 +32,7 @@ it('shows time, recorded actor and note; exposes rollback only on an older versi
   const current = screen.getByText('Wohnzimmer ergänzt').closest('li')!;
   await waitFor(() => expect(within(old).getByRole('button', { name: 'Auf diese Version zurücksetzen' })).toBeEnabled());
   expect(within(current).queryByRole('button', { name: /zurücksetzen/ })).toBeNull();
+  expect(within(current).getByText('aktiv', { exact: true })).toHaveClass('text-info');
   expect(current.querySelector('details[open]')).toBeNull();
   expect(screen.getByText('Wähle zwei Versionen über die Kästchen links aus.')).toBeVisible();
 });

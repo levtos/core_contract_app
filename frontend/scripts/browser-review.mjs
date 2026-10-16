@@ -85,6 +85,19 @@ async function capture(page, phase, browser, name, comparison) {
   const image = await page.screenshot({ path: target, fullPage: false, animations: 'disabled' });
   const dimensions = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth }));
   if (dimensions.width !== 1920 || dimensions.height !== 1080 || dimensions.documentWidth > 1920) throw new Error(`Invalid viewport or document overflow on ${name}: ${JSON.stringify(dimensions)}`);
+  if (phase === 'after') {
+    for (const menu of await page.getByLabel('Weitere Seitenaktionen', { exact: true }).all()) {
+      const overlaps = await menu.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return Array.from(document.querySelector('main').querySelectorAll('button,a,select')).filter(candidate => {
+          if (candidate === element || element.contains(candidate)) return false;
+          const other = candidate.getBoundingClientRect();
+          return other.width > 0 && other.height > 0 && Math.min(rect.right, other.right) - Math.max(rect.left, other.left) > 1 && Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top) > 1;
+        }).map(candidate => candidate.textContent.trim());
+      });
+      if (overlaps.length) throw new Error(`Page menu overlaps actions on ${name}: ${overlaps.join(', ')}`);
+    }
+  }
   manifest.screenshots.push({ file, phase, browser, task: name, route: new URL(page.url()).hash, comparison, sha256: createHash('sha256').update(image).digest('hex'), ...dimensions });
   console.log(`Captured ${file}`);
 }

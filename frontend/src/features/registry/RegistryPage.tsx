@@ -154,7 +154,7 @@ function RevisionsTab() {
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       {uiText("features.registry.RegistryPage.revision_e330d8")}{row.revision}
-                      {isActive && <Badge tone="ok">{uiText("features.registry.RegistryPage.aktiv_3139fc")}</Badge>}
+                      {isActive && <Badge tone="info">{uiText("features.registry.RegistryPage.aktiv_3139fc")}</Badge>}
                       {op && <Badge>{op === 'rollback' ? uiText("features.registry.RegistryPage.rollback_c591f5") : uiText("features.registry.RegistryPage.aktivierung_90ba1a")}</Badge>}
                     </p>
                     <p className="text-xs text-muted">{formatTime(row.created_at)} · {actorLabel}</p>
