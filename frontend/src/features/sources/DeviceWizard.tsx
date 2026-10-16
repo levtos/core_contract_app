@@ -97,7 +97,7 @@ export function DeviceWizard({ open, onOpenChange, title, contract, expectedSche
             <p className="text-xs text-muted">{t('alpha7.device.idsAutomatic')}</p>
           </div></details>
         </>}
-        {disabledReason && <p role="status" className="text-sm text-muted">{disabledReason}</p>}{error && <p role="alert" className="text-sm text-bad">{error}</p>}
+        {selected && disabledReason && <p role="status" className="text-sm text-muted">{disabledReason}</p>}{error && <p role="alert" className="text-sm text-bad">{error}</p>}
       </div>
     </div>
   </Dialog>;

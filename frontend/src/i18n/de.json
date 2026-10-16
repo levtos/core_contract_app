@@ -1,4 +1,6 @@
 {
+  "alpha7.versions.explanation": "Hier findest du die bisher übernommenen Konfigurationen. Eine ältere Version kannst du prüfen und erneut übernehmen.",
+  "alpha7.versions.affectedOne": "Nach dem Übernehmen erhält 1 Vertrag die neue Versionsnummer.",
   "alpha7.copy.newContractId": "vertrag.neu",
   "alpha7.copy.checkIdentifier": "Prüfe die Kennung unter Erweitert: nur einfache Buchstaben ohne Umlaute, Zahlen, Punkt und Unterstrich; kein Punkt am Ende.",
   "alpha7.evidence.indexed": "{label} {n}",
@@ -1345,7 +1347,7 @@
   "features.graph.GraphPage.diagnose_64dd65": "Diagnose",
   "features.graph.GraphPage.contract_offnen_019eff": "Vertrag öffnen",
   "features.graph.GraphPage.quelle_offnen_16c604": "Quelle öffnen",
-  "features.graph.GraphPage.graph_32ab01": "Graph",
+  "features.graph.GraphPage.graph_32ab01": "Zusammenhänge",
   "features.graph.GraphPage.quellen_contracts_und_abgeleitete_ergebnisse_kan_5cf87d": "Quellen, Verträge und abgeleitete Ergebnisse. Kanten zeigen, welcher Eingang woraus gespeist wird; Farbe und Rand folgen dem Zustand, den der App meldet.",
   "features.graph.GraphPage.knoten_suchen_5bcf84": "Knoten suchen",
   "features.graph.GraphPage.knoten_suchen_64e35f": "Knoten suchen …",

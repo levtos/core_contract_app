@@ -40,6 +40,9 @@ describe('system conditions are named separately', () => {
 describe('field presentation', () => {
   const base: FieldValue = { status: 'valid', value: false, quality: 'healthy', reasons: [], evidence: [] };
   it('shows a real false as Nein', () => expect(displayValue(base)).toBe('Nein'));
+  it('uses German booleans and decimals inside structured values without a raw JSON dump', () => {
+    expect(displayValue({ ...base, value: { Fenster: true, Messungen: [21.5, false] } })).toBe('Fenster: Ja; Messungen: 21,5 · Nein');
+  });
   it('never renders unknown as false/off', () => {
     expect(displayValue({ ...base, status: 'unknown', value: null, quality: 'degraded' })).toBe('unbekannt');
     expect(displayValue({ ...base, status: 'unresolved', value: null, quality: 'degraded' })).toBe('ungelöst');

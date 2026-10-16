@@ -3,7 +3,7 @@ import type { Tone } from '@/components/ui/badge';
 import type { Connection } from './live';
 import type { FieldStatus, FieldValue, ServiceState } from './types';
 import { formatDuration, formatNumber } from './format';
-import { codeLabel } from '@/i18n/codes';
+import { codeLabel, fieldLabel } from '@/i18n/codes';
 
 /**
  * Honest status vocabulary. "unknown" is a status, never `false`/`off`, and
@@ -33,7 +33,17 @@ export function displayValue(field: FieldValue, unit?: string): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? uiText("lib.status.ja_cde9e5") : uiText("lib.status.nein_90ebc1");
   if (typeof value === 'number') return unit === 's' ? formatDuration(value) : `${formatNumber(value)}${unit ? ` ${unit}` : ''}`;
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return structuredValue(value);
+}
+
+/** User-defined nested values retain their keys, with German scalar presentation. */
+function structuredValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return uiText(value ? 'lib.status.ja_cde9e5' : 'lib.status.nein_90ebc1');
+  if (typeof value === 'number') return formatNumber(value);
+  if (Array.isArray(value)) return value.map(structuredValue).join(' · ');
+  if (typeof value === 'object') return Object.entries(value).map(([key, item]) => `${fieldLabel(key)}: ${structuredValue(item)}`).join('; ');
+  return String(value);
 }
 
 export type ConditionKind =

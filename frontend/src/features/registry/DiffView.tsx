@@ -62,7 +62,7 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
         <Row label={uiText("features.registry.DiffView.transitiv_betroffen_ef01a8")}><Chips items={diff.transitively_affected_contracts} link /></Row>
         {restarted.length > 0 && <Row label={uiText("features.registry.DiffView.mogliche_neuinitialisierung_2361a0")}><Chips items={restarted} tone="warn" link /></Row>}
         <Row label={uiText("features.registry.DiffView.fristen_bleiben_erhalten_bcbfe1")}>{diff.restore.retains_absolute_deadlines_if_compatible ? uiText("features.registry.DiffView.ja_bei_kompatiblem_fingerprint_219c13") : uiText("features.registry.DiffView.nein_4d03db")}</Row>
-        <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText('alpha7.versions.affected', { n: diff.snapshot.affected_contracts.length }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
+        <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText(diff.snapshot.affected_contracts.length === 1 ? 'alpha7.versions.affectedOne' : 'alpha7.versions.affected', { n: diff.snapshot.affected_contracts.length }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
       </dl>
       {groups.map(([name, group]) => (
         <Collapsible key={name} title={uiText("features.registry.DiffView.v0_v1_neu_v2_geandert_v3_entfernt_80a78f", { v0: (GROUP_LABELS[name] ?? name), v1: (group.added.length), v2: (group.changed.length), v3: (group.removed.length) })} defaultOpen={groups.length <= 2}>

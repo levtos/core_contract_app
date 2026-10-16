@@ -121,8 +121,7 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       edges={edges}
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
-      fitView
-      fitViewOptions={{ padding: 0.08, minZoom: 0.9, maxZoom: 1 }}
+      onInit={(instance) => { if (focus) void instance.fitView({ nodes: [{ id: focus }], maxZoom: 1.2 }); else void instance.setViewport({ x: 16, y: 16, zoom: 1 }); }}
       minZoom={0.65}
       maxZoom={1.8}
       nodesDraggable={false}
@@ -137,7 +136,7 @@ function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph;
       <div className="absolute bottom-3 left-3 z-10 flex gap-2 rounded-lg border border-line bg-panel p-2" role="group" aria-label={uiText('alpha7.graph.view')}>
         <Button size="sm" onClick={() => void flow.zoomIn()}>{uiText('alpha7.graph.zoomIn')}</Button>
         <Button size="sm" onClick={() => void flow.zoomOut()}>{uiText('alpha7.graph.zoomOut')}</Button>
-        <Button size="sm" onClick={() => void flow.fitView({ padding: 0.08, minZoom: 0.9, maxZoom: 1 })}>{uiText('alpha7.graph.readable')}</Button>
+        <Button size="sm" onClick={() => void flow.setViewport({ x: 16, y: 16, zoom: 1 })}>{uiText('alpha7.graph.readable')}</Button>
       </div>
     </ReactFlow>
   );

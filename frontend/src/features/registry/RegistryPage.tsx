@@ -203,7 +203,7 @@ export default function RegistryPage() {
   const versions = useLocation().pathname === '/changes/versions';
   return (
     <>
-      <PageHeader title={uiText(versions ? 'alpha7.nav.versions' : 'alpha7.nav.drafts')} description={uiText('alpha7.draft.explanation')} />
+      <PageHeader title={uiText(versions ? 'alpha7.nav.versions' : 'alpha7.nav.drafts')} description={uiText(versions ? 'alpha7.versions.explanation' : 'alpha7.draft.explanation')} />
       {versions ? <RevisionsTab /> : <DraftsTab />}
     </>
   );
