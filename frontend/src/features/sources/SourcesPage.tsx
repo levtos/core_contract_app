@@ -21,6 +21,7 @@ import { describeError } from '@/lib/api';
 import { DeviceWizard } from './DeviceWizard';
 import { codeLabel } from '@/i18n/codes';
 import { useSourceSelection } from './useSourceSelection';
+import { SourceMigrationDialog } from './SourceMigrationDialog';
 
 type Name = 'dependencies' | 'sources' | 'bindings' | 'catalogs';
 
@@ -33,9 +34,10 @@ interface CollectionProps {
   subtitle: (item: JsonObject) => string;
   usage: (item: JsonObject, config: JsonObject) => ReactNode;
   copyKeys?: string[];
+  onMove?: (id: string) => void;
 }
 
-function Collection({ name, idKey, singular, make, render, subtitle, usage }: CollectionProps) {
+function Collection({ name, idKey, singular, make, render, subtitle, usage, onMove }: CollectionProps) {
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
   const issues = useAllIssues();
@@ -89,6 +91,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-mono text-sm font-semibold">{str(current[idKey]) || uiText("features.sources.SourcesPage.neu_391955")}</h2>
+              {onMove && <Button size="sm" onClick={() => onMove(str(current[idKey]))}>{uiText('alpha7.move.action')}</Button>}
               {src.editable && (
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => duplicate(selected)}><Copy size={13} /> {uiText("features.sources.SourcesPage.duplizieren_9d400c")}</Button>
@@ -143,15 +146,24 @@ export default function SourcesPage() {
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const [addingDevice, setAddingDevice] = useState(false);
   const [deviceError, setDeviceError] = useState('');
+  const [movingSource, setMovingSource] = useState<string | null>(null);
   const doc = useWorkingDocument();
-  const [, setParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const addDevice = async () => { setDeviceError(''); try { await doc.ensureDraft(); setAddingDevice(true); } catch (error) { setDeviceError(describeError(error)); } };
+  const beginMove = async (id: string) => { setDeviceError(''); try { await doc.ensureDraft(); setMovingSource(id); } catch (error) { setDeviceError(describeError(error)); } };
+  const requestedMove = params.get('move');
+  useEffect(() => {
+    if (!requestedMove) return;
+    const next = new URLSearchParams(params); next.delete('move'); setParams(next, { replace: true });
+    void beginMove(requestedMove);
+  }, [requestedMove]);
   const registrySchema = caps.data?.schemas.registry;
   return (
     <>
       <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
       {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
       <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
       <SourceSection
         items={[
@@ -163,6 +175,7 @@ export default function SourcesPage() {
                 name="sources"
                 idKey="source_id"
                 singular={uiText("features.sources.SourcesPage.source_0e570c")}
+                onMove={id => void beginMove(id)}
                 subtitle={(s) => `${codeLabel(s.source_type)} · ${codeLabel((isObject(s.freshness) ? s.freshness : {}).mode)}`}
                 make={(c, ids) => ({
                   source_id: uniqueName('source.neu', ids),

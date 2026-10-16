@@ -21,6 +21,7 @@ export function IssueList({ issues, config }: { issues: Issue[]; config: JsonObj
               <span className="mono block break-all text-[11px] text-faint">{issue.path || '/'}{issue.object_id ? uiText("features.registry.IssueList.v0_8b43bb", { v0: (issue.object_id) }) : ''}</span>
             </span>
             <Link to={`${where.to}${where.to.includes('?') ? '&' : '?'}focus=${encodeURIComponent(issue.path)}`} className="shrink-0 text-xs text-accent hover:underline">{where.label} →</Link>
+            {issue.code === 'immutable_source_type' && issue.object_id && <Link to={`/sources/devices?move=${encodeURIComponent(issue.object_id)}`} className="shrink-0 text-xs text-accent hover:underline">{uiText('alpha7.move.action')}</Link>}
           </li>
         );
       })}

@@ -61,10 +61,10 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P7.02 | Neue Vorlage typkonsistent, Typ-ID ohne Sofortfehler, Präfix automatisch | umgesetzt; Name genügt, Kennung optional unter Erweitert; Ja/Nein-Ein- und Ausgabe konsistent | templates.test.tsx; e2e.test.tsx | offen |
 | P7.03 | Alle sechs Zeitregeln deutsch plus Ein-Satz-Erklärung | umgesetzt; Sichtprüfung offen | templates.test.tsx, sechs Zeitregelfälle | offen |
 | P7.04 | Konstanten zeigen Wert, Schema unter Erweitert | umgesetzt; Bearbeitung beliebiger Wertearten bleibt erreichbar | templates.test.tsx; manualFirst.test.tsx; e2e.test.tsx | offen |
-| P8.01 | Dialog neue Quelle mit anderem Typ/Einheit, Häkchen je umzustellendem Vertrag | offen | offen | offen |
-| P8.02 | Alte Quelle und Geschichte bleiben erhalten; Referenzen bewusst umstellen | offen | offen | offen |
-| P8.03 | Alltagstext für immutable_source_type mit Umzugsknopf | offen | offen | offen |
-| P8.04 | Server-Validierung, Dialogtest und Engine-E2E | offen | offen | offen |
+| P8.01 | Dialog neue Quelle mit anderem Typ/Einheit, Häkchen je umzustellendem Vertrag | umgesetzt; Teilumzug mit anderem Gerät, derselbe Datenpfad nur ohne verbliebene Altverwendung; Sichtprüfung offen | sourceMigration.test.tsx; QUELLENUMZUG.md | offen |
+| P8.02 | Alte Quelle und Geschichte bleiben erhalten; Referenzen bewusst umstellen | umgesetzt; keine historische Umdeutung, einfache Gerätevorlagen als neue Version, eigene Regeln explizit vorbereiten | test_alpha7_source_migration.py; e2e.test.tsx | offen |
+| P8.03 | Alltagstext für immutable_source_type mit Umzugsknopf | umgesetzt; direkter Weg aus der Prüfliste, historischer Alt-Typ wird beim Umzug wiederhergestellt | sourceMigration.test.tsx; IssueList | offen |
+| P8.04 | Server-Validierung, Dialogtest und Engine-E2E | umgesetzt; Prüfung an genauen Entwurf/Formularstand gebunden, verspätete Prüfung verworfen | sourceMigration.test.tsx; test_alpha7_source_migration.py; e2e.test.tsx | offen |
 | P9.01 | ADR 0004 angenommen nach Bennis Auftrag, kein generisches set_state | offen | offen | offen |
 | P9.02 | Freigabe pro Ablauf, Standard aus, unveränderliche Definition; ohne Freigabe sichtbarer Grund | offen | offen | offen |
 | P9.03 | Nur serverseitig autorisierter Administrator, ausschließlich definierter Startzustand | offen | offen | offen |

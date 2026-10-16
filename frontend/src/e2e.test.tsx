@@ -16,6 +16,7 @@ import { MachineEditor } from '@/editors/MachineEditor';
 import { FieldSchemaEditor } from '@/editors/FieldSchemaEditor';
 import type { FieldSchema } from '@/features/authoring/model';
 import { Stateful, wrap } from '../test/harness';
+import { objects } from '@/features/sources/sourceMigration';
 
 /**
  * End-to-end against the REAL API and engine in an isolated, in-memory instance
@@ -236,4 +237,50 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       expect(contact.fields.value).toMatchObject({ value: false, status: 'valid' });
     }, { timeout: 10_000 });
   }, 120_000);
+
+  it('moves a guided temperature source to text through the checked dialog, versions its template and retains numeric evidence', async () => {
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={store} /></QueryClientProvider>);
+    await f.createDraft('P8 Quellenumzug', 'Leere Konfiguration');
+    await f.go('#/contracts/list/all');
+    await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }));
+    const adding = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
+    await user.click(await within(adding).findByRole('radio', { name: ux12.sources[0]!.display_name }, { timeout: 65_000 }));
+    await f.type(within(adding).getByLabelText('Name'), 'P8 Temperatur');
+    await user.click(within(adding).getByRole('button', { name: 'Vertrag anlegen' }));
+    const takeover = async () => {
+      await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+      const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
+      const accept = await within(confirm).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 });
+      await waitFor(() => expect(accept).toBeEnabled(), { timeout: 65_000 });
+      await user.click(accept);
+      await user.click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
+      await within(confirm).findByText(/Version \d+ ist aktiv/, {}, { timeout: 65_000 });
+      await user.click(within(confirm).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
+    };
+    await takeover();
+    const before = (await raw<JsonObject>('registry/active/export')).body;
+    const sourceId = String(objects(before.sources)[0]!.source_id); const contractId = String(objects(before.contracts)[0]!.contract_id);
+    await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown } } }>(`contracts/${contractId}`)).body.fields.value.value).toBe(21.5), { timeout: 65_000 });
+    const history = (await raw<{ items: JsonObject[] }>(`history/query/observations?source_id=${encodeURIComponent(sourceId)}`)).body.items;
+    expect(history.some(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
+    await f.go('#/sources/devices?item=0');
+    await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }, { timeout: 65_000 }));
+    const moving = await screen.findByRole('dialog', { name: 'Quelle umziehen' });
+    await user.selectOptions(within(moving).getByLabelText('Neue Werteart'), 'text');
+    const check = within(moving).getByRole('button', { name: 'Umzug prüfen' });
+    await waitFor(() => expect(check).toBeEnabled(), { timeout: 65_000 }); await user.click(check);
+    await within(moving).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
+    await user.click(within(moving).getByRole('button', { name: 'In Entwurf übernehmen' }));
+    await takeover();
+    const after = (await raw<JsonObject>('registry/active/export')).body;
+    expect(objects(after.sources)).toHaveLength(2);
+    expect(objects(after.sources)[0]).toEqual(objects(before.sources)[0]);
+    expect(objects(after.bindings)).toEqual([expect.objectContaining({ source_id: objects(after.sources)[1]!.source_id, transform: expect.objectContaining({ target: 'text' }) })]);
+    expect(objects(after.contracts)[0]).toMatchObject({ type_version: 2, inputs: [expect.objectContaining({ ref: objects(after.sources)[1]!.source_id })] });
+    await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown; status: string } } }>(`contracts/${contractId}`)).body.fields.value).toMatchObject({ value: '21.5', status: 'valid' }), { timeout: 65_000 });
+    const retained = (await raw<{ items: JsonObject[] }>(`history/query/observations?source_id=${encodeURIComponent(sourceId)}`)).body.items;
+    expect(retained).toEqual(expect.arrayContaining(history));
+    expect(retained.every(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
+    await expectSameAsActive(after);
+  }, 240_000);
 });
