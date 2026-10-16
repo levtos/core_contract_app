@@ -1,3 +1,5 @@
+import { codeLabel, fieldLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
@@ -139,23 +141,23 @@ function discriminatorFits(node: JsonObject, value: JsonObject): boolean {
 
 function variantLabel(root: JsonSchema, variant: Json, index: number): string {
   const node = deref(root, variant) ?? {};
-  if (typeof node.title === 'string') return node.title;
+  if (typeof node.title === 'string') return fieldLabel(node.title);
   if ('const' in node) return `= ${JSON.stringify(node.const)}`;
-  if (isNullVariant(node)) return 'leer (null)';
+  if (isNullVariant(node)) return uiText("editors.SchemaForm.leer_null_ce1303");
   const types = typesOf(node);
-  if (types.length) return types.join(' / ');
-  if (isObject(variant) && typeof variant.$ref === 'string') return variant.$ref.split('/').pop() ?? `Variante ${index + 1}`;
-  return `Variante ${index + 1}`;
+  if (types.length) return types.map(codeLabel).join(' / ');
+  if (isObject(variant) && typeof variant.$ref === 'string') return variant.$ref.split('/').pop() ?? uiText("editors.SchemaForm.variante_v0_78b949", { v0: (index + 1) });
+  return uiText("editors.SchemaForm.variante_v0_78b949", { v0: (index + 1) });
 }
 
 export function SchemaForm(props: SchemaFormProps) {
   const { root, value, onChange, pointer, label, required, renderRule } = props;
   const depth = props.depth ?? 0;
   const raw = deref(root, props.node);
-  const title = label ?? (isObject(raw) && typeof raw.title === 'string' ? raw.title : (pointer.split('/').pop() ?? ''));
+  const title = label ?? (isObject(raw) && typeof raw.title === 'string' ? fieldLabel(raw.title) : fieldLabel(pointer.split('/').pop() ?? ''));
   const caption = required ? `${title} *` : title;
   if (!raw || depth > MAX_DEPTH) {
-    return <ValueEditor label={caption || 'Wert'} pointer={pointer} value={value ?? null} onChange={onChange} />;
+    return <ValueEditor label={caption || uiText("editors.SchemaForm.wert_7e347d")} pointer={pointer} value={value ?? null} onChange={onChange} />;
   }
   const node = merged(root, raw);
   const rec = (extra: Partial<SchemaFormProps>) => <SchemaForm {...props} depth={depth + 1} {...extra} />;
@@ -191,24 +193,24 @@ export function SchemaForm(props: SchemaFormProps) {
               onChange={(e) => { if (!numeric || e.target.value !== '') onChange(numeric ? Number(e.target.value) : e.target.value); }}
             />
           )}
-        </Fld>{nullable && <AddButton onClick={() => onChange(null)}>Auf null setzen</AddButton>}</div>
+        </Fld>{nullable && <AddButton onClick={() => onChange(null)}>{uiText("editors.SchemaForm.auf_null_setzen_cc2a5b")}</AddButton>}</div>
       );
     }
     if (single !== undefined && nullable && (value === null || value === undefined)) {
       return (
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted">{caption}</span>
-          <div><AddButton onClick={() => onChange(defaultFor(root, single, depth + 1))}>Wert festlegen</AddButton></div>
+          <div><AddButton onClick={() => onChange(defaultFor(root, single, depth + 1))}>{uiText("editors.SchemaForm.wert_festlegen_55b559")}</AddButton></div>
         </div>
       );
     }
-    if (single !== undefined) return <div className="flex flex-col gap-2">{rec({ node: single, label: title })}{nullable && <AddButton onClick={() => onChange(null)}>Auf null setzen</AddButton>}</div>;
+    if (single !== undefined) return <div className="flex flex-col gap-2">{rec({ node: single, label: title })}{nullable && <AddButton onClick={() => onChange(null)}>{uiText("editors.SchemaForm.auf_null_setzen_cc2a5b")}</AddButton>}</div>;
     // General union: pick the branch, then edit it with its own schema.
     const activeIndex = Math.max(0, variants.findIndex((v) => variantMatches(root, v, value)));
     const active = variants[activeIndex]!;
     return (
       <div className="flex flex-col gap-2">
-        <Fld label={`${caption}: Variante`} pointer={pointer}>
+        <Fld label={uiText("editors.SchemaForm.v0_variante_d57948", { v0: (caption) })} pointer={pointer}>
           {(p) => (
             <Select {...p} value={String(activeIndex)} onChange={(e) => onChange(defaultFor(root, variants[Number(e.target.value)], depth + 1))}>
               {variants.map((v, i) => <option key={i} value={i}>{variantLabel(root, v, i)}</option>)}
@@ -230,14 +232,16 @@ export function SchemaForm(props: SchemaFormProps) {
   if (Array.isArray(node.enum)) {
     const options = node.enum;
     const selected = options.findIndex((v) => deepEqual(v, value));
-    const labels = options.map((v) => typeof v === 'object' ? JSON.stringify(v) : String(v));
+    const platformField = ['kind', 'type', 'mode', 'source_type', 'source_origin', 'monitor', 'target', 'op', 'strategy', 'operation', 'comparison'].includes(pointer.split('/').pop() ?? '');
+    const labels = options.map((v) => typeof v === 'object' ? JSON.stringify(v) : typeof v === 'boolean' || platformField ? codeLabel(v) : String(v));
     const unique = new Set(labels).size === options.length;
-    const ids = options.map((_, i) => unique ? labels[i]! : String(i));
+    const rawIds = options.map((value) => typeof value === 'object' ? JSON.stringify(value) : String(value));
+    const ids = new Set(rawIds).size === options.length ? rawIds : options.map((_, index) => String(index));
     return (
       <Fld label={caption} pointer={pointer}>
         {(p) => (
           <Select {...p} value={selected < 0 ? '' : ids[selected]} onChange={(e) => onChange(options[ids.indexOf(e.target.value)])}>
-            {selected < 0 && <option value="" disabled>Wert wählen</option>}
+            {selected < 0 && <option value="" disabled>{uiText("editors.SchemaForm.wert_wahlen_c1328a")}</option>}
             {options.map((v, i) => <option key={i} value={ids[i]}>{unique ? labels[i] : JSON.stringify(v)}</option>)}
           </Select>
         )}
@@ -258,14 +262,14 @@ export function SchemaForm(props: SchemaFormProps) {
         value={typeof value === 'number' ? value : 0}
         min={typeof node.minimum === 'number' ? node.minimum : undefined}
         step={primary === 'integer' ? 1 : undefined}
-        hint={typeof node.exclusiveMinimum === 'number' ? `größer als ${node.exclusiveMinimum}` : nullableType ? undefined : undefined}
+        hint={typeof node.exclusiveMinimum === "number" ? uiText("editors.SchemaForm.gro_er_als_v0_f2a9b6", { v0: (node.exclusiveMinimum) }) : nullableType ? undefined : undefined}
         onChange={onChange}
       />
     );
   }
   if (primary === 'string' && types.length === 1) {
     return (
-      <Fld label={caption} pointer={pointer} hint={typeof node.pattern === 'string' ? <>Muster: <code>{node.pattern}</code></> : undefined}>
+      <Fld label={caption} pointer={pointer} hint={typeof node.pattern === "string" ? <>{uiText("editors.SchemaForm.muster_905f9d")}<code>{node.pattern}</code></> : undefined}>
         {(p) => <Input {...p} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />}
       </Fld>
     );
@@ -276,18 +280,18 @@ export function SchemaForm(props: SchemaFormProps) {
     if (!node.items) return <ValueEditor label={caption} pointer={pointer} value={list} onChange={onChange} allowedKinds={['array']} />;
     return (
       <div className="flex flex-col gap-2">
-        <SectionTitle aside={<AddButton onClick={() => onChange([...list, defaultFor(root, node.items, depth + 1)])}>Eintrag</AddButton>}>{caption}</SectionTitle>
+        <SectionTitle aside={<AddButton onClick={() => onChange([...list, defaultFor(root, node.items, depth + 1)])}>{uiText("editors.SchemaForm.eintrag_99b925")}</AddButton>}>{caption}</SectionTitle>
         {list.map((item, i) => (
           <div key={i} className="flex items-start gap-2 rounded-[var(--radius-md)] border border-line p-2">
             <div className="min-w-0 flex-1">
-              {rec({ node: node.items, value: item, label: `#${i + 1}`, pointer: join(pointer, i), required: false, onChange: (next) => onChange(list.map((x, j) => (j === i ? (next ?? null) : x))) })}
+              {rec({ node: node.items, value: item, label: uiText("editors.SchemaForm.v0_cdb96d", { v0: (i + 1) }), pointer: join(pointer, i), required: false, onChange: (next) => onChange(list.map((x, j) => (j === i ? (next ?? null) : x))) })}
             </div>
-            <IconButton label="Eintrag entfernen" tone="danger" onClick={() => onChange(list.filter((_, j) => j !== i))}>
+            <IconButton label={uiText("editors.SchemaForm.eintrag_entfernen_706a15")} tone="danger" onClick={() => onChange(list.filter((_, j) => j !== i))}>
               <Trash2 size={14} />
             </IconButton>
           </div>
         ))}
-        {list.length === 0 && <p className="text-xs text-faint">leer</p>}
+        {list.length === 0 && <p className="text-xs text-faint">{uiText("editors.SchemaForm.leer_f13f8e")}</p>}
       </div>
     );
   }
@@ -321,11 +325,11 @@ export function SchemaForm(props: SchemaFormProps) {
         })}
         {(open || extraKeys.length > 0) && (
           <div className="flex flex-col gap-2">
-            {extraKeys.length > 0 || open ? <SectionTitle aside={open ? <AddButton onClick={() => { let n = extraKeys.length + 1; while (`schluessel${n}` in current) n += 1; set(`schluessel${n}`, additional ? defaultFor(root, additional, depth + 1) : ''); }}>Eigenschaft</AddButton> : undefined}>Weitere Eigenschaften</SectionTitle> : null}
+            {extraKeys.length > 0 || open ? <SectionTitle aside={open ? <AddButton onClick={() => { let n = extraKeys.length + 1; while (`schluessel${n}` in current) n += 1; set(`schluessel${n}`, additional ? defaultFor(root, additional, depth + 1) : ''); }}>{uiText("editors.SchemaForm.eigenschaft_f854ee")}</AddButton> : undefined}>{uiText("editors.SchemaForm.weitere_eigenschaften_5d81c5")}</SectionTitle> : null}
             {extraKeys.map((key) => (
               <div key={key} className="grid items-start gap-2 sm:grid-cols-[minmax(8rem,12rem)_1fr_auto]">
                 <Input
-                  aria-label={`${caption}: Schlüssel ${key}`}
+                  aria-label={uiText("editors.SchemaForm.v0_schlussel_v1_59f39d", { v0: (caption), v1: (key) })}
                   defaultValue={key}
                   key={key}
                   onBlur={(e) => {
@@ -335,7 +339,7 @@ export function SchemaForm(props: SchemaFormProps) {
                   }}
                 />
                 {additional ? rec({ node: additional as Json, label: key, value: current[key], pointer: join(pointer, key), onChange: (next) => set(key, next ?? null) }) : <ValueEditor label={key} pointer={join(pointer, key)} value={current[key] ?? null} expert={false} onChange={(next) => set(key, next)} />}
-                <IconButton label={`${key} entfernen`} tone="danger" onClick={() => set(key, undefined)}><Trash2 size={14} /></IconButton>
+                <IconButton label={uiText("editors.SchemaForm.v0_entfernen_92fea7", { v0: (key) })} tone="danger" onClick={() => set(key, undefined)}><Trash2 size={14} /></IconButton>
               </div>
             ))}
           </div>
@@ -345,5 +349,5 @@ export function SchemaForm(props: SchemaFormProps) {
   }
 
   // Mixed or unspecified: the typed value editor (graphical; JSON only as an optional view).
-  return <ValueEditor label={caption || 'Wert'} pointer={pointer} value={value ?? null} onChange={onChange} />;
+  return <ValueEditor label={caption || uiText("editors.SchemaForm.wert_7e347d")} pointer={pointer} value={value ?? null} onChange={onChange} />;
 }

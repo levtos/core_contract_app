@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import { clone, deepEqual, getAt, setAt, type Json } from '@/lib/json';
@@ -59,7 +60,7 @@ export interface WorkingDocument {
   save: () => Promise<'saved' | 'conflict' | 'error'>;
   saveError: string | null;
   validateNow: () => Promise<void>;
-  resolveConflict: (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => Promise<void>;
+  resolveConflict: (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => Promise<string | void>;
 }
 
 const Context = createContext<WorkingDocument | null>(null);
@@ -218,7 +219,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         setValidation({ state: 'done', result: { valid: false, issues: error.issues }, issues: error.issues, stale: latest.current.config !== config, error: null });
       } else {
         const limited = error instanceof ApiError && error.kind === 'rate_limited';
-        setValidation({ state: 'failed', result: null, issues: [], stale: false, error: limited ? describeError(error) : error instanceof Error ? error.message : 'Validierung fehlgeschlagen' });
+        setValidation({ state: 'failed', result: null, issues: [], stale: false, error: describeError(error) });
         // Too many requests is transient: look again later instead of leaving the document unchecked.
         if (limited) retryTimer.current = setTimeout(() => { if (id === runId.current && autoValidateRef.current) void validateNow(); }, 60_000);
       }
@@ -272,7 +273,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
           /* fall through to a plain error */
         }
       }
-      setSaveError(error instanceof ApiError ? (error.code === 'persistence_unavailable' ? 'Persistenz nicht erreichbar – nichts gespeichert.' : `Speichern fehlgeschlagen: ${error.code}`) : 'Speichern fehlgeschlagen.');
+      setSaveError(describeError(error));
       return 'error' as const;
     } finally {
       savingRef.current = false;
@@ -292,12 +293,11 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         return open(current.server, { reload: true });
       }
       if (choice === 'keep-local-as-new') {
-        const created = await create.mutateAsync({ config, display_name: `${draft.display_name || draft.draft_id} (lokale Änderungen)` });
+        const created = await create.mutateAsync({ config, display_name: uiText('draft.copyName', { name: latest.current.name || draft.draft_id }).slice(0, 256) });
         if (owner !== documentId.current) return;
         setConflict(null);
-        rememberDraftId(created.draft_id);
-        setSnap((c) => ({ ...c, draft: created }));
-        return;
+        open(created, { reload: true });
+        return created.draft_id;
       }
       // Explicit overwrite: re-base on the server version the user has just seen.
       try {
@@ -307,7 +307,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         setSnap((c) => ({ ...c, draft: saved }));
       } catch (error) {
         if (owner !== documentId.current) return;
-        setSaveError(error instanceof ApiError ? `Überschreiben fehlgeschlagen: ${error.code}` : 'Überschreiben fehlgeschlagen.');
+        setSaveError(describeError(error));
         setConflict(null);
       }
     },
@@ -356,7 +356,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
 export function useWorkingDocument(): WorkingDocument {
   const value = useContext(Context);
-  if (!value) throw new Error('WorkingDocumentProvider fehlt');
+  if (!value) throw new Error(uiText("features.authoring.WorkingDocument.workingdocumentprovider_fehlt_950e4e"));
   return value;
 }
 

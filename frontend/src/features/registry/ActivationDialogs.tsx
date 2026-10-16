@@ -1,3 +1,5 @@
+import { validationLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -49,7 +51,7 @@ function useCheck(open: boolean, subject: string, run: () => Promise<ValidationR
       expected = active?.revision ?? 0;
       const result = await runCandidate();
       const after = await api<RevisionRow | null>('registry/active');
-      if ((after?.revision ?? 0) !== expected) throw new StaleSubject('Die aktive Revision hat sich während der Prüfung geändert. Erneut prüfen.');
+      if ((after?.revision ?? 0) !== expected) throw new StaleSubject(uiText("features.registry.ActivationDialogs.die_aktive_revision_hat_sich_wahrend_der_prufung_38126e"));
       outcome = { state: 'ok', result };
     } catch (error) {
       if (error instanceof StaleSubject) outcome = { state: 'stale', message: error.message };
@@ -70,31 +72,31 @@ function useCheck(open: boolean, subject: string, run: () => Promise<ValidationR
   const expected = current ? state.expected : 0;
   // The active revision moved while the dialog was open: the diff no longer describes the change.
   const moved = open && current && base.state === 'ok' && live.registryRevision !== null && live.registryRevision !== expected;
-  const check: Check = moved ? { state: 'stale', message: `Die aktive Revision ist inzwischen ${live.registryRevision} (geprüft gegen ${expected}).` } : base;
-  return { check, expected, restart: start, key: `${subject}@${expected}` };
+  const check: Check = moved ? { state: 'stale', message: uiText("features.registry.ActivationDialogs.die_aktive_revision_ist_inzwischen_v0_gepruft_ge_481253", { v0: (live.registryRevision), v1: (expected) }) } : base;
+  return { check, expected, currentRevision: live.registryRevision ?? expected, restart: start, key: `${subject}@${expected}` };
 }
 
 function Outcome({ error, onRecheck }: { error: unknown; onRecheck: () => void }) {
   if (!error) return null;
   if (error instanceof ApiError && error.kind === 'conflict') {
     return (
-      <Notice tone="bad" title="Konflikt – nichts wurde aktiviert">
+      <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.konflikt_nichts_wurde_aktiviert_8709dc")}>
         {describeError(error)}
-        <div className="mt-2"><Button size="sm" onClick={onRecheck}>Stand neu laden und erneut prüfen</Button></div>
+        <div className="mt-2"><Button size="sm" onClick={onRecheck}>{uiText("features.registry.ActivationDialogs.stand_neu_laden_und_erneut_prufen_346ba0")}</Button></div>
       </Notice>
     );
   }
   if (error instanceof ApiError && error.kind === 'validation') {
-    return <Notice tone="bad" title="Der Server hat die Aktivierung abgelehnt"><IssueList issues={error.issues} config={null} /></Notice>;
+    return <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.der_server_hat_die_aktivierung_abgelehnt_9260c9")}><IssueList issues={error.issues} config={null} /></Notice>;
   }
-  return <Notice tone="bad" title="Aktion fehlgeschlagen">{describeError(error)}</Notice>;
+  return <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.aktion_fehlgeschlagen_3a20cc")}>{describeError(error)}</Notice>;
 }
 
 function StaleNotice({ message, onRecheck }: { message: string; onRecheck: () => void }) {
   return (
-    <Notice tone="warn" title="Prüfergebnis veraltet">
+    <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.prufergebnis_veraltet_ed4995")}>
       {message}
-      <div className="mt-2"><Button size="sm" onClick={onRecheck}>Erneut prüfen</Button></div>
+      <div className="mt-2"><Button size="sm" onClick={onRecheck}>{uiText("features.registry.ActivationDialogs.erneut_prufen_7da626")}</Button></div>
     </Notice>
   );
 }
@@ -102,15 +104,15 @@ function StaleNotice({ message, onRecheck }: { message: string; onRecheck: () =>
 export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { activate } = useActivation();
   const subject = `draft:${draft.draft_id}@${draft.draft_version}`;
-  const { check, expected, restart, key } = useCheck(open, subject, async () => {
+  const { check, expected, currentRevision, restart, key } = useCheck(open, subject, async () => {
     // The saved draft on the server must still be the very version the user is about to activate.
     const saved = await api<Draft>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`);
     if (saved.draft_version !== draft.draft_version) {
-      throw new StaleSubject(`Der Draft wurde zwischenzeitlich auf v${saved.draft_version} geändert (geöffnet: v${draft.draft_version}). Neu laden und erneut prüfen.`);
+      throw new StaleSubject(uiText("features.registry.ActivationDialogs.der_draft_wurde_zwischenzeitlich_auf_v_v0_geande_f36298", { v0: (saved.draft_version), v1: (draft.draft_version) }));
     }
     const result = await api<ValidationResult>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/validate`, { method: 'POST', body: {} });
     const after = await api<Draft>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`);
-    if (after.draft_version !== saved.draft_version) throw new StaleSubject('Der Draft hat sich während der Prüfung geändert. Neu laden und erneut prüfen.');
+    if (after.draft_version !== saved.draft_version) throw new StaleSubject(uiText("features.registry.ActivationDialogs.der_draft_hat_sich_wahrend_der_prufung_geandert__832d36"));
     return result;
   });
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
@@ -131,51 +133,46 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title="Registry aktivieren"
-      description={`Gespeicherter Draft „${draft.display_name || draft.draft_id}“ (v${draft.draft_version}) wird als neue Revision aktiv.`}
+      title={uiText("features.registry.ActivationDialogs.registry_aktivieren_8c0eff")}
+      description={uiText("features.registry.ActivationDialogs.gespeicherter_draft_v0_v_v1_wird_als_neue_revisi_1cd2fe", { v0: (draft.display_name || draft.draft_id), v1: (draft.draft_version) })}
       footer={
         result ? (
-          <Button variant="primary" onClick={() => onOpenChange(false)}>Schließen</Button>
+          <Button variant="primary" onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.schlie_en_b808f6")}</Button>
         ) : (
           <>
-            <Button onClick={() => onOpenChange(false)}>Abbrechen</Button>
+            <div className="w-full space-y-2">
+              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={<>{uiText("features.registry.ActivationDialogs.ich_habe_die_auswirkungen_gepruft_und_aktiviere__007da8")}{expected + 1}.</>} />}
+              {!confirmed && <p className="text-xs text-muted">{uiText("features.registry.ActivationDialogs.zum_ubernehmen_zuerst_die_auswirkungen_prufen_un_5ce543")}</p>}
+            </div>
+            <Button onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.abbrechen_f7ff11")}</Button>
             <Button
               variant="primary"
               disabled={!ready || !confirmed || activate.isPending}
               onClick={() => activate.mutate({ draft, expectedActiveRevision: expected }, { onSuccess: (revision) => setDone({ subject, revision }) })}
             >
-              Jetzt aktivieren
-            </Button>
+              {uiText("features.registry.ActivationDialogs.jetzt_aktivieren_957b0a")}</Button>
           </>
         )
       }
     >
       {result ? (
-        <Notice tone="ok" title={`Revision ${result.revision} ist aktiv`}>
-          Prüfsumme {result.checksum.slice(0, 16)}… Die Live-Zustände werden mit der neuen Revision neu veröffentlicht. Die Live-Abnahme in Home Assistant bleibt ein eigener, manueller Schritt.
-        </Notice>
+        <Notice tone="ok" title={uiText("features.registry.ActivationDialogs.revision_v0_ist_aktiv_ffe993", { v0: (result.revision) })}>
+          {uiText("features.registry.ActivationDialogs.prufsumme_8b50fe")}{result.checksum.slice(0, 16)}{uiText("features.registry.ActivationDialogs.die_live_zustande_werden_mit_der_neuen_revision__d6f83f")}</Notice>
       ) : (
         <div className="flex flex-col gap-4">
-          <Notice tone="warn" title="Aktivierung ändert den aktiven Zustand">
-            Drafts sind bis zu diesem Schritt wirkungslos. Die Aktivierung ersetzt die aktive Registry (aktuell Revision {expected || '–'}) atomar und mit Versionsprüfung; Rücknahme geht nur als neue Revision.
-          </Notice>
-          {check.state === 'checking' && <Spinner label="Server prüft den gespeicherten Draft …" />}
-          {check.state === 'error' && <Notice tone="bad" title="Prüfung nicht möglich">{check.message}</Notice>}
+          <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.aktivierung_andert_den_aktiven_zustand_5e5312")}>
+            {uiText("features.registry.ActivationDialogs.drafts_sind_bis_zu_diesem_schritt_wirkungslos_di_60155e")}{currentRevision || '–'}{uiText("features.registry.ActivationDialogs.atomar_und_mit_versionsprufung_rucknahme_geht_nu_906a06")}</Notice>
+          {check.state === 'checking' && <Spinner label={uiText("features.registry.ActivationDialogs.server_pruft_den_gespeicherten_draft_afe932")} />}
+          {check.state === 'error' && <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.prufung_nicht_moglich_9c9bd1")}>{check.message}</Notice>}
           {check.state === 'stale' && <StaleNotice message={check.message} onRecheck={() => { setConfirmedFor(null); void restart(); }} />}
           {check.state === 'invalid' && (
             <>
-              <Notice tone="bad" title="Der gespeicherte Draft ist nicht gültig">Aktivieren ist erst nach Korrektur und erneutem Speichern möglich.</Notice>
+              <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.der_gespeicherte_draft_ist_nicht_gultig_99bc6f")}>{uiText("features.registry.ActivationDialogs.aktivieren_ist_erst_nach_korrektur_und_erneutem__0d3dee")}</Notice>
               <IssueList issues={check.issues} config={draft.config as JsonObject} />
             </>
           )}
-          {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={`aktive Revision ${expected || '–'}`} />}
-          {ready && (
-            <Checkbox
-              checked={confirmed}
-              onCheckedChange={(on) => setConfirmedFor(on ? key : null)}
-              label={<>Ich habe die Auswirkungen geprüft und aktiviere diesen Stand als Revision {expected + 1}.</>}
-            />
-          )}
+          {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
+          {check.state === 'ok' && check.result.warnings?.map((warning) => <Notice key={warning.path} tone="warn" title={validationLabel(warning)}>{warning.object_id}</Notice>)}
           <Outcome error={activate.error} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />
         </div>
       )}
@@ -186,7 +183,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
 export function RollbackDialog({ revision, open, onOpenChange }: { revision: RevisionRow; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { rollback } = useActivation();
   const subject = `revision:${revision.revision}:${revision.checksum}`;
-  const { check, expected, restart, key } = useCheck(open, subject, () => validateConfig(revision.config));
+  const { check, expected, currentRevision, restart, key } = useCheck(open, subject, () => validateConfig(revision.config));
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const [done, setDone] = useState<{ subject: string; revision: RevisionRow } | null>(null);
   const confirmed = confirmedFor === key;
@@ -203,45 +200,44 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={`Auf Revision ${revision.revision} zurückrollen`}
-      description="Der historische Stand wird als neue Revision aktiviert; frühere Revisionen bleiben unverändert erhalten."
+      title={uiText("features.registry.ActivationDialogs.auf_revision_v0_zuruckrollen_1c608b", { v0: (revision.revision) })}
+      description={uiText("features.registry.ActivationDialogs.der_historische_stand_wird_als_neue_revision_akt_62c809")}
       footer={
         result ? (
-          <Button variant="primary" onClick={() => onOpenChange(false)}>Schließen</Button>
+          <Button variant="primary" onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.schlie_en_b808f6")}</Button>
         ) : (
           <>
-            <Button onClick={() => onOpenChange(false)}>Abbrechen</Button>
+            <div className="w-full space-y-2">
+              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={<>{uiText("features.registry.ActivationDialogs.ich_mochte_revision_5d682d")}{revision.revision} {uiText("features.registry.ActivationDialogs.als_neue_revision_9a365f")}{expected + 1} {uiText("features.registry.ActivationDialogs.aktivieren_fdb22a")}</>} />}
+              {!confirmed && <p className="text-xs text-muted">{uiText("features.registry.ActivationDialogs.zum_zurucksetzen_zuerst_die_auswirkungen_prufen__6e723c")}</p>}
+            </div>
+            <Button onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.abbrechen_f7ff11")}</Button>
             <Button
               variant="danger"
               disabled={!ready || !confirmed || rollback.isPending}
               onClick={() => rollback.mutate({ revision: revision.revision, expectedActiveRevision: expected }, { onSuccess: (r) => setDone({ subject, revision: r }) })}
             >
-              Zurückrollen
-            </Button>
+              {uiText("features.registry.ActivationDialogs.zuruckrollen_1c5e6f")}</Button>
           </>
         )
       }
     >
       {result ? (
-        <Notice tone="ok" title={<span className="flex items-center gap-2"><CheckCircle2 size={15} /> Neue Revision {result.revision} aktiv</span>}>
-          Inhalt entspricht Revision {revision.revision}. Gehaltene Zeitkontexte können bei geänderten Fingerprints neu starten.
-        </Notice>
+        <Notice tone="ok" title={<span className="flex items-center gap-2"><CheckCircle2 size={15} /> {uiText("features.registry.ActivationDialogs.neue_revision_1e5cad")}{result.revision} {uiText("features.registry.ActivationDialogs.aktiv_3139fc")}</span>}>
+          {uiText("features.registry.ActivationDialogs.inhalt_entspricht_revision_3fded2")}{revision.revision}{uiText("features.registry.ActivationDialogs.gehaltene_zeitkontexte_konnen_bei_geanderten_fin_7ae16f")}</Notice>
       ) : (
         <div className="flex flex-col gap-4">
-          <Notice tone="warn" title="Rollback ändert den aktiven Zustand">Auswirkungen gegenüber der aktuell aktiven Revision {expected || '–'}:</Notice>
-          {check.state === 'checking' && <Spinner label="Server analysiert den historischen Stand …" />}
-          {check.state === 'error' && <Notice tone="bad" title="Analyse nicht möglich">{check.message}</Notice>}
+          <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.rollback_andert_den_aktiven_zustand_975420")}>{uiText("features.registry.ActivationDialogs.auswirkungen_gegenuber_der_aktuell_aktiven_revis_056129")}{currentRevision || '–'}:</Notice>
+          {check.state === 'checking' && <Spinner label={uiText("features.registry.ActivationDialogs.server_analysiert_den_historischen_stand_7fcf03")} />}
+          {check.state === 'error' && <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.analyse_nicht_moglich_e876eb")}>{check.message}</Notice>}
           {check.state === 'stale' && <StaleNotice message={check.message} onRecheck={() => { setConfirmedFor(null); void restart(); }} />}
           {check.state === 'invalid' && (
             <>
-              <Notice tone="bad" title="Dieser historische Stand ist unter der aktuellen Software nicht mehr gültig">Er kann nicht zurückgerollt werden.</Notice>
+              <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.dieser_historische_stand_ist_unter_der_aktuellen_e1e6a7")}>{uiText("features.registry.ActivationDialogs.er_kann_nicht_zuruckgerollt_werden_a731a6")}</Notice>
               <IssueList issues={check.issues} config={revision.config as JsonObject} />
             </>
           )}
-          {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={`aktive Revision ${expected || '–'}`} />}
-          {ready && (
-            <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={<>Ich möchte Revision {revision.revision} als neue Revision {expected + 1} aktivieren.</>} />
-          )}
+          {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
           <Outcome error={rollback.error} onRecheck={() => { rollback.reset(); setConfirmedFor(null); void restart(); }} />
         </div>
       )}

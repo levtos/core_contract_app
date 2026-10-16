@@ -183,6 +183,7 @@ export class LiveStore {
         }
         this.patch({
           connection: 'open',
+          resyncCount: this.state.resyncCount + (this.state.epochId !== null && message.epoch_id !== this.state.epochId && this.state.connection !== 'resyncing' ? 1 : 0),
           stale: false,
           contracts: (message.contracts ?? {}) as Record<string, Envelope>,
           epochId: String(message.epoch_id ?? ''),

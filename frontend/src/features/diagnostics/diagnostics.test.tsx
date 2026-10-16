@@ -45,9 +45,9 @@ describe('values are shown as the server reports them', () => {
     wrap(<ContractLiveState envelope={unknownEnvelope} stale={false} />);
     expect(screen.getByTestId('value-value')).toHaveTextContent('unbekannt');
     expect(screen.getByTestId('value-value')).not.toHaveTextContent(/false|aus|off/i);
-    expect(screen.getByTestId('value-other')).toHaveTextContent('false');
-    expect(screen.getByText('input_stale')).toBeInTheDocument();
-    expect(screen.getByText(/Frische: stale/)).toBeInTheDocument(); // server's freshness label, not computed here
+    expect(screen.getByTestId('value-other')).toHaveTextContent('Nein');
+    expect(screen.getByText('Nachweis ist veraltet')).toBeInTheDocument();
+    expect(screen.getByText(/Aktualität: veraltet/)).toBeInTheDocument(); // server's freshness label, not computed here
   });
 
   it('flags an out-of-date live view', () => {
@@ -59,7 +59,7 @@ describe('values are shown as the server reports them', () => {
 describe('explain shows only what was recorded', () => {
   it('says so when there is no trace instead of inventing one', () => {
     wrap(<ExplainPanel trace={null} />);
-    expect(screen.getByText('Kein Explain-Trace vorhanden')).toBeInTheDocument();
+    expect(screen.getByText("Kein Erklärung-Erklärungsverlauf vorhanden")).toBeInTheDocument();
   });
 
   it('renders operator status, guard decisions and fusion selection from the trace', () => {
@@ -76,10 +76,10 @@ describe('explain shows only what was recorded', () => {
         }}
       />,
     );
-    expect(screen.getByText('Fusion – Auswahl')).toBeInTheDocument();
+    expect(screen.getByText("Zusammenführung – Auswahl")).toBeInTheDocument();
     expect(screen.getByText(/Gewählt: \[1\]/)).toBeInTheDocument();
     expect(screen.getByText('unentschieden')).toBeInTheDocument(); // null decision is not "false"
-    expect(screen.getByText('partial_evidence')).toBeInTheDocument();
+    expect(screen.getByText('Nur ein Teil der Nachweise ist verwendbar')).toBeInTheDocument();
     expect(screen.getByText(/keine Historie|kein Herzschlag/)).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe('history uses opaque cursors and bound filters', () => {
     ]);
     expect(screen.getByText('Ende der Historie')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Contract-ID'), 'c2');
+    await user.type(screen.getByLabelText("Vertrag-ID"), 'c2');
     await user.click(screen.getByRole('button', { name: 'Filter anwenden' }));
     await waitFor(() => expect(api.calls.at(-1)!.path).toBe('history/query/contracts?contract_id=c2&limit=50'));
   });
@@ -139,9 +139,9 @@ describe('evidence references are opaque and may legitimately be missing', () =>
     const api = installFakeApi();
     api.routes.push({ match: /^evidence\/reference\//, respond: (path) => reply(404, { error: 'evidence_not_found', reference: decodeURIComponent(path.split('/').pop()!) }) });
     wrap(<EvidenceTab />);
-    await user.type(screen.getByLabelText('Evidence-Referenz'), 'v2:e:7:ha:12:binding.a');
+    await user.type(screen.getByLabelText("Nachweis-Referenz"), 'v2:e:7:ha:12:binding.a');
     await user.click(screen.getByRole('button', { name: 'Auflösen' }));
-    await screen.findByText('Keine aufgezeichnete Evidenz');
+    await screen.findByText("Keine aufgezeichnete Nachweis");
     expect(api.calls.at(-1)!.path).toBe(`evidence/reference/${encodeURIComponent('v2:e:7:ha:12:binding.a')}`);
   });
 });
@@ -159,14 +159,14 @@ describe('commands are typed, confirmed and idempotent', () => {
     api.routes.push({ match: /^commands$/, method: 'POST', respond: (_p, body) => reply(200, { command_id: body.command_id, status: 'accepted' }) });
     const store = new LiveStore({ createSocket: () => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} }) });
     wrap(<CommandsPanel contractId="sm" onContract={() => {}} />, store);
-    const send = await screen.findByRole('button', { name: /Command senden/ });
+    const send = await screen.findByRole('button', { name: /Befehle senden/ });
     await user.click(send);
     expect(api.calls.some((c) => c.path === 'commands')).toBe(false); // nothing before confirmation
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Senden' }));
-    await screen.findByText('accepted');
+    await screen.findByText('angenommen');
     const body = api.calls.find((c) => c.path === 'commands')!.body as Record<string, unknown>;
     expect(body.command_id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'Terra Workbench' });
+    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'terra-workbench' });
     const issued = Date.parse(body.issued_at as string);
     const until = Date.parse(body.valid_until as string);
     expect(until - issued).toBe(30_000);
@@ -181,11 +181,11 @@ describe('commands are typed, confirmed and idempotent', () => {
       { match: /^commands\/.+/, method: 'GET', respond: (path) => reply(200, { command_id: path.split('/').pop(), status: 'rejected', reason: 'guard_rejected' }) },
     );
     wrap(<CommandsPanel contractId="sm" onContract={() => {}} />);
-    await user.click(await screen.findByRole('button', { name: /Command senden/ }));
+    await user.click(await screen.findByRole('button', { name: /Befehle senden/ }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Senden' }));
     await screen.findByText('Antwort unbekannt');
     await user.click(screen.getByRole('button', { name: 'Gespeichertes Ergebnis abfragen' }));
-    await screen.findByText('guard_rejected');
+    await screen.findByText('Bedingung ist nicht erfüllt');
     expect(posts).toBe(1);
   });
 });

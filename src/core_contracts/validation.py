@@ -1,5 +1,6 @@
 """Safe aggregate diagnostics with JSON Pointer locations, shared by all writers."""
 
+import re
 from typing import Any
 
 from pydantic import ValidationError
@@ -27,6 +28,7 @@ class ValidationIssue(Model):
     path: str
     object_id: str | None = None
     message: str
+    parameters: dict[str, str | None] | None = None
 
 
 class RegistryValidationError(ValueError):
@@ -44,8 +46,18 @@ def validate_document(
 ) -> RegistryConfig:
     issues: list[ValidationIssue] = []
 
-    def add(code: str, path: str, message: str, identity: str | None = None) -> None:
-        issues.append(ValidationIssue(code=code, path=path, object_id=identity, message=message))
+    def add(
+        code: str,
+        path: str,
+        message: str,
+        identity: str | None = None,
+        parameters: dict[str, str | None] | None = None,
+    ) -> None:
+        issues.append(
+            ValidationIssue(
+                code=code, path=path, object_id=identity, message=message, parameters=parameters
+            )
+        )
 
     if not isinstance(document, dict):
         raise RegistryValidationError(
@@ -181,6 +193,15 @@ def validate_document(
         seen: set[str] = set()
         for index, item in enumerate(getattr(config, name)):
             key = getattr(item, attribute)
+            if len(key) > 128 or not re.fullmatch(
+                r"[a-zA-Z][a-zA-Z0-9_-]*(?:\.[a-zA-Z0-9_-]+)*", key
+            ):
+                add(
+                    "identity_invalid",
+                    f"/{name}/{index}/{attribute}",
+                    "Eine ID hat höchstens 128 Zeichen, beginnt mit A–Z oder a–z und enthält nur diese Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich. Kein Punkt am Ende.",
+                    key,
+                )
             if key in seen:
                 add(
                     "duplicate_identity",
@@ -189,6 +210,14 @@ def validate_document(
                     key,
                 )
             seen.add(key)
+    for index, definition in enumerate(config.definitions):
+        if len(definition.type_id) > 128 or definition.type_id.endswith("."):
+            add(
+                "identity_invalid",
+                f"/definitions/{index}/type_id",
+                "Vorlagen-IDs haben höchstens 128 Zeichen und keinen Punkt am Ende.",
+                definition.type_id,
+            )
     sources = {s.source_id: s for s in config.sources}
     dependencies = {d.dependency_id: d for d in config.dependencies}
     contracts = {c.contract_id: c for c in config.contracts}
@@ -319,19 +348,45 @@ def validate_document(
             add("catalog_reference", path + "/transform/catalog_id", "unknown catalog", key)
         declared_source = sources.get(binding.source_id)
         declared_schema = declared_source.value_schema if declared_source else None
-        if declared_schema and binding.transform:
-            transform = binding.transform
-            output_kind = "number" if transform.kind == "unit_scale" else transform.target
+        source_kind = {"boolean": "bool", "numeric": "number", "text": "text"}.get(
+            declared_source.source_type if declared_source else ""
+        )
+        if declared_schema and source_kind and declared_schema.type != source_kind:
+            add(
+                "source_type_mismatch",
+                path + "/source_id",
+                "Quellentyp und Wertschema passen nicht zusammen.",
+                binding.source_id,
+            )
+        expected_kind = declared_schema.type if declared_schema else source_kind
+        if (
+            adapter.kind == "ha_state"
+            and expected_kind in {"number", "bool"}
+            and binding.transform is None
+        ):
+            add(
+                "binding_cast_required",
+                path + "/transform",
+                f"Quelle {binding.source_id} erwartet {expected_kind}; Home-Assistant-Text benötigt eine ausdrückliche Umwandlung.",
+                binding.source_id,
+            )
+        if binding.transform and expected_kind:
+            result_kind = (
+                "number" if binding.transform.kind == "unit_scale" else binding.transform.target
+            )
             if (
-                transform.kind in {"type_cast", "unit_scale"}
-                and output_kind != declared_schema.type
+                binding.transform.kind in {"type_cast", "unit_scale"}
+                and result_kind != expected_kind
             ):
                 add(
                     "binding_type_mismatch",
                     path + "/transform",
-                    "binding output type mismatch",
+                    f"Quelle {binding.source_id} erwartet {expected_kind}; die Umwandlung liefert {result_kind}.",
                     key,
+                    {"source": binding.source_id, "expected": expected_kind, "actual": result_kind},
                 )
+        if declared_schema and binding.transform:
+            transform = binding.transform
             if transform.kind == "map_ref":
                 catalog = next(
                     (c for c in config.catalogs if c.catalog_id == transform.catalog_id), None
@@ -450,7 +505,20 @@ def validate_document(
                 else None
             )
             if expected and (actual is None or not compatible(actual, expected)):
-                add("input_type_mismatch", location, "input_type_mismatch", key)
+                add(
+                    "input_type_mismatch",
+                    location,
+                    f"Quelle {item.ref} liefert {actual.type if actual else 'keinen deklarierten Typ'} ({actual.unit if actual else 'keine Einheit'}); Eingang {item.name} erwartet {expected.type} ({expected.unit or 'keine Einheit'}).",
+                    key,
+                    {
+                        "source": item.ref,
+                        "input": item.name,
+                        "actual": actual.type if actual else None,
+                        "actualUnit": actual.unit if actual else None,
+                        "expected": expected.type,
+                        "expectedUnit": expected.unit,
+                    },
+                )
     if evaluation_cost > 8192:
         add(
             "registry_evaluation_limit",
@@ -472,7 +540,46 @@ def validate_document(
         add("contract_graph_depth", "/contracts", "contract graph depth limit")
     except ValueError as error:
         if str(error) == "cycle":
-            add("contract_cycle", "/contracts", "cycle")
+            cycle_visited: set[str] = set()
+            stack: list[str] = []
+
+            def cycle(key: str) -> list[str]:
+                if key in stack:
+                    return stack[stack.index(key) :] + [key]
+                if key in cycle_visited:
+                    return []
+                cycle_visited.add(key)
+                stack.append(key)
+                for item in contracts[key].inputs:
+                    try:
+                        target, field = resolve_ref(item.ref, config)
+                    except ValueError:
+                        continue
+                    if field is not None:
+                        found = cycle(target)
+                        if found:
+                            return found
+                stack.pop()
+                return []
+
+            found = next((result for key in contracts if (result := cycle(key))), [])
+            message = "Verträge verweisen im Kreis aufeinander: " + " → ".join(found)
+            for left, right in zip(found, found[1:]):
+                contract_index = next(
+                    i for i, c in enumerate(config.contracts) if c.contract_id == left
+                )
+                for input_index, item in enumerate(contracts[left].inputs):
+                    try:
+                        target_id, _ = resolve_ref(item.ref, config)
+                    except ValueError:
+                        continue
+                    if target_id == right:
+                        add(
+                            "contract_cycle",
+                            f"/contracts/{contract_index}/inputs/{input_index}/ref",
+                            message,
+                            left,
+                        )
     if issues:
         raise RegistryValidationError(issues)
     return config

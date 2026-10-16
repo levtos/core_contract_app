@@ -75,7 +75,7 @@ describe('operators beyond the example', () => {
     const def = newDefinition('test.g', 1);
     def.machine = { id: 'm', states: ['a', 'b'], initial: 'a', sessions: false, commands: {}, transitions: [{ source: 'a', target: 'b', event: 'input', guard: { op: 'input', name: 'a' }, reason: 'r' }], reinitialize_when: { op: 'input', name: 'a' } };
     mount(def);
-    await user.click(screen.getByRole('tab', { name: /State Machine/ }));
+    await user.click(screen.getByRole('tab', { name: /Ablauf/ }));
     const guard = within(node(`${base}/machine/transitions/0/guard`)).getAllByRole('combobox', { name: /^Operator/ })[0]!;
     const options = [...guard.querySelectorAll('option')].map((o) => o.value);
     expect(options).not.toContain('temporal');

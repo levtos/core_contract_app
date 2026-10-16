@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0a6 — Korrekturen nach UX12 (vorbereitet, 2026-10-15)
+
+- HA-/Bridge-Status entspricht dem Bedarf der aktiven Konfiguration, auch nach Zurücksetzen.
+- Typ und Einheit von Quellen bleiben ab der ersten Übernahme unveränderlich; Wertelisten
+  dürfen wachsen. HA-Verknüpfungen erhalten eine ausdrückliche passende Typumwandlung;
+  Altbestand kann sie per „Umwandlung ergänzen“ hinzufügen. Prüfung nennt Quelle und Eingang.
+- Abläufe zeigen fehlende Neustart-Bedingungen und Warnungen bei konstant Nein. Nach einem
+  Kontextwechsel erfolgt Wiederherstellung ausschließlich mit gültigen Daten und erfüllter
+  Bedingung; zustandslose Befehle melden `state_unknown`. B2 bleibt ADR-0004-Entwurf.
+- Sichtbare Dialogbestätigung, korrekte Konflikt-Kopie, aktuelle Version/Assistentenaussage,
+  Neu-Synchronisierungszähler, Feldsprünge und benannte Kreisverweise korrigiert.
+- ID-Grenzen, verständliche Import-/Entwurfslimit-Meldungen, angemessene Prüffehler-Logs,
+  passende Auswahllisten und deutsche Zahlen-/Zeit-/Einheitenanzeige.
+- Oberfläche vollständig über `de.json`/`t()`, vorbereitete leere `en.json`, deutsche
+  Code-Tabellen, Terra/Einstellungen; AST-Sprachscan und JSX-Lint in CI. Keine neue Navigation.
+- [Alpha-6-Umfang und Nachweise](docs/releases/1.0.0a6.md). K7 wird ausschließlich als
+  Runbook vorgelegt. Merge, Tag, Release, Veröffentlichung, Installation und DB-Reset
+  sind nicht ausgeführt und benötigen Bennis ausdrückliches Go.
+
 ## 1.0.0a5 — Terra Workbench (2026-10-14)
 
 - New React 19 / TypeScript / Vite 8 / Tailwind 4 administration UI replacing the Svelte engineering UI:

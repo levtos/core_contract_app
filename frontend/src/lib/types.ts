@@ -119,6 +119,7 @@ export interface ValidationResult {
   issues: Issue[];
   diff?: Diff;
   machine_definitions?: Record<string, JsonObject>;
+  warnings?: Issue[];
 }
 
 export interface HistoryItem extends JsonObject {
@@ -180,6 +181,7 @@ export interface ContractDiagnosis {
       ends_episode: boolean;
     }[];
     current: JsonObject | null;
+    recovery?: { status: string; condition_met: boolean; inputs: { name: string; status: string; reasons: string[] }[] } | null;
   } | null;
 }
 

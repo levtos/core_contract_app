@@ -33,9 +33,13 @@ def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
         return value
     if transformation.kind == "type_cast":
         if transformation.target == "number":
+            if type(value) is bool:
+                raise ValueError("invalid number")
             return finite(float(value))
         if transformation.target == "bool":
-            if value not in (True, False, "true", "false", "on", "off"):
+            if type(value) is not bool and (
+                not isinstance(value, str) or value not in ("true", "false", "on", "off")
+            ):
                 raise ValueError("invalid boolean")
             return value in (True, "true", "on")
         return str(value)
@@ -325,6 +329,8 @@ class BridgeAdapter:
             config = self.runtime.config
             if config is None or not self.runtime.requires_ha_snapshot:
                 self.runtime.bridge_subscriptions = 0
+                if self.runtime.bridge != "not_needed" or self.runtime.ha != "not_needed":
+                    await self.runtime.submit("bridge_state", ("not_needed", "not_needed"))
                 await self.runtime.clock.sleep(1)
                 continue
             try:

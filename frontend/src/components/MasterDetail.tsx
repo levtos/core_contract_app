@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Plus, Search } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -41,15 +42,15 @@ export function MasterDetail({
   const shown = needle ? items.filter((i) => `${i.label} ${i.sub ?? ''}`.toLowerCase().includes(needle)) : items;
   return (
     <PanelLayout view={`collection.${title.toLowerCase()}`}>
-      <LayoutPanel id="collection" title={`${title}-Liste`} span={1}>
+      <LayoutPanel id="collection" title={uiText("components.MasterDetail.v0_liste_4816c1", { v0: (title) })} span={1}>
       <aside className="flex min-h-0 flex-col rounded-[var(--radius-lg)] border border-line bg-panel" aria-label={title}>
         <div className="flex items-center gap-2 border-b border-line p-2">
           <div className="relative min-w-0 flex-1">
             <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
-            <Input aria-label={`${title} suchen`} className="h-8 pl-8 text-xs" placeholder="Suchen …" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input aria-label={uiText("components.MasterDetail.v0_suchen_d98fc3", { v0: (title) })} className="h-8 pl-8 text-xs" placeholder={uiText("components.MasterDetail.suchen_51942c")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {onAdd && (
-            <Button size="sm" variant="primary" onClick={onAdd} disabled={addDisabled} aria-label={addLabel ?? 'Hinzufügen'} title={addLabel}>
+            <Button size="sm" variant="primary" onClick={onAdd} disabled={addDisabled} aria-label={addLabel ?? uiText("components.MasterDetail.hinzufugen_cbb95c")} title={addLabel}>
               <Plus size={14} />
             </Button>
           )}
@@ -64,7 +65,7 @@ export function MasterDetail({
                 className={cn('flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition-colors', item.key === selected ? 'bg-accent/10 text-accent' : 'hover:bg-raised')}
               >
                 <span className="flex w-full items-center justify-between gap-2">
-                  <span className="min-w-0 truncate font-mono text-xs font-medium">{item.label || '(ohne ID)'}</span>
+                  <span className="min-w-0 truncate font-mono text-xs font-medium">{item.label || uiText("components.MasterDetail.ohne_id_3527bd")}</span>
                   {item.errors ? <Badge tone="bad">{item.errors}</Badge> : null}
                 </span>
                 {(item.sub || item.badges) && (
@@ -76,11 +77,11 @@ export function MasterDetail({
               </button>
             </li>
           ))}
-          {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted">{items.length === 0 ? 'Noch keine Einträge.' : 'Keine Treffer.'}</li>}
+          {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted">{items.length === 0 ? uiText("components.MasterDetail.noch_keine_eintrage_cce9ab") : uiText("components.MasterDetail.keine_treffer_5fa5cc")}</li>}
         </ul>
       </aside>
       </LayoutPanel>
-      <LayoutPanel id="editor" title={`${title}-Editor`} span={2}>
+      <LayoutPanel id="editor" title={uiText("components.MasterDetail.v0_editor_fe0bb3", { v0: (title) })} span={2}>
       <div className="min-w-0 rounded-[var(--radius-lg)] border border-line bg-panel p-5">{selected === null ? empty : children}</div>
       </LayoutPanel>
     </PanelLayout>

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 /** Shared by all tabs, reloads and Ingress prefixes on this origin. Only timing
  * metadata is persisted. IndexedDB read/write transactions serialize reservations. */
 interface Budget { sent: number[]; blockedUntil: number }
@@ -10,7 +11,7 @@ function db(): Promise<IDBDatabase> {
     const request = indexedDB.open('terra.request-budget', 1);
     request.onupgradeneeded = () => request.result.createObjectStore('timing');
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => { database = undefined; reject(new Error('Gemeinsames Anfragebudget ist nicht verfügbar.')); };
+    request.onerror = () => { database = undefined; reject(new Error(uiText("lib.request-budget.gemeinsames_anfragebudget_ist_nicht_verfugbar_b99b92"))); };
   });
 }
 
@@ -33,7 +34,7 @@ async function timing(cooldown = 0): Promise<number> {
       store.put(state, 'ingress');
     };
     tx.oncomplete = () => resolve(wait);
-    tx.onerror = tx.onabort = () => reject(new Error('Gemeinsames Anfragebudget ist nicht verfügbar.'));
+    tx.onerror = tx.onabort = () => reject(new Error(uiText("lib.request-budget.gemeinsames_anfragebudget_ist_nicht_verfugbar_b99b92")));
   });
 }
 

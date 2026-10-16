@@ -35,6 +35,7 @@
     {
       "binding_id": "binding.a",
       "source_id": "source.a",
+      "transform": { "kind": "type_cast", "target": "bool" },
       "adapter": {
         "kind": "ha_state",
         "ha_entity_id": "sensor.example_1"
@@ -43,6 +44,7 @@
     {
       "binding_id": "binding.b",
       "source_id": "source.b",
+      "transform": { "kind": "type_cast", "target": "bool" },
       "adapter": {
         "kind": "ha_state",
         "ha_entity_id": "input_boolean.cc_alpha_test_b"

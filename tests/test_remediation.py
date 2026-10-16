@@ -374,6 +374,7 @@ async def test_large_snapshot_is_one_work_item(runtime, config):
                 "binding_id": f"binding.x{index}",
                 "source_id": source["source_id"],
                 "adapter": {"kind": "ha_state", "ha_entity_id": f"sensor.x{index}"},
+                "transform": {"kind": "type_cast", "target": "bool"},
             }
         )
     await activate(runtime, config)

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { coolDownRequests, reserveRequest } from '@/lib/request-budget';
 
 export interface Connection {
@@ -9,26 +10,27 @@ export interface SetupStatus {
   database_configured: boolean; database: Connection | null; csrf_token: string;
   onboarding_complete: boolean;
   installation_id: string | null; error: string; restart_required: boolean;
+  registry_revision?: number | null;
 }
 const errors: Record<string, string> = {
-  database_setup_pending: 'Datenbankeinrichtung noch nicht abgeschlossen.',
-  bridge_setup_pending: 'Bridge noch nicht aktiv. Einrichtung bleibt offen; Registry-Readiness folgt separat.',
-  ha_unavailable: 'HA-Verbindung nicht verfügbar. Keine Bridge-Konfiguration übernommen.',
-  ha_connection_failed: 'HA-Verbindung fehlgeschlagen. Erreichbarkeit und Berechtigung prüfen.',
-  bridge_not_discovered: 'Bridge noch nicht erkannt. HACS-Installation und bestätigten HA-Neustart prüfen.',
-  bridge_flow_changed: 'Bridge-Config-Flow entspricht nicht dem erwarteten leeren Formular. In HA prüfen.',
-  bridge_configuration_failed: 'Bridge-Konfiguration nicht bestätigt. Zustand in HA prüfen; nicht blind wiederholen.',
-  database_connection_failed: 'PostgreSQL nicht erreichbar oder Anmeldung/TLS fehlgeschlagen. Host, Zugangsdaten und Zertifikat prüfen.',
-  postgres_version_unsupported: 'PostgreSQL 14 oder neuer ist erforderlich.',
-  application_role_too_privileged: 'Die Anwendungsrolle besitzt Administratorrechte.',
-  foreign_database: 'Die Datenbank enthält fremde Daten. Eine eigene leere Datenbank verwenden.',
-  installation_mismatch: 'Installations-ID passt nicht zu dieser App. Keine Änderung übernommen.',
-  adopt_installation_id_required: 'Vorhandene Datenbank nur mit ihrer ausdrücklich bestätigten Installations-ID übernehmen.',
-  initialize_empty_database_required: 'Initialisierung der eigenen leeren Datenbank ausdrücklich bestätigen.',
-  insecure_tls_confirmation_required: 'Den eingeschränkten TLS-Schutz ausdrücklich bestätigen.',
-  confirmation_required: 'Übernahme der Verbindung ausdrücklich bestätigen.',
-  provision_request_mismatch: 'Der Importcode gehört nicht zu diesem Einrichtungsskript.',
-  invalid_setup_request: 'Eingaben oder Importcode ungültig. Bitte prüfen.',
+  database_setup_pending: uiText("setup.setup.datenbankeinrichtung_noch_nicht_abgeschlossen_78e93d"),
+  bridge_setup_pending: uiText("setup.setup.bridge_noch_nicht_aktiv_einrichtung_bleibt_offen_e255f6"),
+  ha_unavailable: uiText("setup.setup.ha_verbindung_nicht_verfugbar_keine_bridge_konfi_e25bc0"),
+  ha_connection_failed: uiText("setup.setup.ha_verbindung_fehlgeschlagen_erreichbarkeit_und__783d6b"),
+  bridge_not_discovered: uiText("setup.setup.bridge_noch_nicht_erkannt_hacs_installation_und__6d0651"),
+  bridge_flow_changed: uiText("setup.setup.bridge_config_flow_entspricht_nicht_dem_erwartet_2b24e0"),
+  bridge_configuration_failed: uiText("setup.setup.bridge_konfiguration_nicht_bestatigt_zustand_in__27f18b"),
+  database_connection_failed: uiText("setup.setup.postgresql_nicht_erreichbar_oder_anmeldung_tls_f_4d0581"),
+  postgres_version_unsupported: uiText("setup.setup.postgresql_14_oder_neuer_ist_erforderlich_85b1b5"),
+  application_role_too_privileged: uiText("setup.setup.die_anwendungsrolle_besitzt_administratorrechte_9d1faf"),
+  foreign_database: uiText("setup.setup.die_datenbank_enthalt_fremde_daten_eine_eigene_l_0c9df2"),
+  installation_mismatch: uiText("setup.setup.installations_id_passt_nicht_zu_dieser_app_keine_f2dbbb"),
+  adopt_installation_id_required: uiText("setup.setup.vorhandene_datenbank_nur_mit_ihrer_ausdrucklich__4ba1fc"),
+  initialize_empty_database_required: uiText("setup.setup.initialisierung_der_eigenen_leeren_datenbank_aus_edb871"),
+  insecure_tls_confirmation_required: uiText("setup.setup.den_eingeschrankten_tls_schutz_ausdrucklich_best_604357"),
+  confirmation_required: uiText("setup.setup.ubernahme_der_verbindung_ausdrucklich_bestatigen_e1e494"),
+  provision_request_mismatch: uiText("setup.setup.der_importcode_gehort_nicht_zu_diesem_einrichtun_ad0620"),
+  invalid_setup_request: uiText("setup.setup.eingaben_oder_importcode_ungultig_bitte_prufen_4d9ba1"),
 };
 export async function setupRequest<T>(path: string, body?: unknown, csrf = ''): Promise<T> {
   await reserveRequest();
@@ -39,7 +41,7 @@ export async function setupRequest<T>(path: string, body?: unknown, csrf = ''): 
   });
   if (response.status === 429) await coolDownRequests(response.headers.get('Retry-After'));
   const value = await response.json().catch(() => ({ error: 'invalid_response' }));
-  if (!response.ok) throw new Error(errors[value.error] ?? 'Einrichtung nicht verfügbar. Ingress-Sitzung erneuern und erneut prüfen.');
+  if (!response.ok) throw new Error(errors[value.error] ?? uiText("setup.setup.einrichtung_nicht_verfugbar_ingress_sitzung_erne_14a439"));
   return value as T;
 }
 export function validConnection(value: Connection, existing: boolean): boolean {

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { clone, isObject, type Json, type JsonObject } from '@/lib/json';
 
 /**
@@ -18,12 +19,12 @@ export interface FieldSchema extends JsonObject {
 export type Rule = JsonObject & { op: string };
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  bool: 'Wahrheitswert',
-  number: 'Zahl',
-  enum: 'Auswahl (Enum)',
-  text: 'Text',
-  timestamp: 'Zeitpunkt',
-  object: 'Objekt',
+  bool: uiText("features.authoring.model.wahrheitswert_7dc5d8"),
+  number: uiText("features.authoring.model.zahl_654eb4"),
+  enum: uiText("features.authoring.model.auswahl_enum_ae155a"),
+  text: uiText("features.authoring.model.text_71988c"),
+  timestamp: uiText("features.authoring.model.zeitpunkt_9d91e4"),
+  object: uiText("features.authoring.model.objekt_fe41f9"),
 };
 
 export const emptyRegistry = (): JsonObject => ({

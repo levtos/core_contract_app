@@ -84,11 +84,11 @@ class Runtime:
         self.persistence = False
         self.configuration_error = False
         self.first_snapshot = False
-        self.bridge = "disconnected"
+        self.bridge = "not_needed"
         self.bridge_version: str | None = None
         self.bridge_subscriptions = 0
         self.dependency_connections: dict[str, bool] = {}
-        self.ha = "disconnected"
+        self.ha = "not_needed"
         self.mqtt = "disabled"
         self.latest: dict[str, Observation] = {}
         self.overflow = False
@@ -127,8 +127,8 @@ class Runtime:
             "ready": self.ready,
             "publication_confirmed": self.confirmed,
             "persistence": "available" if self.persistence else "persistence_unavailable",
-            "ha": self.ha,
-            "bridge": self.bridge,
+            "ha": self.ha if self.requires_ha_snapshot else "not_needed",
+            "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
             "reasons": self.readiness_reasons,
         }
@@ -178,6 +178,52 @@ class Runtime:
                 )
         if issues:
             raise RegistryValidationError(issues)
+
+    async def _source_types(self, config: RegistryConfig) -> None:
+        from .registry import Source
+        from .validation import RegistryValidationError, ValidationIssue
+
+        issues = []
+        for index, source in enumerate(config.sources):
+            for document in await self.store.source_history(source.source_id):
+                old = Source.model_validate(document)
+                schema, previous = source.value_schema, old.value_schema
+                inferred = {"boolean": "bool", "numeric": "number", "text": "text"}
+                checks = (
+                    ("source_type", source.source_type != old.source_type),
+                    (
+                        "value_schema/type",
+                        (schema.type if schema else inferred.get(source.source_type))
+                        != (previous.type if previous else inferred.get(old.source_type)),
+                    ),
+                    (
+                        "value_schema/unit",
+                        (schema.unit if schema else None) != (previous.unit if previous else None),
+                    ),
+                    (
+                        "value_schema/value_catalog",
+                        bool(
+                            previous
+                            and not set(previous.value_catalog).issubset(
+                                schema.value_catalog if schema else ()
+                            )
+                        ),
+                    ),
+                )
+                for field, changed in checks:
+                    if changed:
+                        issues.append(
+                            ValidationIssue(
+                                code="immutable_source_catalog"
+                                if field.endswith("value_catalog")
+                                else "immutable_source_type",
+                                path=f"/sources/{index}/{field}",
+                                object_id=source.source_id,
+                                message="Übernommene Quellen behalten Typ und Einheit; ihre Werteliste darf nur ergänzt werden.",
+                            )
+                        )
+        if issues:
+            raise RegistryValidationError(list({(i.code, i.path): i for i in issues}.values()))
 
     @property
     def live(self) -> bool:
@@ -306,7 +352,30 @@ class Runtime:
                 if work.future and not work.future.done():
                     work.future.set_result(result)
             except Exception as error:
-                LOGGER.error(
+                from .validation import RegistryValidationError
+
+                expected_error = isinstance(error, RegistryValidationError) or (
+                    type(error) is ValueError
+                    and str(error)
+                    in {
+                        "draft_limit",
+                        "draft_identity_conflict",
+                        "draft_version_conflict",
+                        "active_revision_conflict",
+                        "sensitive key",
+                        "credential URL",
+                        "document too large",
+                        "document too deep",
+                        "configuration object required",
+                        "invalid_draft_id",
+                        "invalid_draft_version",
+                        "invalid_draft_display_name",
+                        "invalid_expected_revision",
+                        "revision_not_found",
+                    }
+                )
+                LOGGER.log(
+                    logging.INFO if expected_error else logging.ERROR,
                     "processor_request_failed",
                     extra={"operation": work.operation, "error_type": type(error).__name__},
                 )
@@ -466,10 +535,10 @@ class Runtime:
             ):
                 raise ValueError("invalid_draft_version")
             old = state.tables["registry_draft"].get(key)
-            if operation == "draft_create" and (
-                old is not None or len(state.tables["registry_draft"]) >= 100
-            ):
-                raise ValueError("draft_limit_or_identity_conflict")
+            if operation == "draft_create" and old is not None:
+                raise ValueError("draft_identity_conflict")
+            if operation == "draft_create" and len(state.tables["registry_draft"]) >= 100:
+                raise ValueError("draft_limit")
             if operation == "draft_update" and (
                 old is None or payload["draft_version"] != old["draft_version"]
             ):
@@ -513,6 +582,7 @@ class Runtime:
         if operation == "validate":
             candidate = validate(payload, self.types)
             await self._definition_versions(candidate)
+            await self._source_types(candidate)
             from .capabilities import machine_description
 
             types = registry_types(candidate, self.types)
@@ -526,6 +596,18 @@ class Runtime:
             return {
                 "valid": True,
                 "issues": [],
+                "warnings": [
+                    {
+                        "code": "machine_never_recovers",
+                        "path": f"/definitions/{index}/machine/reinitialize_when",
+                        "object_id": definition.type_id,
+                        "message": "Dieser Ablauf kann sich nach einer Änderung nie selbst erholen.",
+                    }
+                    for index, definition in enumerate(candidate.definitions)
+                    if definition.machine
+                    and definition.machine.reinitialize_when.op == "literal"
+                    and getattr(definition.machine.reinitialize_when, "value", None) is False
+                ],
                 "diff": diff(config, candidate, self.types),
                 "machine_definitions": machines,
             }
@@ -546,6 +628,7 @@ class Runtime:
                 document = historical["config"]
             new_config = validate(document, self.types)
             await self._definition_versions(new_config)
+            await self._source_types(new_config)
             revision = max((int(r) for r in state.tables["registry_revision"]), default=0) + 1
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {
@@ -998,6 +1081,8 @@ class Runtime:
                         "contract_id": key,
                         **machine_state.deadline.model_dump(mode="json"),
                     }
+            elif declaration.machine_factory and not node.get("machine"):
+                state.tables["sm_instance"].pop(key, None)
         if (
             state.tables["contract_state_history"]
             or previous_contracts.keys() != state.tables["contract_state_current"].keys()
@@ -1085,7 +1170,7 @@ class Runtime:
             elif invalid_args:
                 result.update(status="rejected", reason="invalid_value")
             elif not data:
-                result.update(status="rejected", reason="guard_rejected")
+                result.update(status="rejected", reason="state_unknown")
             else:
                 try:
                     updated, status = machine.step(
@@ -1148,7 +1233,16 @@ class Runtime:
             raise
         previous_seq = self.state.publication_seq
         previous_contracts = self.state.tables["contract_state_current"]
+        previously_needed_ha = self.requires_ha_snapshot
         self.state = state
+        if not self.requires_ha_snapshot:
+            self.ha = self.bridge = "not_needed"
+            self.bridge_subscriptions = 0
+            self.first_snapshot = False
+            self.dependency_connections.pop("ha", None)
+        elif not previously_needed_ha:
+            self.ha = self.bridge = "disconnected"
+            self.first_snapshot = False
         if self.pending_latches is not None:
             self.latches = self.pending_latches
             self.pending_latches = None

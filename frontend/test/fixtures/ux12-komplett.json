@@ -1,0 +1,90 @@
+{
+  "config_schema_version": 1,
+  "fingerprint_version": 2,
+  "catalogs": [],
+  "dependencies": [
+    {"dependency_id": "dep.ha", "kind": "ha", "monitor": "internal"}
+  ],
+  "sources": [
+    {"source_id": "source.bad_temperatur", "display_name": "Bad Temperatur", "source_type": "numeric", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.bath_climate_temperature",
+     "freshness": {"mode": "event_stateful", "future_tolerance_s": 1},
+     "value_schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+    {"source_id": "source.garten_temperatur", "display_name": "Garten Temperatur", "source_type": "numeric", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.garden_climate_temperature",
+     "freshness": {"mode": "periodic_ttl", "future_tolerance_s": 1, "interval_s": 900},
+     "value_schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+    {"source_id": "source.thermostat_temperatur", "display_name": "Thermostat Temperatur", "source_type": "numeric", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.eve_thermo_3_temperatur",
+     "freshness": {"mode": "report_heartbeat", "future_tolerance_s": 1, "interval_s": 3600},
+     "value_schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+    {"source_id": "source.fritz_verbindung", "display_name": "FRITZ!Box Verbindung", "source_type": "boolean", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.fritz_box_7530_verbindung",
+     "freshness": {"mode": "event_stateful", "future_tolerance_s": 1}},
+    {"source_id": "source.fritz_cpu_unavailable", "display_name": "FRITZ!Box Eltern CPU (unavailable)", "source_type": "numeric", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.fritz_box_7530_cpu_temperatur_2",
+     "freshness": {"mode": "liveness_source", "future_tolerance_s": 1, "interval_s": 600, "liveness_source": "source.fritz_verbindung"},
+     "value_schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+    {"source_id": "source.portal_cpu_unknown", "display_name": "FRITZ!Portal CPU (unknown)", "source_type": "numeric", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.fritz_portal_cpu_temperatur",
+     "freshness": {"mode": "event_stateful", "future_tolerance_s": 1},
+     "value_schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+    {"source_id": "source.fenster_links", "display_name": "Fenster links (Wohnzimmer)", "source_type": "boolean", "source_origin": "local", "dependency_id": "dep.ha", "physical_source_key": "ha.living_window_left_open_contact",
+     "freshness": {"mode": "event_stateful", "future_tolerance_s": 1}}
+  ],
+  "bindings": [
+    {"binding_id": "binding.bad_temperatur", "display_name": "Bad Temperatur (HA)", "source_id": "source.bad_temperatur", "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.bath_climate_temperature"}},
+    {"binding_id": "binding.garten_temperatur", "source_id": "source.garten_temperatur", "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.garden_climate_temperature"}},
+    {"binding_id": "binding.thermostat_temperatur", "source_id": "source.thermostat_temperatur", "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.eve_thermo_20ebp1701_temperatur_3"}},
+    {"binding_id": "binding.fritz_verbindung", "source_id": "source.fritz_verbindung", "adapter": {"kind": "ha_state", "ha_entity_id": "binary_sensor.fritz_box_7530_verbindung"}},
+    {"binding_id": "binding.fritz_cpu_unavailable", "source_id": "source.fritz_cpu_unavailable", "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.fritz_box_7530_cpu_temperatur_2"}},
+    {"binding_id": "binding.portal_cpu_unknown", "source_id": "source.portal_cpu_unknown", "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.fritz_portal_cpu_temperatur"}},
+    {"binding_id": "binding.fenster_links", "source_id": "source.fenster_links", "adapter": {"kind": "ha_state", "ha_entity_id": "binary_sensor.living_window_left_open_contact"}}
+  ],
+  "definitions": [
+    {"type_id": "test.bad_warm", "type_version": 1,
+     "inputs": [{"name": "temperatur", "schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}}],
+     "schema": {"fields": {"value": {"type": "bool", "required": true, "physical_state": false}}, "available_projection": ["value"]},
+     "outputs": {"value": {"op": "compare", "comparison": "gt", "left": {"op": "input", "name": "temperatur"}, "right": {"op": "literal", "value": 20, "schema": {"type": "number", "required": true, "physical_state": false}}}}},
+    {"type_id": "test.temp_mix", "type_version": 1, "display_name": "Zwei Temperaturen zusammenführen",
+     "inputs": [
+       {"name": "erste", "schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+       {"name": "zweite", "schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}}],
+     "schema": {"fields": {"value": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}}, "available_projection": ["value"]},
+     "outputs": {"value": {"op": "fusion", "strategy": "first_healthy", "args": [{"op": "input", "name": "erste"}, {"op": "input", "name": "zweite"}]}}},
+    {"type_id": "test.fenster_zeit", "type_version": 1, "display_name": "Fenster: alle sechs Zeitregeln",
+     "inputs": [
+       {"name": "offen", "schema": {"type": "bool", "required": true, "physical_state": false}},
+       {"name": "temperatur", "schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}},
+       {"name": "vorher", "schema": {"type": "number", "required": true, "physical_state": false, "unit": "°C"}}],
+     "schema": {"fields": {
+       "stabil": {"type": "bool", "required": true, "physical_state": false},
+       "verweilt": {"type": "bool", "required": true, "physical_state": false},
+       "nachlauf": {"type": "bool", "required": true, "physical_state": false},
+       "flanke": {"type": "bool", "required": true, "physical_state": false},
+       "differenz": {"type": "number", "required": false, "physical_state": false, "unit": "°C"},
+       "alter": {"type": "number", "required": false, "physical_state": false}},
+       "available_projection": ["stabil"]},
+     "outputs": {
+       "stabil": {"op": "temporal", "id": "stabil", "operation": "stable_for", "duration_s": 30, "args": [{"op": "input", "name": "offen"}]},
+       "verweilt": {"op": "temporal", "id": "verweilt", "operation": "dwell", "duration_s": 60, "args": [{"op": "input", "name": "offen"}]},
+       "nachlauf": {"op": "temporal", "id": "nachlauf", "operation": "grace", "duration_s": 120, "args": [{"op": "input", "name": "offen"}]},
+       "flanke": {"op": "temporal", "id": "flanke", "operation": "edge", "duration_s": 10, "args": [{"op": "input", "name": "offen"}]},
+       "differenz": {"op": "temporal", "id": "differenz", "operation": "delta", "duration_s": 300, "args": [{"op": "input", "name": "temperatur"}, {"op": "input", "name": "vorher"}]},
+       "alter": {"op": "temporal", "id": "alter", "operation": "age", "duration_s": 3600, "args": [{"op": "input", "name": "temperatur"}]}}},
+    {"type_id": "test.fenster_ablauf", "type_version": 1, "display_name": "Lüften-Ablauf",
+     "inputs": [{"name": "offen", "schema": {"type": "bool", "required": true, "physical_state": false}}],
+     "schema": {"fields": {"value": {"type": "enum", "required": true, "physical_state": false, "value_catalog": ["ruhe", "lueften", "fertig"]}}, "available_projection": ["value"]},
+     "outputs": {"value": {"op": "machine"}},
+     "machine": {"id": "lueften", "states": ["ruhe", "lueften", "fertig"], "initial": "ruhe", "deadline_s": 600, "sessions": false,
+       "commands": {"start": {"arguments": {"bestaetigt": {"type": "bool", "required": true, "physical_state": false}}}},
+       "transitions": [
+         {"source": "ruhe", "target": "lueften", "event": "start", "guard": {"op": "literal", "value": true, "schema": {"type": "bool", "required": true, "physical_state": false}}, "argument_equals": {"bestaetigt": true}, "reason": "angefordert"},
+         {"source": "lueften", "target": "fertig", "event": "deadline", "guard": {"op": "literal", "value": true, "schema": {"type": "bool", "required": true, "physical_state": false}}, "reason": "zeit_abgelaufen", "ends_episode": true}]}}
+  ],
+  "contracts": [
+    {"contract_id": "bad.temperatur", "type_id": "test.echo", "type_version": 1, "enabled": true, "inputs": [{"name": "a", "ref": "source.bad_temperatur"}], "parameters": {}},
+    {"contract_id": "bad.warm", "type_id": "test.bad_warm", "type_version": 1, "enabled": true, "inputs": [{"name": "temperatur", "ref": "source.bad_temperatur"}], "parameters": {}},
+    {"contract_id": "innen.temperatur", "display_name": "Innentemperatur (zusammengeführt)", "type_id": "test.temp_mix", "type_version": 1, "enabled": true, "inputs": [{"name": "erste", "ref": "source.bad_temperatur"}, {"name": "zweite", "ref": "source.thermostat_temperatur"}], "parameters": {}},
+    {"contract_id": "garten.temperatur", "type_id": "test.echo", "type_version": 1, "enabled": true, "inputs": [{"name": "a", "ref": "source.garten_temperatur"}], "parameters": {}},
+    {"contract_id": "wohnzimmer.fenster_zeit", "type_id": "test.fenster_zeit", "type_version": 1, "enabled": true, "inputs": [{"name": "offen", "ref": "source.fenster_links"}, {"name": "temperatur", "ref": "source.bad_temperatur"}, {"name": "vorher", "ref": "source.thermostat_temperatur"}], "parameters": {}},
+    {"contract_id": "wohnzimmer.lueften", "type_id": "test.fenster_ablauf", "type_version": 1, "enabled": true, "inputs": [{"name": "offen", "ref": "source.fenster_links"}], "parameters": {}},
+    {"contract_id": "test.unavailable", "display_name": "Quelle unavailable", "type_id": "test.echo", "type_version": 1, "enabled": true, "inputs": [{"name": "a", "ref": "source.fritz_cpu_unavailable"}], "parameters": {}},
+    {"contract_id": "test.unknown", "display_name": "Quelle unknown", "type_id": "test.echo", "type_version": 1, "enabled": true, "inputs": [{"name": "a", "ref": "source.portal_cpu_unknown"}], "parameters": {}},
+    {"contract_id": "fenster.offen", "display_name": "Fenster offen (Rohwert)", "type_id": "test.echo", "type_version": 1, "enabled": true, "inputs": [{"name": "a", "ref": "source.fenster_links"}], "parameters": {}}
+  ]
+}

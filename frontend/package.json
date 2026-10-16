@@ -1,11 +1,14 @@
 {
   "name": "terra-workbench",
   "private": true,
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "check": "tsc --noEmit",
+    "lint": "node scripts/check-i18n.mjs --jsx-only",
+    "scan:i18n": "node scripts/check-i18n.mjs",
+    "test:i18n-lint": "node --test scripts/ui-strings.test.mjs",
     "build": "vite build",
     "test": "vitest run",
     "verify:dist": "node scripts/check-dist.mjs",

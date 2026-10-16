@@ -42,7 +42,7 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => reply(200, { role: 'consumer', token: 'NEW-SECRET-TOKEN', status: 'rotated', rotation_id: 'rot-1', audit_status: 'complete' }) });
     const local = vi.spyOn(Storage.prototype, 'setItem');
     mount();
-    const rotate = (await screen.findAllByRole('button', { name: /Token rotieren/ }))[0]!;
+    const rotate = (await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!;
     await user.click(rotate);
     const dialog = await screen.findByRole('alertdialog');
     const go = within(dialog).getByRole('button', { name: 'Jetzt rotieren' });
@@ -50,28 +50,28 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     expect(api.calls.some((c) => c.path === 'tokens/rotate')).toBe(false);
     await user.click(within(dialog).getByRole('checkbox'));
     await user.click(go);
-    await screen.findByText(/Token rotiert/);
+    await screen.findByText(/Zugangsschlüssel rotiert/);
     expect(api.calls.filter((c) => c.path === 'tokens/rotate')).toHaveLength(1);
     expect(api.calls.find((c) => c.path === 'tokens/rotate')!.body).toEqual({ role: 'consumer' });
-    const field = screen.getByLabelText('Neues Token') as HTMLInputElement;
+    const field = screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement;
     expect(field.type).toBe('password'); // masked until revealed
     expect(field.value).toBe('NEW-SECRET-TOKEN');
     expect(local.mock.calls.flat().join(' ')).not.toContain('NEW-SECRET-TOKEN');
     expect(JSON.stringify({ ...sessionStorage })).not.toContain('NEW-SECRET-TOKEN');
     expect(JSON.stringify({ ...localStorage })).not.toContain('NEW-SECRET-TOKEN');
     await user.click(screen.getByRole('button', { name: /ausblenden/ }));
-    expect(screen.queryByLabelText('Neues Token')).toBeNull();
+    expect(screen.queryByLabelText("Neuer Zugangsschlüssel")).toBeNull();
   });
 
   it('keeps the credential visible when only the audit completion is unconfirmed', async () => {
     const api = adminApi();
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => reply(200, { role: 'admin', token: 'T', status: 'rotated', rotation_id: 'rot-2', audit_status: 'completion_unconfirmed' }) });
     mount();
-    await user.click((await screen.findAllByRole('button', { name: /Token rotieren/ }))[1]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[1]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
     await screen.findByText(/Abschluss unbestätigt/);
-    expect((screen.getByLabelText('Neues Token') as HTMLInputElement).value).toBe('T');
+    expect((screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement).value).toBe('T');
   });
 
   it('never retries a failed rotation automatically and calls the outcome indeterminate', async () => {
@@ -79,14 +79,14 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     let calls = 0;
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => { calls += 1; return reply(503, { error: 'persistence_unavailable' }); } });
     mount();
-    await user.click((await screen.findAllByRole('button', { name: /Token rotieren/ }))[0]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
     await screen.findByText('Rotation nicht bestätigt');
     expect(screen.getByText(/nicht automatisch wiederholen/)).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 300));
     expect(calls).toBe(1);
-    expect(screen.queryByLabelText('Neues Token')).toBeNull();
+    expect(screen.queryByLabelText("Neuer Zugangsschlüssel")).toBeNull();
   });
 
   it('marks a rotation request without completion as indeterminate in the audit log', async () => {
@@ -100,9 +100,9 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
       ], next_cursor: null, limit: 100, order: 'time_desc_key_desc' }),
     });
     mount();
-    await screen.findByText('Audit-Verlauf');
+    await screen.findByText("Protokoll-Verlauf");
     await waitFor(() => expect(screen.getAllByText('Ausgang unbestimmt')).toHaveLength(1));
-    expect(screen.getAllByText('ingress', { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Home-Assistant-Zugriff', { exact: false }).length).toBeGreaterThan(0);
   });
 });
 
@@ -122,16 +122,16 @@ describe('T1B-07: the one-time credential is held nowhere but the visible compon
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    await user.click((await screen.findAllByRole('button', { name: /Token rotieren/ }))[0]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
-    await screen.findByLabelText('Neues Token');
-    expect((screen.getByLabelText('Neues Token') as HTMLInputElement).value).toBe('SYNTHETIC-TOKEN-123'); // still usable for the user
+    await screen.findByLabelText("Neuer Zugangsschlüssel");
+    expect((screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement).value).toBe('SYNTHETIC-TOKEN-123'); // still usable for the user
     expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');
     if (audit === 'completion_unconfirmed') expect(screen.getByText(/Abschluss unbestätigt/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /ausblenden/ }));
-    expect(screen.queryByLabelText('Neues Token')).toBeNull();
+    expect(screen.queryByLabelText("Neuer Zugangsschlüssel")).toBeNull();
     expect(document.body.textContent).not.toContain('SYNTHETIC-TOKEN-123');
     expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');
     view.unmount();

@@ -24,7 +24,7 @@ function mount(initial: JsonObject, render: (value: JsonObject, set: (n: JsonObj
 describe('registry objects are fully editable without JSON', () => {
   it('dependency', async () => {
     const result = mount({ dependency_id: 'dep.neu', kind: 'ha', monitor: 'internal' }, (v, set) => <DependencyEditor value={v} onChange={set} pointer="/dependencies/0" sourceIds={[]} schema={schema} />);
-    await type(screen.getByLabelText('Dependency-ID'), 'dep.test');
+    await type(screen.getByLabelText("Abhängigkeit-ID"), 'dep.test');
     expect(result()).toEqual(doc.dependencies![0]);
   });
 
@@ -33,7 +33,7 @@ describe('registry objects are fully editable without JSON', () => {
       { source_id: 'source.neu', source_type: 'boolean', source_origin: 'local', freshness: { mode: 'event_stateful', future_tolerance_s: 1 }, dependency_id: 'dep.test', physical_source_key: 'physical.neu' },
       (v, set) => <SourceEditor value={v} onChange={set} pointer="/sources/0" dependencyIds={['dep.test']} sourceIds={['source.a']} schema={schema} />,
     );
-    await type(screen.getByLabelText('Source-ID'), 'source.a');
+    await type(screen.getByLabelText("Quelle-ID"), 'source.a');
     await type(screen.getByLabelText('Physischer Schlüssel'), 'physical.a');
     expect(result()).toEqual(doc.sources![0]);
   });
@@ -46,18 +46,19 @@ describe('registry objects are fully editable without JSON', () => {
     expect(screen.queryByLabelText(/Intervall/)).toBeNull();
     await user.selectOptions(screen.getByLabelText('Modus'), 'liveness_source');
     expect(screen.getByLabelText(/Intervall/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Liveness-Quelle/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Erreichbarkeitsquelle/)).toBeInTheDocument();
   });
 
   it('binding with HA entity and optional transform', async () => {
     const result = mount({ binding_id: 'binding.neu', source_id: 'source.a', adapter: { kind: 'ha_state' } }, (v, set) => (
-      <BindingEditor value={v} onChange={set} pointer="/bindings/0" sourceIds={['source.a', 'source.b']} catalogIds={[]} schema={schema} onPickEntity={() => {}} />
+      <BindingEditor value={v} onChange={set} pointer="/bindings/0" sourceIds={['source.a', 'source.b']} sources={doc.sources as JsonObject[]} catalogIds={[]} schema={schema} onPickEntity={() => {}} />
     ));
-    await type(screen.getByLabelText('Binding-ID'), 'binding.a');
+    await type(screen.getByLabelText("Verknüpfung-ID"), 'binding.a');
     await type(screen.getByLabelText(/^HA-Entität \*/), 'sensor.example_1');
+    await user.click(screen.getByRole('button', { name: 'Umwandlung ergänzen' }));
     expect(result()).toEqual(doc.bindings![0]);
     await user.selectOptions(screen.getByLabelText('Transformation'), 'type_cast');
-    expect(result().transform).toEqual({ kind: 'type_cast', target: 'number' });
+    expect(result().transform).toEqual({ kind: 'type_cast', target: 'bool' });
     await user.selectOptions(screen.getByLabelText('Transformation'), '');
     expect('transform' in result() && result().transform !== undefined).toBe(false);
   });
@@ -76,7 +77,7 @@ describe('registry objects are fully editable without JSON', () => {
     const result = mount({ contract_id: 'x', type_id: 'test.either', type_version: 1, enabled: true, inputs: [], parameters: {} }, (v, set) => (
       <ContractEditor value={v} onChange={set} pointer="/contracts/2" types={types} refs={refs} />
     ));
-    await type(screen.getByLabelText('Contract-ID'), 'fixture.either');
+    await type(screen.getByLabelText("Vertrag-ID"), 'fixture.either');
     const refSelects = screen.getAllByLabelText('Referenz');
     await user.selectOptions(refSelects[0]!, 'fixture.left');
     await user.selectOptions(refSelects[1]!, 'fixture.right');
@@ -90,8 +91,8 @@ describe('registry objects are fully editable without JSON', () => {
     const result = mount({ contract_id: 'p', type_id: 'test.temporal', type_version: 1, enabled: true, inputs: [], parameters: {} }, (v, set) => (
       <ContractEditor value={v} onChange={set} pointer="/contracts/0" types={types} refs={[]} />
     ));
-    expect(screen.getByLabelText(/operation/i)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/operation/i), 'stable_for');
+    expect(screen.getByLabelText(/Aktion/i)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/Aktion/i), 'stable_for');
     expect((result().parameters as JsonObject).operation).toBe('stable_for');
   });
 });

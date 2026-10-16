@@ -116,10 +116,10 @@ describe('opening another draft', () => {
     await waitFor(() => expect(read().id).toBe('a'));
     await user.click(screen.getByText('edit'));
 
-    await user.click(screen.getAllByRole('button', { name: /Neuer Draft/ })[0]!);
-    const create = await screen.findByRole('dialog', { name: 'Neuer Draft' });
-    await user.click(within(create).getByRole('radio', { name: 'Leere Registry' }));
-    await user.click(within(create).getByRole('button', { name: 'Draft anlegen' }));
+    await user.click(screen.getAllByRole('button', { name: /Neuer Entwurf/ })[0]!);
+    const create = await screen.findByRole('dialog', { name: "Neuer Entwurf" });
+    await user.click(within(create).getByRole('radio', { name: "Leere Konfiguration" }));
+    await user.click(within(create).getByRole('button', { name: "Entwurf anlegen" }));
     const ask = await screen.findByRole('alertdialog');
     expect(api.drafts.size).toBe(3); // the new draft exists on the server ...
     expect(read()).toMatchObject({ id: 'a', dirty: true, marker: 'lokal' }); // ... but the edits are untouched

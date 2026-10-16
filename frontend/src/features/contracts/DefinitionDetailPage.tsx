@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { ArrowLeft, GitBranchPlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -36,7 +37,7 @@ export default function DefinitionDetailPage() {
     return (
       <>
         <Back />
-        <Empty title={`Definition „${typeId}@${version}“ nicht gefunden`}>{src.source === 'draft' ? 'Sie existiert im geöffneten Draft nicht.' : 'Sie existiert in der aktiven Registry nicht.'}</Empty>
+        <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152")}</Empty>
       </>
     );
   }
@@ -68,61 +69,61 @@ export default function DefinitionDetailPage() {
       <Back />
       <PageHeader
         title={<span className="font-mono">{typeId}</span>}
-        description={`${str(definition.display_name) || 'Deklarative Definition'} · Version ${version}`}
+        description={uiText("features.contracts.DefinitionDetailPage.v0_version_v1_1d1973", { v0: (str(definition.display_name) || uiText("features.contracts.DefinitionDetailPage.deklarative_definition_07f53d")), v1: (version) })}
         actions={
           <>
-            <Badge>v{version}</Badge>
-            {lockedSince !== null ? <LockBadge /> : <Badge tone="warn">Entwurf</Badge>}
+            <Badge>{uiText("features.contracts.DefinitionDetailPage.v_4c9448")}{version}</Badge>
+            {lockedSince !== null ? <LockBadge /> : <Badge tone="warn">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
             {src.editable && (
               <>
-                <Button size="sm" onClick={() => { setMigrate(new Set(users)); setVersioning(true); }}><GitBranchPlus size={14} /> Neue Version</Button>
-                <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> Entfernen</Button>
+                <Button size="sm" onClick={() => { setMigrate(new Set(users)); setVersioning(true); }}><GitBranchPlus size={14} /> {uiText("features.contracts.DefinitionDetailPage.neue_version_e81cfe")}</Button>
+                <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.DefinitionDetailPage.entfernen_382837")}</Button>
               </>
             )}
           </>
         }
       />
-      <ReadOnlyNotice what="Definition" />
-      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title="Definitionseditor"><fieldset disabled={!src.editable} className="min-w-0">
+      <ReadOnlyNotice what={uiText("features.contracts.DefinitionDetailPage.definition_9813fa")} />
+      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><fieldset disabled={!src.editable} className="min-w-0">
         <DefinitionEditor
           value={definition}
           pointer={pointer}
           caps={caps.data}
           initialTab={params.get('tab') ?? undefined}
           locked={locked}
-          lockReason={lockedSince !== null ? `Diese Version war in Revision ${lockedSince} aktiv.` : src.editable ? undefined : 'Schreibgeschützte Ansicht der aktiven Registry.'}
+          lockReason={lockedSince !== null ? uiText("features.contracts.DefinitionDetailPage.diese_version_war_in_revision_v0_aktiv_7f3ad4", { v0: (lockedSince) }) : src.editable ? undefined : uiText("features.contracts.DefinitionDetailPage.schreibgeschutzte_ansicht_der_aktiven_registry_10e355")}
           onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}
         />
       </fieldset>
-      </LayoutPanel><LayoutPanel id="usage" title="Verwendung"><section className="text-sm text-muted">
-        Verwendet von {users.length === 0 ? 'keiner Instanz' : users.map((id) => <Link key={id} to={`/contracts/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
+      </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">
+        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
       </section>
       </LayoutPanel></PanelLayout>
 
       <Dialog
         open={versioning}
         onOpenChange={setVersioning}
-        title={`Neue Version von ${typeId}`}
-        description={`Es wird v${String(nextVersion.type_version)} als Kopie von v${version} angelegt. Die bisherige Version bleibt unverändert; Instanzen verweisen weiter auf sie, bis sie umgestellt werden.`}
-        footer={<><Button onClick={() => setVersioning(false)}>Abbrechen</Button><Button variant="primary" onClick={createVersion}>Version anlegen</Button></>}
+        title={uiText("features.contracts.DefinitionDetailPage.neue_version_von_v0_8ee68e", { v0: (typeId) })}
+        description={uiText("features.contracts.DefinitionDetailPage.es_wird_v_v0_als_kopie_von_v_v1_angelegt_die_bis_cdd655", { v0: (String(nextVersion.type_version)), v1: (version) })}
+        footer={<><Button onClick={() => setVersioning(false)}>{uiText("features.contracts.DefinitionDetailPage.abbrechen_f7ff11")}</Button><Button variant="primary" onClick={createVersion}>{uiText("features.contracts.DefinitionDetailPage.version_anlegen_3d33f7")}</Button></>}
       >
         {users.length > 0 ? (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted">Instanzen gleich auf die neue Version umstellen? Das ändert ihren semantischen Fingerprint; gehaltene Zeitkontexte können dadurch neu initialisiert werden (die Validierung zeigt die Auswirkungen).</p>
+            <p className="text-sm text-muted">{uiText("features.contracts.DefinitionDetailPage.instanzen_gleich_auf_die_neue_version_umstellen__a98ead")}</p>
             {users.map((id) => (
               <Checkbox key={id} checked={migrate.has(id)} onCheckedChange={(on) => setMigrate((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })} label={<code>{id}</code>} />
             ))}
           </div>
         ) : (
-          <Notice tone="info">Keine Instanz verwendet diese Version.</Notice>
+          <Notice tone="info">{uiText("features.contracts.DefinitionDetailPage.keine_instanz_verwendet_diese_version_2f0d3f")}</Notice>
         )}
       </Dialog>
       <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}
-        title="Definition entfernen?"
-        description={<>{key} wird aus dem Draft entfernt.{users.length > 0 && <> Noch verwendet von: {users.join(', ')}.</>}{lockedSince !== null && <> Diese Version war bereits aktiv; sie kann später nicht mit anderer Semantik neu definiert werden.</>}</>}
-        confirmLabel="Entfernen"
+        title={uiText("features.contracts.DefinitionDetailPage.definition_entfernen_2fb8aa")}
+        description={<>{key} {uiText("features.contracts.DefinitionDetailPage.wird_aus_dem_draft_entfernt_2fe205")}{users.length > 0 && <> {uiText("features.contracts.DefinitionDetailPage.noch_verwendet_von_cd365f")}{users.join(', ')}.</>}{lockedSince !== null && <> {uiText("features.contracts.DefinitionDetailPage.diese_version_war_bereits_aktiv_sie_kann_spater__eb414d")}</>}</>}
+        confirmLabel={uiText("features.contracts.DefinitionDetailPage.entfernen_382837")}
         tone="danger"
         onConfirm={() => {
           doc.edit((c) => setAt(c, pointer, undefined));
@@ -138,8 +139,7 @@ function Back() {
   return (
     <>
       <Link to="/definitions" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
-        <ArrowLeft size={13} /> Alle Definitionen
-      </Link>
+        <ArrowLeft size={13} /> {uiText("features.contracts.DefinitionDetailPage.alle_definitionen_bd3333")}</Link>
       <ContractsTabs />
     </>
   );

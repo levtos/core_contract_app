@@ -1,6 +1,9 @@
+import { t as uiText } from '@/i18n';
 import { Trash2 } from 'lucide-react';
 import { Checkbox, Collapsible } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/layout';
 import {
   asArray,
   asObject,
@@ -86,10 +89,10 @@ export function MachineEditor({
         <IssuesAt pointer={pointer} />
         <Extras def="MachineDefinition" value={value} pointer={pointer} onChange={onChange} />
         <section className="grid gap-3 sm:grid-cols-4">
-          <Fld label="Maschinen-ID" pointer={join(pointer, 'id')}>
+          <Fld label={uiText("editors.MachineEditor.maschinen_id_bdfa88")} pointer={join(pointer, 'id')}>
             {(p) => <Input {...p} value={str(value.id)} onChange={(e) => set({ id: e.target.value })} />}
           </Fld>
-          <Fld label="Anfangszustand" pointer={join(pointer, 'initial')}>
+          <Fld label={uiText("editors.MachineEditor.anfangszustand_da00a2")} pointer={join(pointer, 'initial')}>
             {(p) => (
               <Select {...p} value={str(value.initial)} onChange={(e) => set({ initial: e.target.value })}>
                 {!states.includes(str(value.initial)) && <option value={str(value.initial)}>{str(value.initial) || '—'}</option>}
@@ -100,25 +103,25 @@ export function MachineEditor({
             )}
           </Fld>
           <div className="flex flex-col justify-end gap-2 pb-1.5">
-            <Checkbox checked={value.sessions === true} onCheckedChange={(on) => set({ sessions: on })} label="Sessions führen" />
-            <Checkbox checked={hasDeadline} onCheckedChange={(on) => set({ deadline_s: on ? 60 : undefined })} label="Deadline verwenden" />
+            <Checkbox checked={value.sessions === true} onCheckedChange={(on) => set({ sessions: on })} label={uiText("editors.MachineEditor.sessions_fuhren_a20d63")} />
+            <Checkbox checked={hasDeadline} onCheckedChange={(on) => set({ deadline_s: on ? 60 : undefined })} label={uiText("editors.MachineEditor.deadline_verwenden_f1deab")} />
           </div>
-          {hasDeadline && <NumberField label="Deadline (s)" pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint="eine Deadline pro Contract" onChange={(n) => set({ deadline_s: n })} />}
+          {hasDeadline && <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={uiText("editors.MachineEditor.eine_deadline_pro_contract_994bde")} onChange={(n) => set({ deadline_s: n })} />}
         </section>
 
         <section>
-          <SectionTitle aside={<AddButton onClick={() => set({ states: [...states, uniqueName('zustand', states)] })}>Zustand</AddButton>}>Zustände</SectionTitle>
+          <SectionTitle aside={<AddButton onClick={() => set({ states: [...states, uniqueName('zustand', states)] })}>{uiText("editors.MachineEditor.zustand_630d1a")}</AddButton>}>{uiText("editors.MachineEditor.zustande_f5ef55")}</SectionTitle>
           <div className="flex flex-wrap gap-2">
             {states.map((state) => (
               <div key={state} className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-line-strong bg-sunken pl-1">
                 <Input
-                  aria-label={`Zustand ${state}`}
+                  aria-label={uiText("editors.MachineEditor.zustand_v0_871457", { v0: (state) })}
                   defaultValue={state}
                   key={state}
                   className="h-7 w-32 border-0 bg-transparent px-1.5 text-xs"
                   onBlur={(e) => (e.target.value.trim() && e.target.value !== state ? renameState(state, e.target.value.trim()) : (e.target.value = state))}
                 />
-                <IconButton label={stateUsed(state) ? `${state} wird verwendet` : `${state} entfernen`} tone="danger" disabled={stateUsed(state) || states.length <= 1} onClick={() => set({ states: states.filter((s) => s !== state) })}>
+                <IconButton label={stateUsed(state) ? uiText("editors.MachineEditor.v0_wird_verwendet_e5d823", { v0: (state) }) : uiText("editors.MachineEditor.v0_entfernen_92fea7", { v0: (state) })} tone="danger" disabled={stateUsed(state) || states.length <= 1} onClick={() => set({ states: states.filter((s) => s !== state) })}>
                   <Trash2 size={13} />
                 </IconButton>
               </div>
@@ -128,8 +131,8 @@ export function MachineEditor({
         </section>
 
         <section className="flex flex-col gap-2">
-          <SectionTitle aside={<AddButton onClick={() => set({ commands: { ...commands, [uniqueName('befehl', [...Object.keys(commands), ...RESERVED_EVENTS])]: { arguments: {} } } })}>Befehl</AddButton>}>Befehle</SectionTitle>
-          <p className="text-xs text-muted">Ein Befehl fordert eine benannte Transition an; der Guard entscheidet. Es gibt kein direktes Setzen von Zuständen.</p>
+          <SectionTitle aside={<AddButton onClick={() => set({ commands: { ...commands, [uniqueName('befehl', [...Object.keys(commands), ...RESERVED_EVENTS])]: { arguments: {} } } })}>{uiText("editors.MachineEditor.befehl_c8505b")}</AddButton>}>{uiText("editors.MachineEditor.befehle_23a3b7")}</SectionTitle>
+          <p className="text-xs text-muted">{uiText("editors.MachineEditor.ein_befehl_fordert_eine_benannte_transition_an_d_878ba3")}</p>
           {Object.entries(commands).map(([name, raw]) => {
             const args = asObject(asObject(raw).arguments) as Record<string, FieldSchema>;
             return (
@@ -140,7 +143,7 @@ export function MachineEditor({
                 aside={
                   <>
                     <IssueCount pointer={join(pointer, 'commands', name)} />
-                    <IconButton label={`Befehl ${name} entfernen`} tone="danger" onClick={() => onChange({ ...value, commands: Object.fromEntries(Object.entries(commands).filter(([k]) => k !== name)), transitions: transitions.filter((t) => t.event !== name) })}>
+                    <IconButton label={uiText("editors.MachineEditor.befehl_v0_entfernen_54de54", { v0: (name) })} tone="danger" onClick={() => onChange({ ...value, commands: Object.fromEntries(Object.entries(commands).filter(([k]) => k !== name)), transitions: transitions.filter((t) => t.event !== name) })}>
                       <Trash2 size={14} />
                     </IconButton>
                   </>
@@ -148,15 +151,15 @@ export function MachineEditor({
               >
                 <div className="flex flex-col gap-3">
                   <Extras def="CommandDefinition" value={asObject(raw)} pointer={join(pointer, 'commands', name)} onChange={(next) => set({ commands: { ...commands, [name]: next } })} />
-                  <Fld label="Befehlsname" pointer={join(pointer, 'commands', name)}>
+                  <Fld label={uiText("editors.MachineEditor.befehlsname_439d2d")} pointer={join(pointer, 'commands', name)}>
                     {(p) => <Input {...p} defaultValue={name} key={name} onBlur={(e) => (e.target.value.trim() !== name ? renameCommand(name, e.target.value.trim()) : undefined)} />}
                   </Fld>
-                  <SectionTitle aside={<AddButton onClick={() => set({ commands: { ...commands, [name]: { arguments: { ...args, [uniqueName('arg', Object.keys(args))]: newFieldSchema('bool') } } } })}>Argument</AddButton>}>Typisierte Argumente</SectionTitle>
-                  {Object.entries(args).length === 0 && <p className="text-xs text-faint">Keine Argumente.</p>}
+                  <SectionTitle aside={<AddButton onClick={() => set({ commands: { ...commands, [name]: { arguments: { ...args, [uniqueName('arg', Object.keys(args))]: newFieldSchema('bool') } } } })}>{uiText("editors.MachineEditor.argument_481da3")}</AddButton>}>{uiText("editors.MachineEditor.typisierte_argumente_a38ea4")}</SectionTitle>
+                  {Object.entries(args).length === 0 && <p className="text-xs text-faint">{uiText("editors.MachineEditor.keine_argumente_98a370")}</p>}
                   {Object.entries(args).map(([argName, schema]) => (
                     <div key={argName} className="flex items-start gap-2 rounded-[var(--radius-md)] border border-line p-2">
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <Fld label="Argument" pointer={join(pointer, 'commands', name, 'arguments', argName)}>
+                        <Fld label={uiText("editors.MachineEditor.argument_481da3")} pointer={join(pointer, 'commands', name, 'arguments', argName)}>
                           {(p) => (
                             <Input
                               {...p}
@@ -177,7 +180,7 @@ export function MachineEditor({
                         </Fld>
                         <FieldSchemaEditor compact pointer={join(pointer, 'commands', name, 'arguments', argName)} value={schema} onChange={(next) => set({ commands: { ...commands, [name]: { arguments: { ...args, [argName]: next } } } })} />
                       </div>
-                      <IconButton label="Argument entfernen" tone="danger" onClick={() => set({ commands: { ...commands, [name]: { arguments: Object.fromEntries(Object.entries(args).filter(([k]) => k !== argName)) } } })}>
+                      <IconButton label={uiText("editors.MachineEditor.argument_entfernen_c60b1a")} tone="danger" onClick={() => set({ commands: { ...commands, [name]: { arguments: Object.fromEntries(Object.entries(args).filter(([k]) => k !== argName)) } } })}>
                         <Trash2 size={14} />
                       </IconButton>
                     </div>
@@ -189,9 +192,11 @@ export function MachineEditor({
         </section>
 
         <section className="flex flex-col gap-2">
-          <SectionTitle>Neu initialisieren, wenn …</SectionTitle>
-          <p className="text-xs text-muted">Zustandsloser Ausdruck. Zeitliche Wahrheiten als Contract-Eingang einspeisen.</p>
-          <RuleEditor value={(value.reinitialize_when ?? guardRule(false)) as Rule} pointer={join(pointer, 'reinitialize_when')} onChange={(next) => set({ reinitialize_when: next })} />
+          <SectionTitle>{uiText("editors.MachineEditor.neu_initialisieren_wenn_dd14f7")}</SectionTitle>
+          <p className="text-xs text-muted">{uiText("editors.MachineEditor.zustandsloser_ausdruck_zeitliche_wahrheiten_als__a67920")}</p>
+          {value.reinitialize_when ? <RuleEditor value={value.reinitialize_when as Rule} pointer={join(pointer, 'reinitialize_when')} onChange={(next) => set({ reinitialize_when: next })} /> : <Notice tone="bad" title={uiText("editors.MachineEditor.neustart_bedingung_fehlt_f0544a")}><Button size="sm" onClick={() => set({ reinitialize_when: guardRule(false) })}>{uiText("editors.MachineEditor.bedingung_festlegen_0513ca")}</Button></Notice>}
+          {asObject(value.reinitialize_when).op === 'literal' && asObject(value.reinitialize_when).value === false && <Notice tone="warn" title={uiText("editors.MachineEditor.dieser_ablauf_kann_sich_nach_einer_anderung_nie__670fc4")}>{uiText("editors.MachineEditor.legen_sie_eine_bedingung_aus_gultigen_eingangen__95fb96")}</Notice>}
+          {asArray(definition.inputs).map(asObject).filter((input) => asObject(input.schema).type === 'bool').map((input) => <Button key={str(input.name)} size="sm" onClick={() => set({ reinitialize_when: { op: 'not', args: [{ op: 'input', name: str(input.name) }] } })}>{uiText("editors.MachineEditor.neustart_wenn_ef87e7")}{str(input.name)} {uiText("editors.MachineEditor.nein_ist_79608c")}</Button>)}
         </section>
 
         <section className="flex flex-col gap-2">
@@ -205,13 +210,11 @@ export function MachineEditor({
                   ])
                 }
               >
-                Transition
-              </AddButton>
+                {uiText("editors.MachineEditor.transition_2fe704")}</AddButton>
             }
           >
-            Transitionen
-          </SectionTitle>
-          <p className="text-xs text-muted">Pro Quellzustand und Ereignis ist genau eine Transition zulässig. Die Reihenfolge ändert keine Alternativen.</p>
+            {uiText("editors.MachineEditor.transitionen_41ef48")}</SectionTitle>
+          <p className="text-xs text-muted">{uiText("editors.MachineEditor.pro_quellzustand_und_ereignis_ist_genau_eine_tra_5c73e8")}</p>
           {transitions.map((transition, i) => {
             const tp = join(pointer, 'transitions', i);
             const command = asObject(asObject(commands[str(transition.event)]).arguments) as Record<string, FieldSchema>;
@@ -255,7 +258,7 @@ export function MachineEditor({
               >
                 <div className="flex flex-col gap-4">
                   <div className="grid gap-3 sm:grid-cols-4">
-                    <Fld label="Von" pointer={join(tp, 'source')}>
+                    <Fld label={uiText("editors.MachineEditor.von_640e86")} pointer={join(tp, 'source')}>
                       {(p) => (
                         <Select {...p} value={str(transition.source)} onChange={(e) => patch({ source: e.target.value })}>
                           {!states.includes(str(transition.source)) && <option value={str(transition.source)}>{str(transition.source) || '—'}</option>}
@@ -265,7 +268,7 @@ export function MachineEditor({
                         </Select>
                       )}
                     </Fld>
-                    <Fld label="Nach" pointer={join(tp, 'target')}>
+                    <Fld label={uiText("editors.MachineEditor.nach_0ea777")} pointer={join(tp, 'target')}>
                       {(p) => (
                         <Select {...p} value={str(transition.target)} onChange={(e) => patch({ target: e.target.value })}>
                           {!states.includes(str(transition.target)) && <option value={str(transition.target)}>{str(transition.target) || '—'}</option>}
@@ -275,28 +278,28 @@ export function MachineEditor({
                         </Select>
                       )}
                     </Fld>
-                    <Fld label="Ereignis" pointer={join(tp, 'event')} hint={str(transition.event) === 'deadline' && !hasDeadline ? 'Deadline-Transitionen benötigen eine Deadline.' : undefined}>
+                    <Fld label={uiText("editors.MachineEditor.ereignis_af9e77")} pointer={join(tp, 'event')} hint={str(transition.event) === uiText("editors.MachineEditor.deadline_dfc8ae") && !hasDeadline ? uiText("editors.MachineEditor.deadline_transitionen_benotigen_eine_deadline_d8a6d2") : undefined}>
                       {(p) => (
                         <Select {...p} value={str(transition.event)} onChange={(e) => patch({ event: e.target.value, argument_equals: undefined })}>
                           {!events.includes(str(transition.event)) && <option value={str(transition.event)}>{str(transition.event) || '—'}</option>}
                           {events.map((ev) => (
-                            <option key={ev} value={ev}>{ev === 'input' ? 'input (Eingangsänderung)' : ev === 'deadline' ? 'deadline (Fristablauf)' : `Befehl: ${ev}`}</option>
+                            <option key={ev} value={ev}>{ev === 'input' ? uiText("editors.MachineEditor.input_eingangsanderung_eec32a") : ev === 'deadline' ? uiText("editors.MachineEditor.deadline_fristablauf_ae4d9c") : uiText("editors.MachineEditor.befehl_v0_fc4317", { v0: (ev) })}</option>
                           ))}
                         </Select>
                       )}
                     </Fld>
-                    <Fld label="Grund" pointer={join(tp, 'reason')}>
+                    <Fld label={uiText("editors.MachineEditor.grund_b45f40")} pointer={join(tp, 'reason')}>
                       {(p) => <Input {...p} value={str(transition.reason)} onChange={(e) => patch({ reason: e.target.value })} />}
                     </Fld>
                   </div>
                   <Extras def="TransitionDefinition" value={transition} pointer={tp} onChange={(next) => setTransitions(transitions.map((t, j) => (j === i ? next : t)))} />
                   <div className="flex flex-wrap gap-5">
-                    <Checkbox checked={transition.new_episode === true} onCheckedChange={(on) => patch({ new_episode: on || undefined })} label="Beginnt neue Episode" />
-                    <Checkbox checked={transition.ends_episode === true} onCheckedChange={(on) => patch({ ends_episode: on || undefined })} label="Beendet Episode" />
+                    <Checkbox checked={transition.new_episode === true} onCheckedChange={(on) => patch({ new_episode: on || undefined })} label={uiText("editors.MachineEditor.beginnt_neue_episode_aa43cc")} />
+                    <Checkbox checked={transition.ends_episode === true} onCheckedChange={(on) => patch({ ends_episode: on || undefined })} label={uiText("editors.MachineEditor.beendet_episode_92986e")} />
                   </div>
                   {isCommand && Object.keys(command).length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <SectionTitle>Bedingungen an die Befehlsargumente</SectionTitle>
+                      <SectionTitle>{uiText("editors.MachineEditor.bedingungen_an_die_befehlsargumente_08ced2")}</SectionTitle>
                       {Object.entries(command).map(([argName, schema]) => {
                         const active = argName in equals;
                         return (
@@ -313,14 +316,14 @@ export function MachineEditor({
                                 label={<code>{argName} =</code>}
                               />
                             </div>
-                            {active && <TypedValueEditor label="muss gleich sein" schema={schema} value={equals[argName] as Json} pointer={join(tp, 'argument_equals', argName)} onChange={(v) => patch({ argument_equals: { ...equals, [argName]: v } })} />}
+                            {active && <TypedValueEditor label={uiText("editors.MachineEditor.muss_gleich_sein_4c42df")} schema={schema} value={equals[argName] as Json} pointer={join(tp, 'argument_equals', argName)} onChange={(v) => patch({ argument_equals: { ...equals, [argName]: v } })} />}
                           </div>
                         );
                       })}
                     </div>
                   )}
                   <div className="flex flex-col gap-2">
-                    <SectionTitle>Guard (zustandslos)</SectionTitle>
+                    <SectionTitle>{uiText("editors.MachineEditor.guard_zustandslos_96238a")}</SectionTitle>
                     <RuleEditor value={(transition.guard ?? guardRule()) as Rule} pointer={join(tp, 'guard')} onChange={(next) => patch({ guard: next })} />
                   </div>
                 </div>

@@ -102,6 +102,7 @@ class Store(Protocol):
     ) -> list[dict[str, Any]]: ...
     async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]: ...
     async def definition(self, type_id: str, version: int) -> dict[str, Any] | None: ...
+    async def source_history(self, source_id: str) -> list[dict[str, Any]]: ...
     async def evidence(self, reference: str) -> dict[str, Any] | None: ...
 
 
@@ -345,6 +346,17 @@ class PostgresStore:
         )
         return json.loads(value) if value is not None else None
 
+    async def source_history(self, source_id: str) -> list[dict[str, Any]]:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        records = await self.pool.fetch(
+            "SELECT DISTINCT source FROM registry_revision, "
+            "LATERAL jsonb_array_elements(payload->'config'->'sources') AS entries(source) "
+            "WHERE source->>'source_id'=$1",
+            source_id,
+        )
+        return [json.loads(row["source"]) for row in records]
+
     async def evidence(self, reference: str) -> dict[str, Any] | None:
         if self.pool is None:
             raise PersistenceUnavailable("persistence_unavailable")
@@ -484,6 +496,15 @@ class MemoryStore:
             ),
             None,
         )
+
+    async def source_history(self, source_id: str) -> list[dict[str, Any]]:
+        await self.probe()
+        return [
+            copy.deepcopy(source)
+            for revision in self.state.tables["registry_revision"].values()
+            for source in revision["config"]["sources"]
+            if source["source_id"] == source_id
+        ]
 
     async def evidence(self, reference: str) -> dict[str, Any] | None:
         await self.probe()

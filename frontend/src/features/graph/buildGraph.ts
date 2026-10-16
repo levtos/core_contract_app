@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { isObject, type JsonObject } from '@/lib/json';
 import { asArray, str } from '@/features/authoring/model';
 import { resolveRef } from '@/features/authoring/usage';
@@ -43,7 +44,7 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
 
   asArray(config?.sources).filter(isObject).forEach((source, index) => {
     const id = str(source.source_id);
-    nodes.set(nodeId('source', id), { id: nodeId('source', id), kind: 'source', label: id, detail: `${str(source.source_type)} · ${str(source.source_origin)}`, index });
+    nodes.set(nodeId('source', id), { id: nodeId('source', id), kind: 'source', label: id, detail: uiText("features.graph.buildGraph.v0_v1_6a5b16", { v0: (str(source.source_type)), v1: (str(source.source_origin)) }), index });
   });
   asArray(config?.contracts).filter(isObject).forEach((contract, index) => {
     const id = str(contract.contract_id);
@@ -51,7 +52,7 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
       id: nodeId('contract', id),
       kind: 'contract',
       label: id,
-      detail: `${str(contract.type_id)} v${String(contract.type_version)}`,
+      detail: uiText("features.graph.buildGraph.v0_v_v1_bde90b", { v0: (str(contract.type_id)), v1: (String(contract.type_version)) }),
       index,
       enabled: contract.enabled !== false,
       declarative: definitions.has(`${str(contract.type_id)}@${String(contract.type_version)}`),
@@ -68,7 +69,7 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
         edges.push({ id: `${nodeId('source', target.id)}->${to}:${str(input.name)}`, source: nodeId('source', target.id), target: to, label: str(input.name), kind: 'input' });
       } else if (target.field) {
         const resultId = nodeId('result', `${target.id}.${target.field}`);
-        if (!nodes.has(resultId)) nodes.set(resultId, { id: resultId, kind: 'result', label: target.field, detail: `Ergebnis von ${target.id}`, contractId: target.id });
+        if (!nodes.has(resultId)) nodes.set(resultId, { id: resultId, kind: 'result', label: target.field, detail: uiText("features.graph.buildGraph.ergebnis_von_v0_b655b9", { v0: (target.id) }), contractId: target.id });
         const from = nodeId('contract', target.id);
         const produce = `${from}->${resultId}`;
         if (!edges.some((e) => e.id === produce)) edges.push({ id: produce, source: from, target: resultId, kind: 'input' });
@@ -84,9 +85,9 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
     for (const source of asArray(config?.sources).filter(isObject)) {
       const id = nodeId('source', str(source.source_id));
       const live = str(asObject(source.freshness).liveness_source);
-      if (live && nodes.has(nodeId('source', live))) edges.push({ id: `${nodeId('source', live)}~>${id}`, source: nodeId('source', live), target: id, label: 'Liveness', kind: 'liveness' });
+      if (live && nodes.has(nodeId('source', live))) edges.push({ id: `${nodeId('source', live)}~>${id}`, source: nodeId('source', live), target: id, label: uiText("features.graph.buildGraph.liveness_3f256d"), kind: 'liveness' });
       const monitor = str(dependencies.get(str(source.dependency_id))?.source_id);
-      if (monitor && nodes.has(nodeId('source', monitor)) && monitor !== str(source.source_id)) edges.push({ id: `${nodeId('source', monitor)}~dep>${id}`, source: nodeId('source', monitor), target: id, label: 'Dependency', kind: 'dependency' });
+      if (monitor && nodes.has(nodeId('source', monitor)) && monitor !== str(source.source_id)) edges.push({ id: `${nodeId('source', monitor)}~dep>${id}`, source: nodeId('source', monitor), target: id, label: uiText("features.graph.buildGraph.dependency_711595"), kind: 'dependency' });
     }
   }
   return { nodes: [...nodes.values()], edges };

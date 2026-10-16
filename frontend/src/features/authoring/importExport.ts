@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { isObject } from '@/lib/json';
 import type { Registry } from '@/lib/types';
 
@@ -12,13 +13,13 @@ export function parseRegistryJson(text: string): ParsedImport {
   let value: unknown;
   try {
     value = JSON.parse(text);
-  } catch (error) {
-    return { ok: false, error: `Kein gültiges JSON: ${(error as Error).message}` };
+  } catch {
+    return { ok: false, error: uiText("common.invalidJson") };
   }
-  if (!isObject(value)) return { ok: false, error: 'Eine Registry ist ein JSON-Objekt (kein Array, Skalar oder null).' };
+  if (!isObject(value)) return { ok: false, error: uiText("features.authoring.importExport.eine_registry_ist_ein_json_objekt_kein_array_ska_85abe7") };
   // Accept the wrapped form {"display_name", "config"} as well as the raw configuration.
   if (isObject(value.config) && !('config_schema_version' in value)) {
-    return { ok: true, config: value.config as Registry, display_name: typeof value.display_name === 'string' ? value.display_name : undefined };
+    return { ok: true, config: value.config as Registry, display_name: typeof value.display_name === "string" ? value.display_name : undefined };
   }
   return { ok: true, config: value as Registry };
 }

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import type { Capabilities, TypeDescription } from '@/lib/capabilities';
 import { isObject, type JsonObject } from '@/lib/json';
 import { asArray, asObject, str, type FieldSchema } from './model';
@@ -72,21 +73,24 @@ export interface RefOption {
   label: string;
   kind: 'source' | 'contract';
   detail?: string;
+  schema?: FieldSchema;
 }
 
 export function refOptions(config: JsonObject | null | undefined, types: TypeEntry[], excludeContract?: string): RefOption[] {
   const out: RefOption[] = [];
   for (const source of asArray(config?.sources).filter(isObject)) {
     const id = str(source.source_id);
-    if (id) out.push({ value: id, label: id, kind: 'source', detail: str(source.source_type) });
+    const kind = ({ boolean: 'bool', numeric: 'number', text: "text" } as Record<string, string>)[str(source.source_type)];
+    const schema = isObject(source.value_schema) ? source.value_schema as FieldSchema : kind ? { type: kind, required: true, physical_state: false } as FieldSchema : undefined;
+    if (id) out.push({ value: id, label: id, kind: 'source', detail: str(source.source_type), schema });
   }
   for (const contract of asArray(config?.contracts).filter(isObject)) {
     const id = str(contract.contract_id);
     if (!id || id === excludeContract) continue;
     const type = types.find((t) => t.key === typeKey(str(contract.type_id), Number(contract.type_version)));
-    out.push({ value: id, label: id, kind: 'contract', detail: 'Wert' });
+    out.push({ value: id, label: id, kind: 'contract', detail: uiText("features.authoring.catalog.wert_7e347d"), schema: type?.fields.value });
     for (const [field, schema] of Object.entries(type?.fields ?? {})) {
-      out.push({ value: `${id}.${field}`, label: `${id}.${field}`, kind: 'contract', detail: str((schema as FieldSchema).type) });
+      out.push({ value: `${id}.${field}`, label: uiText("features.authoring.catalog.v0_v1_a30df1", { v0: (id), v1: (field) }), kind: 'contract', detail: str((schema as FieldSchema).type), schema });
     }
   }
   return out;

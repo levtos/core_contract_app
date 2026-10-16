@@ -1,3 +1,5 @@
+import { validationLabel } from '@/i18n/codes';
+import { t as uiText } from '@/i18n';
 import { createContext, useContext, useMemo } from 'react';
 import type { Issue } from '@/lib/api';
 
@@ -23,30 +25,31 @@ export function useAllIssues(): Issue[] {
 
 /** Display text for a server code; the code itself stays visible next to it. */
 const TEXT: Record<string, string> = {
-  duplicate_identity: 'Diese ID ist bereits vergeben.',
-  immutable_definition_version: 'Diese Definition ist als Version bereits aktiviert gewesen und darf nicht inhaltlich geändert werden. Neue Version anlegen.',
-  input_type_mismatch: 'Typ, Katalog oder Einheit passen nicht zum erwarteten Eingang.',
-  input_reference: 'Die Referenz ist nicht eindeutig oder unbekannt.',
-  type_reference: 'Typ und Version sind nicht registriert.',
-  contract_cycle: 'Die Contracts bilden einen Zyklus.',
-  source_unbound: 'Die Quelle hat kein Binding.',
-  binding_source: 'Das Binding verweist auf keine vorhandene Quelle.',
-  field_reference: 'Das referenzierte Feld existiert nicht.',
-  fingerprint_upgrade_required: 'Deklarative Definitionen erfordern fingerprint_version 2.',
-  'definition.rule_type_mismatch': 'Die Typen von Operator und Ausgabe passen nicht zusammen.',
-  'definition.unknown_rule_input': 'Der Eingang ist in dieser Definition nicht deklariert.',
-  'definition.unknown_internal_reference': 'Die interne Regel existiert nicht.',
-  'definition.internal_cycle': 'Die benannten Regeln verweisen im Kreis aufeinander.',
-  'definition.duplicate_stateful_id': 'Die ID eines Bucket-/Temporal-Knotens muss in der Definition eindeutig sein.',
-  'definition.duplicate_transition_event': 'Pro Quellzustand und Ereignis ist nur eine Transition erlaubt.',
-  'definition.unreachable_machine': 'Die State Machine wird von keiner Ausgabe verwendet.',
-  'definition.stateful_guard_requires_contract_input': 'Guards müssen zustandslos sein; zeitliche Wahrheiten als Contract-Eingang einspeisen.',
-  'definition.invalid_map_key': 'Map-Schlüssel müssen kanonische JSON-Skalare sein, die zum Eingangstyp und Katalog passen.',
-  'definition.unknown_formula_version': 'Diese Formel/Version ist nicht registriert.',
-  'definition.unknown_fusion_strategy': 'Diese Fusionsstrategie ist nicht registriert.',
-  'definition.comparison_type_mismatch': 'Die Operanden sind nicht vergleichbar.',
-  'definition.unordered_comparison': 'Ordnungsvergleiche gelten nur für Zahl, Text und Zeitpunkt.',
+  duplicate_identity: uiText("features.authoring.issues.diese_id_ist_bereits_vergeben_20f34e"),
+  immutable_definition_version: uiText("features.authoring.issues.diese_definition_ist_als_version_bereits_aktivie_d64870"),
+  input_type_mismatch: uiText("features.authoring.issues.typ_katalog_oder_einheit_passen_nicht_zum_erwart_6a5b1f"),
+  input_reference: uiText("features.authoring.issues.die_referenz_ist_nicht_eindeutig_oder_unbekannt_3be019"),
+  type_reference: uiText("features.authoring.issues.typ_und_version_sind_nicht_registriert_599b2c"),
+  contract_cycle: uiText("features.authoring.issues.die_contracts_bilden_einen_zyklus_b02297"),
+  source_unbound: uiText("features.authoring.issues.die_quelle_hat_kein_binding_a917c9"),
+  binding_source: uiText("features.authoring.issues.das_binding_verweist_auf_keine_vorhandene_quelle_82115e"),
+  field_reference: uiText("features.authoring.issues.das_referenzierte_feld_existiert_nicht_aaa234"),
+  fingerprint_upgrade_required: uiText("features.authoring.issues.deklarative_definitionen_erfordern_fingerprint_v_04509f"),
+  'definition.rule_type_mismatch': uiText("features.authoring.issues.die_typen_von_operator_und_ausgabe_passen_nicht__6c3171"),
+  'definition.unknown_rule_input': uiText("features.authoring.issues.der_eingang_ist_in_dieser_definition_nicht_dekla_901b2e"),
+  'definition.unknown_internal_reference': uiText("features.authoring.issues.die_interne_regel_existiert_nicht_47d7f3"),
+  'definition.internal_cycle': uiText("features.authoring.issues.die_benannten_regeln_verweisen_im_kreis_aufeinan_2f903a"),
+  'definition.duplicate_stateful_id': uiText("features.authoring.issues.die_id_eines_bucket_temporal_knotens_muss_in_der_ccd952"),
+  'definition.duplicate_transition_event': uiText("features.authoring.issues.pro_quellzustand_und_ereignis_ist_nur_eine_trans_aee3c9"),
+  'definition.unreachable_machine': uiText("features.authoring.issues.die_state_machine_wird_von_keiner_ausgabe_verwen_63e564"),
+  'definition.stateful_guard_requires_contract_input': uiText("features.authoring.issues.guards_mussen_zustandslos_sein_zeitliche_wahrhei_8935df"),
+  'definition.invalid_map_key': uiText("features.authoring.issues.map_schlussel_mussen_kanonische_json_skalare_sei_70986e"),
+  'definition.unknown_formula_version': uiText("features.authoring.issues.diese_formel_version_ist_nicht_registriert_8bbb4e"),
+  'definition.unknown_fusion_strategy': uiText("features.authoring.issues.diese_fusionsstrategie_ist_nicht_registriert_4a6f9a"),
+  'definition.comparison_type_mismatch': uiText("features.authoring.issues.die_operanden_sind_nicht_vergleichbar_250187"),
+  'definition.unordered_comparison': uiText("features.authoring.issues.ordnungsvergleiche_gelten_nur_fur_zahl_text_und__d224d3"),
 };
 export function explain(issue: Issue): string {
-  return TEXT[issue.code] ?? issue.message.replace(/_/g, ' ');
+  if (['input_type_mismatch', 'binding_cast_required', 'binding_type_mismatch', 'source_type_mismatch', 'immutable_source_type', 'immutable_source_catalog', 'contract_cycle'].includes(issue.code)) return validationLabel(issue);
+  return TEXT[issue.code] ?? validationLabel(issue);
 }

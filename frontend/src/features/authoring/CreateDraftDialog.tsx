@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -6,7 +7,7 @@ import { Notice } from '@/components/ui/layout';
 import { Field } from '@/components/ui/form';
 import { describeError } from '@/lib/api';
 import { clone } from '@/lib/json';
-import { useActiveExport, useDraftMutations } from '@/lib/queries';
+import { useActiveExport, useDraftMutations, useDrafts } from '@/lib/queries';
 import type { Draft, Registry } from '@/lib/types';
 import { emptyRegistry } from './model';
 import { parseRegistryJson } from './importExport';
@@ -31,6 +32,8 @@ export function CreateDraftDialog({
 }) {
   const { create } = useDraftMutations();
   const active = useActiveExport();
+  const drafts = useDrafts();
+  const atLimit = (drafts.data?.length ?? 0) >= 100;
   const doc = useWorkingDocument();
   const [origin, setOrigin] = useState<Origin>(copyOf ? 'copy' : 'empty');
   const [name, setName] = useState('');
@@ -71,31 +74,31 @@ export function CreateDraftDialog({
   };
 
   const options: { value: Origin; label: string; hint: string; disabled?: boolean }[] = [
-    { value: 'empty', label: 'Leere Registry', hint: 'Von Grund auf neu aufbauen (fingerprint_version 2 für deklarative Definitionen).' },
-    { value: 'active', label: 'Kopie der aktiven Registry', hint: active.data ? 'Bestehende Konfiguration weiterentwickeln.' : 'Es ist keine Registry aktiv.', disabled: !active.data },
-    { value: 'import', label: 'Import (JSON)', hint: 'Datei oder Text; wird wie jeder Draft validiert und ist danach vollständig grafisch bearbeitbar.' },
-    ...(copyOf ? [{ value: 'copy' as Origin, label: `Kopie von „${copyOf.name}“`, hint: 'Duplikat dieses Drafts.' }] : []),
+    { value: 'empty', label: uiText("features.authoring.CreateDraftDialog.leere_registry_eb1ce9"), hint: uiText("features.authoring.CreateDraftDialog.von_grund_auf_neu_aufbauen_fingerprint_version_2_56e79f") },
+    { value: 'active', label: uiText("features.authoring.CreateDraftDialog.kopie_der_aktiven_registry_728e01"), hint: active.data ? uiText("features.authoring.CreateDraftDialog.bestehende_konfiguration_weiterentwickeln_3e5423") : uiText("features.authoring.CreateDraftDialog.es_ist_keine_registry_aktiv_767a4d"), disabled: !active.data },
+    { value: 'import', label: uiText("features.authoring.CreateDraftDialog.import_json_c4b92a"), hint: uiText("features.authoring.CreateDraftDialog.datei_oder_text_wird_wie_jeder_draft_validiert_u_33784f") },
+    ...(copyOf ? [{ value: 'copy' as Origin, label: uiText("features.authoring.CreateDraftDialog.kopie_von_v0_8bb123", { v0: (copyOf.name) }), hint: uiText("features.authoring.CreateDraftDialog.duplikat_dieses_drafts_97f0da") }] : []),
   ];
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Neuer Draft"
-      description="Ein Draft ist niemals live. Erst die ausdrückliche Aktivierung einer validierten Revision verändert den aktiven Zustand."
+      title={uiText("features.authoring.CreateDraftDialog.neuer_draft_610fb2")}
+      description={uiText("features.authoring.CreateDraftDialog.ein_draft_ist_niemals_live_erst_die_ausdrucklich_e2171f")}
       footer={
         <>
-          <Button onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button variant="primary" disabled={create.isPending || (origin === 'import' && !text.trim())} onClick={submit}>
-            Draft anlegen
-          </Button>
+          <Button onClick={() => onOpenChange(false)}>{uiText("features.authoring.CreateDraftDialog.abbrechen_f7ff11")}</Button>
+           <Button variant="primary" disabled={atLimit || create.isPending || (origin === 'import' && !text.trim())} onClick={submit}>
+            {uiText("features.authoring.CreateDraftDialog.draft_anlegen_0355d8")}</Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Name (optional)">{(p) => <Input {...p} value={name} maxLength={256} onChange={(e) => setName(e.target.value)} placeholder="z. B. Licht-Umbau" />}</Field>
+        {atLimit && <Notice tone="warn">{uiText("features.authoring.CreateDraftDialog.es_sind_bereits_100_entwurfe_vorhanden_entfernen_f89be6")}</Notice>}
+        <Field label={uiText("features.authoring.CreateDraftDialog.name_optional_e09b37")}>{(p) => <Input {...p} value={name} maxLength={256} onChange={(e) => setName(e.target.value)} placeholder={uiText("features.authoring.CreateDraftDialog.z_b_licht_umbau_ed3d21")} />}</Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-xs font-medium text-muted">Ausgangspunkt</legend>
+          <legend className="mb-1 text-xs font-medium text-muted">{uiText("features.authoring.CreateDraftDialog.ausgangspunkt_4c2d40")}</legend>
           {options.map((option) => (
             <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-accent/60 bg-accent/5' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
               <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-accent)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
@@ -108,7 +111,7 @@ export function CreateDraftDialog({
         </fieldset>
         {origin === 'import' && (
           <div className="flex flex-col gap-2">
-            <Field label="Registry-Datei (.json)">
+            <Field label={uiText("features.authoring.CreateDraftDialog.registry_datei_json_be6006")}>
               {(p) => (
                 <input
                   {...p}
@@ -122,10 +125,10 @@ export function CreateDraftDialog({
                 />
               )}
             </Field>
-            <Field label="oder JSON einfügen">{(p) => <Textarea {...p} rows={8} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />}</Field>
+            <Field label={uiText("features.authoring.CreateDraftDialog.oder_json_einfugen_403a9d")}>{(p) => <Textarea {...p} rows={8} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />}</Field>
           </div>
         )}
-        {error && <Notice tone="bad" title="Draft konnte nicht angelegt werden">{error}</Notice>}
+        {error && <Notice tone="bad" title={uiText("features.authoring.CreateDraftDialog.draft_konnte_nicht_angelegt_werden_ef809e")}>{error}</Notice>}
       </div>
     </Dialog>
   );

@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/layout';
 import { SetupWizard } from '@/setup/SetupWizard';
@@ -24,7 +25,7 @@ export function App() {
         setWizard(value.phase !== 'completed' || !value.onboarding_complete);
       })
       .catch(() => {
-        if (!cancelled) setError('Einrichtungsstatus nicht erreichbar. Weboberfläche erneut über Home Assistant öffnen.');
+        if (!cancelled) setError(uiText("App.einrichtungsstatus_nicht_erreichbar_weboberflach_04e47b"));
       });
     return () => {
       cancelled = true;
@@ -34,7 +35,7 @@ export function App() {
   if (error) {
     return (
       <main className="mx-auto max-w-2xl p-10">
-        <h1 className="text-xl font-semibold">Terra Workbench</h1>
+        <h1 className="text-xl font-semibold">{uiText("App.terra_workbench_7ad523")}</h1>
         <p role="alert" className="mt-3 text-bad">{error}</p>
       </main>
     );
@@ -42,8 +43,8 @@ export function App() {
   if (!status) {
     return (
       <main className="mx-auto max-w-2xl p-10">
-        <h1 className="text-xl font-semibold">Terra Workbench</h1>
-        <Spinner label="Installationszustand wird geprüft …" />
+        <h1 className="text-xl font-semibold">{uiText("App.terra_workbench_7ad523")}</h1>
+        <Spinner label={uiText("App.installationszustand_wird_gepruft_d072db")} />
       </main>
     );
   }

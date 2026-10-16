@@ -22,6 +22,44 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_alpha6_source_lock_survives_removal_and_process_restart(database, config):
+    import copy
+
+    from core_contracts.validation import RegistryValidationError
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await activate(runtime, config)
+        await activate(runtime, {**config, "sources": [], "bindings": [], "contracts": []})
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        history = await reopened.source_history("source.a")
+        assert len(history) == 1 and history[0]["source_type"] == "boolean"
+        changed = copy.deepcopy(config)
+        changed["sources"][0]["value_schema"] = {
+            "type": "bool",
+            "unit": "changed",
+            "required": True,
+            "physical_state": False,
+        }
+        with pytest.raises(RegistryValidationError) as error:
+            await restarted.submit("validate", changed)
+        assert error.value.issues[0].code == "immutable_source_type"
+        assert restarted.state.active_revision == 2
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
 async def test_delta2_guard_error_persistent_http_replay_after_restart(
     database, config, aiohttp_client, tmp_path, monkeypatch
 ):

@@ -1,8 +1,11 @@
+import { t } from '@/i18n';
+
 /** Display-only helpers. Timestamps are shown as the server delivered them (UTC instants). */
 
 const dateTime = new Intl.DateTimeFormat('de-DE', {
   dateStyle: 'medium',
   timeStyle: 'medium',
+  timeZone: 'Europe/Berlin',
 });
 
 export function formatTime(value: string | null | undefined): string {
@@ -27,8 +30,12 @@ export function localInputToUtc(value: string): string | undefined {
 }
 
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds} s`;
-  if (seconds < 3600) return `${+(seconds / 60).toFixed(2)} min`;
-  if (seconds < 86400) return `${+(seconds / 3600).toFixed(2)} h`;
-  return `${+(seconds / 86400).toFixed(2)} d`;
+  if (seconds < 60) return t('duration.seconds', { value: formatNumber(seconds) });
+  if (seconds < 3600) return t('duration.minutes', { value: formatNumber(seconds / 60) });
+  if (seconds < 86400) return t('duration.hours', { value: formatNumber(seconds / 3600) });
+  return t('duration.days', { value: formatNumber(seconds / 86400) });
+}
+
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 }).format(Object.is(value, -0) ? 0 : value);
 }

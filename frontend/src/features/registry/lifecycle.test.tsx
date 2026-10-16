@@ -87,12 +87,18 @@ describe('draft lifecycle: working document and OCC', () => {
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: /als neuen Draft sichern/ }));
+    await user.click(await screen.findByRole('button', { name: /als neuen Entwurf sichern/ }));
     await waitFor(() => expect(api.drafts.size).toBe(2));
     expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' });
     const copy = [...api.drafts.values()].find((d) => d.draft_id !== 'd1')!;
     expect(copy.config).toMatchObject({ marker: 'edited' });
     await waitFor(() => expect(state().id).toBe(copy.draft_id));
+    expect(state().dirty).toBe(false);
+    expect(copy.display_name).toContain('(Kopie)');
+    await user.click(screen.getByText('edit'));
+    await user.click(screen.getByText('save'));
+    await waitFor(() => expect(state().dirty).toBe(false));
+    expect(api.drafts.get(copy.draft_id)!.display_name).toBe(copy.display_name);
   });
 
   it('taking the server state discards local edits only after the explicit choice', async () => {
@@ -102,7 +108,7 @@ describe('draft lifecycle: working document and OCC', () => {
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: 'Server-Stand übernehmen' }));
+    await user.click(await screen.findByRole('button', { name: "gespeicherter Stand übernehmen" }));
     await waitFor(() => expect(state()).toMatchObject({ dirty: false, marker: 'other-session', version: 2 }));
   });
 
@@ -113,7 +119,7 @@ describe('draft lifecycle: working document and OCC', () => {
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: /Server-Stand überschreiben/ }));
+    await user.click(await screen.findByRole('button', { name: /gespeicherter Stand überschreiben/ }));
     expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' }); // first click changes nothing
     await user.click(screen.getByRole('button', { name: 'Wirklich überschreiben' }));
     await waitFor(() => expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited' }));
@@ -163,21 +169,22 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig({ __invalid: true }))] });
     renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
     await screen.findByText(/nicht gültig/);
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
-    expect(screen.getByText('definition.unknown_rule_input')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
+    expect(screen.getByText('Der Eingang ist in dieser Vorlage nicht deklariert.')).toBeInTheDocument();
     expect(api.calls.some((c) => c.path.endsWith('/activate'))).toBe(false);
   });
 
   it('activates only after the confirmation checkbox and sends both OCC tokens', async () => {
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())], revisions: [{ revision: 4, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
     renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
-    const button = await screen.findByRole('button', { name: 'Jetzt aktivieren' });
+    const button = await screen.findByRole('button', { name: "Jetzt übernehmen" });
     await screen.findByText(/Statische Analyse/);
     expect(button).toBeDisabled();
     await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
+    expect(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }).closest('footer')).not.toBeNull();
     expect(button).toBeEnabled();
     await user.click(button);
-    await screen.findByText('Revision 5 ist aktiv');
+    await screen.findByText("Version 5 ist aktiv");
     expect(api.calls.find((c) => c.path.endsWith('/activate'))!.body).toEqual({ draft_version: 1, expected_active_revision: 4 });
   });
 
@@ -187,8 +194,8 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
     await screen.findByText(/Statische Analyse/);
     await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
-    await user.click(screen.getByRole('button', { name: 'Jetzt aktivieren' }));
-    await screen.findByText('Konflikt – nichts wurde aktiviert');
+    await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
+    await screen.findByText("Konflikt – nichts wurde eingeschaltet");
     expect(screen.queryByText(/ist aktiv/)).toBeNull();
     expect(api.revisions).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: /erneut prüfen/ }));
@@ -201,11 +208,11 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const api = installFakeApi({ revisions: [r1, r2] });
     renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
     await screen.findByText(/Statische Analyse/);
-    const go = screen.getByRole('button', { name: 'Zurückrollen' });
+    const go = screen.getByRole('button', { name: "Zurücksetzen" });
     expect(go).toBeDisabled();
-    await user.click(screen.getByRole('checkbox', { name: /als neue Revision 3 aktivieren/ }));
+    await user.click(screen.getByRole('checkbox', { name: /als neue Version 3 übernehmen/ }));
     await user.click(go);
-    await screen.findByText(/Neue Revision 3 aktiv/);
+    await screen.findByText(/Neue Version 3 aktiv/);
     expect(api.revisions).toHaveLength(3);
     expect(api.revisions[2]!.config).toMatchObject({ marker: 'one' }); // historical content
     expect(api.revisions[0]!.config).toMatchObject({ marker: 'one' }); // history untouched
@@ -218,9 +225,9 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     api.failNext.push({ path: /^registry\/rollback$/, status: 409, body: { error: 'active_revision_conflict', details: [] } });
     renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
     await screen.findByText(/Statische Analyse/);
-    await user.click(screen.getByRole('checkbox', { name: /als neue Revision 3 aktivieren/ }));
-    await user.click(screen.getByRole('button', { name: 'Zurückrollen' }));
-    await screen.findByText('Konflikt – nichts wurde aktiviert');
+    await user.click(screen.getByRole('checkbox', { name: /als neue Version 3 übernehmen/ }));
+    await user.click(screen.getByRole('button', { name: "Zurücksetzen" }));
+    await screen.findByText("Konflikt – nichts wurde eingeschaltet");
     expect(api.revisions).toHaveLength(2);
   });
 });
@@ -253,7 +260,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     expect(within(dialog).getByText(/Beta/)).toBeInTheDocument();
     expect(validated(api)).toEqual(['registry/drafts/b/validate']);
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
-    await user.click(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' }));
+    await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));
     await within(dialog).findByText(/ist aktiv/);
     expect(api.calls.find((c) => c.path.endsWith('/activate'))!.path).toBe('registry/drafts/b/activate');
     expect(api.revisions[0]!.config).toMatchObject({ marker: 'B' });
@@ -266,16 +273,16 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/Statische Analyse/);
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
-    expect(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: "Jetzt übernehmen" })).toBeEnabled();
 
     await user.click(screen.getByText('zu B', { selector: 'button' }));
     // A's confirmation is gone and B must be checked and confirmed on its own
     await waitFor(() => expect(validated(api)).toContain('registry/drafts/b/validate'));
     await within(dialog).findByText(/Beta/);
     await waitFor(() => expect(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ })).not.toBeChecked());
-    expect(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
-    await user.click(within(dialog).getByRole('button', { name: 'Jetzt aktivieren' }));
+    await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));
     await within(dialog).findByText(/ist aktiv/);
     expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
   });
@@ -287,7 +294,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     renderDialog(<ActivateDialog draft={stale} open onOpenChange={() => {}} />);
     await screen.findByText('Prüfergebnis veraltet');
     expect(screen.queryByRole('checkbox', { name: /Auswirkungen geprüft/ })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     expect(api.calls.some((c) => c.path.endsWith('/validate'))).toBe(false);
   });
 
@@ -312,10 +319,10 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     );
     await screen.findByText(/Statische Analyse/);
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeEnabled();
     act(() => sockets[0]!.onmessage!({ data: JSON.stringify({ type: 'snapshot', epoch_id: 'e', publication_seq: 9, registry_revision: 2, publication_confirmed: true, contracts: {} }) }));
     await screen.findByText('Prüfergebnis veraltet');
-    expect(screen.getByRole('button', { name: 'Jetzt aktivieren' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     expect(screen.queryByRole('checkbox', { name: /Auswirkungen geprüft/ })).toBeNull();
   });
 });

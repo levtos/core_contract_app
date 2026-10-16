@@ -1,3 +1,4 @@
+import { t as uiText } from '@/i18n';
 import { Trash2 } from 'lucide-react';
 import { Collapsible } from '@/components/ui/controls';
 import { deref } from '@/lib/capabilities';
@@ -76,7 +77,7 @@ export function Extras({
     onChange(copy);
   };
   return (
-    <Collapsible title={`Weitere Eigenschaften (${declared.length + unknown.length})`} defaultOpen className="border-dashed" >
+    <Collapsible title={uiText("editors.Extras.weitere_eigenschaften_v0_b0c6ee", { v0: (declared.length + unknown.length) })} defaultOpen className="border-dashed" >
       <div className="flex flex-col gap-3" data-testid={`extras-${def}`}>
         {root &&
           declared.map((key) => (
@@ -93,8 +94,8 @@ export function Extras({
           ))}
         {unknown.map((key) => (
           <div key={key} className="grid items-start gap-2 sm:grid-cols-[1fr_auto]">
-            <ValueEditor label={`${key} (dem Schema unbekannt, erhalten)`} pointer={join(pointer, key)} value={value[key] ?? null} onChange={(next) => set(key, next)} />
-            <IconButton label={`${key} entfernen`} tone="danger" onClick={() => set(key, undefined)}><Trash2 size={14} /></IconButton>
+            <ValueEditor label={uiText("editors.Extras.v0_dem_schema_unbekannt_erhalten_beffb5", { v0: (key) })} pointer={join(pointer, key)} value={value[key] ?? null} onChange={(next) => set(key, next)} />
+            <IconButton label={uiText("editors.Extras.v0_entfernen_92fea7", { v0: (key) })} tone="danger" onClick={() => set(key, undefined)}><Trash2 size={14} /></IconButton>
           </div>
         ))}
       </div>

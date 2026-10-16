@@ -122,6 +122,8 @@ class API:
                     in {
                         "active_revision_conflict",
                         "draft_version_conflict",
+                        "draft_limit",
+                        "draft_identity_conflict",
                         "cycle",
                         "contract_disabled",
                         "config_incomplete: type or parameters",
@@ -144,6 +146,8 @@ class API:
                     }
                     else "invalid_request"
                 )
+                if type(error) is ValueError and str(error) in {"sensitive key", "credential URL"}:
+                    code = "sensitive_document"
                 response = web.json_response(
                     {
                         "error": code,
@@ -187,6 +191,10 @@ class API:
                 request.method,
                 await request.json() if request.method != "GET" else None,
             )
+            if request.match_info["operation"] == "status" and request.method == "GET":
+                result["registry_revision"] = (
+                    self.runtime.state.active_revision if self.runtime else None
+                )
             return web.json_response(result)
         except aiohttp.ClientError:
             return web.json_response({"error": "ha_connection_failed"}, status=503)
@@ -431,7 +439,8 @@ class API:
                         }
                         for t in machine.definition.transitions
                     ],
-                    "current": state.tables["sm_instance"].get(key),
+                    "current": node.get("machine"),
+                    "recovery": node.get("machine_recovery"),
                 }
                 if machine
                 else None,

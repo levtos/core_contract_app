@@ -28,6 +28,7 @@ def config():
                 "binding_id": "binding.a",
                 "source_id": "source.a",
                 "adapter": {"kind": "ha_state", "ha_entity_id": "sensor.example_1"},
+                "transform": {"kind": "type_cast", "target": "bool"},
             }
         ],
         "contracts": [

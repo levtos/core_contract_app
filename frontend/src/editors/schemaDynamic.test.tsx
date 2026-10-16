@@ -62,7 +62,7 @@ describe('operators that only exist in the metadata', () => {
     // no raw-JSON detour for any of these
     expect(within(node(root)).queryAllByRole('textbox', { name: /JSON/ })).toHaveLength(0);
 
-    const factor = within(node(root)).getByLabelText('Factor *') as HTMLInputElement;
+    const factor = within(node(root)).getByLabelText('Faktor *') as HTMLInputElement;
     expect(factor.type).toBe('number'); // current value is numeric, the string|number union shows a numeric control
     await user.clear(factor);
     await user.type(factor, '3');
@@ -79,7 +79,7 @@ describe('operators that only exist in the metadata', () => {
   it('variant union: switching branches builds that branch graphically', async () => {
     const result = mount({ ...newDefinition('test.s', 1), outputs: { value: { op: 'x_scale', arg: { op: 'input', name: 'a' }, factor: 1, mode: 'plain' } } }, synthetic);
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
-    const picker = within(node(root)).getByLabelText('Mode: Variante');
+    const picker = within(node(root)).getByLabelText('Modus: Variante');
     await user.selectOptions(picker, 'Windowed');
     expect(outputValue(result()).mode).toEqual({ kind: 'windowed', depth: 1 });
     const depth = within(node(root)).getByLabelText('depth *') as HTMLInputElement;

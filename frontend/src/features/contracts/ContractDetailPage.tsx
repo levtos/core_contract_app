@@ -1,6 +1,7 @@
+import { t as uiText } from '@/i18n';
 import { ArrowLeft, Stethoscope, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ContractLiveState } from '@/components/ContractLiveState';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ export default function ContractDetailPage() {
   const doc = useWorkingDocument();
   const live = useLive();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [removing, setRemoving] = useState(false);
   const list = asArray(src.config?.contracts).filter(isObject);
   const index = list.findIndex((c) => str(c.contract_id) === contractId);
@@ -34,9 +36,9 @@ export default function ContractDetailPage() {
     return (
       <>
         <BackLink />
-        <Empty title={`Contract „${contractId}“ nicht gefunden`}>
-          {src.source === 'draft' ? 'Er existiert im geöffneten Draft nicht.' : 'Er existiert in der aktiven Registry nicht.'}
-          {envelope && ' Der Server liefert dennoch einen Zustand dafür.'}
+        <Empty title={uiText("features.contracts.ContractDetailPage.contract_v0_nicht_gefunden_c09b7a", { v0: (contractId) })}>
+          {src.source === 'draft' ? uiText("features.contracts.ContractDetailPage.er_existiert_im_geoffneten_draft_nicht_cb5eb3") : uiText("features.contracts.ContractDetailPage.er_existiert_in_der_aktiven_registry_nicht_25b321")}
+          {envelope && uiText("features.contracts.ContractDetailPage.der_server_liefert_dennoch_einen_zustand_dafur_0cfd01")}
         </Empty>
       </>
     );
@@ -47,40 +49,53 @@ export default function ContractDetailPage() {
   const consumers = consumersOfContract(src.config, contractId);
   const inputs = asArray(contract.inputs).filter(isObject);
   const enabled = contract.enabled !== false;
+  const displayFields = { ...typeEntry?.fields };
+  const definition = asArray(src.config?.definitions).filter(isObject).find((d) => d.type_id === contract.type_id && d.type_version === contract.type_version);
+  if (definition && isObject(definition.outputs)) {
+    for (const [name, rule] of Object.entries(definition.outputs)) {
+      if (isObject(rule) && rule.op === 'temporal' && rule.operation === 'age' && displayFields[name]) displayFields[name] = { ...displayFields[name]!, unit: 's' };
+    }
+  }
+  if (contract.type_id === 'test.echo' && displayFields.value) {
+    const source = asArray(src.config?.sources).filter(isObject).find((s) => s.source_id === inputs[0]?.ref);
+    if (source && isObject(source.value_schema) && source.value_schema.unit) displayFields.value = { ...displayFields.value, unit: source.value_schema.unit };
+  }
 
   return (
     <>
       <BackLink />
       <PageHeader
         title={<span className="font-mono">{contractId}</span>}
-        description={`${str(contract.display_name) || 'Contract-Instanz'} · ${str(contract.type_id)} v${String(contract.type_version)}`}
+        description={uiText("features.contracts.ContractDetailPage.v0_v1_v_v2_610089", { v0: (str(contract.display_name) || uiText("features.contracts.ContractDetailPage.contract_instanz_cda79d")), v1: (str(contract.type_id)), v2: (String(contract.type_version)) })}
         actions={
           <>
-            <Badge tone={enabled ? 'accent' : 'neutral'}>{enabled ? 'aktiviert' : 'deaktiviert'}</Badge>
-            <Button size="sm" onClick={() => navigate(`/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> Diagnose</Button>
-            {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> Entfernen</Button>}
+            <Badge tone={enabled ? 'accent' : 'neutral'}>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>
+            <Button size="sm" onClick={() => navigate(`/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> {uiText("features.contracts.ContractDetailPage.diagnose_64dd65")}</Button>
+            {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.ContractDetailPage.entfernen_382837")}</Button>}
           </>
         }
       />
-      <ReadOnlyNotice what="Contract-Konfiguration" />
+      <ReadOnlyNotice what={uiText("features.contracts.ContractDetailPage.contract_konfiguration_d1e14f")} />
       <Tabs
+        value={params.get('tab') ?? 'state'}
+        onValueChange={(tab) => setParams({ tab }, { replace: true })}
         items={[
           {
             value: 'state',
-            label: 'Zustand',
+            label: uiText("features.contracts.ContractDetailPage.zustand_630d1a"),
             content: !enabled ? (
-              <Empty title="Contract deaktiviert">Deaktivierte Contracts liefern keinen Zustand (der Server antwortet mit contract_disabled).</Empty>
+              <Empty title={uiText("features.contracts.ContractDetailPage.contract_deaktiviert_f0d824")}>{uiText("features.contracts.ContractDetailPage.deaktivierte_contracts_liefern_keinen_zustand_de_a31528")}</Empty>
             ) : envelope ? (
-              <ContractLiveState envelope={envelope} stale={live.stale} />
+              <ContractLiveState envelope={envelope} stale={live.stale} fields={displayFields} />
             ) : (
-              <Empty title="Kein Live-Zustand">
-                {live.contracts === null ? 'Es wurde noch kein Snapshot empfangen.' : 'Der aktive Stand enthält diesen Contract nicht – er existiert nur im Draft oder wurde noch nicht aktiviert.'}
+              <Empty title={uiText("features.contracts.ContractDetailPage.kein_live_zustand_85efdc")}>
+                {live.contracts === null ? uiText("features.contracts.ContractDetailPage.es_wurde_noch_kein_snapshot_empfangen_e56b2e") : uiText("features.contracts.ContractDetailPage.der_aktive_stand_enthalt_diesen_contract_nicht_e_15aef3")}
               </Empty>
             ),
           },
           {
             value: 'config',
-            label: 'Konfiguration',
+            label: uiText("features.contracts.ContractDetailPage.konfiguration_8df29d"),
             content: (
               <Panel className="max-w-4xl p-5">
                 <fieldset disabled={!src.editable} className="min-w-0">
@@ -91,13 +106,13 @@ export default function ContractDetailPage() {
           },
           {
             value: 'deps',
-            label: 'Abhängigkeiten',
+            label: uiText("features.contracts.ContractDetailPage.abhangigkeiten_327cb1"),
             content: (
-              <PanelLayout view="contract.dependencies"><LayoutPanel id="inputs" title="Eingänge" span={2}>
+              <PanelLayout view="contract.dependencies"><LayoutPanel id="inputs" title={uiText("features.contracts.ContractDetailPage.eingange_53fb39")} span={2}>
                 <Panel>
-                  <PanelHeader title="Eingänge (hängt ab von)" />
+                  <PanelHeader title={uiText("features.contracts.ContractDetailPage.eingange_hangt_ab_von_24b089")} />
                   <ul className="divide-y divide-line">
-                    {inputs.length === 0 && <li className="px-4 py-3 text-sm text-muted">Keine Eingänge gebunden.</li>}
+                    {inputs.length === 0 && <li className="px-4 py-3 text-sm text-muted">{uiText("features.contracts.ContractDetailPage.keine_eingange_gebunden_b03857")}</li>}
                     {inputs.map((input, i) => {
                       const target = resolveRef(str(input.ref), src.config);
                       return (
@@ -105,28 +120,28 @@ export default function ContractDetailPage() {
                           <code className="text-muted">{str(input.name)}</code>
                           <span>→</span>
                           {target?.kind === 'contract' ? <Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/${encodeURIComponent(target.id)}`}>{str(input.ref)}</Link> : <code className="text-xs">{str(input.ref)}</code>}
-                          <Badge tone={target?.kind === 'source' ? 'info' : target ? 'accent' : 'bad'}>{target?.kind === 'source' ? 'Quelle' : target ? 'Contract' : 'unbekannt'}</Badge>
+                          <Badge tone={target?.kind === 'source' ? 'info' : target ? 'accent' : 'bad'}>{target?.kind === 'source' ? uiText("features.contracts.ContractDetailPage.quelle_037889") : target ? uiText("features.contracts.ContractDetailPage.contract_a6f5b0") : uiText("features.contracts.ContractDetailPage.unbekannt_a418e6")}</Badge>
                         </li>
                       );
                     })}
                   </ul>
                 </Panel>
-                </LayoutPanel><LayoutPanel id="consumers" title="Verwendet von" span={1}><Panel>
-                  <PanelHeader title="Verwendet von" description="Contracts, die diesen Contract als Eingang nutzen." />
+                </LayoutPanel><LayoutPanel id="consumers" title={uiText("features.contracts.ContractDetailPage.verwendet_von_656221")} span={1}><Panel>
+                  <PanelHeader title={uiText("features.contracts.ContractDetailPage.verwendet_von_656221")} description={uiText("features.contracts.ContractDetailPage.contracts_die_diesen_contract_als_eingang_nutzen_763bf2")} />
                   <ul className="divide-y divide-line">
-                    {consumers.length === 0 && <li className="px-4 py-3 text-sm text-muted">Kein anderer Contract nutzt ihn.</li>}
+                    {consumers.length === 0 && <li className="px-4 py-3 text-sm text-muted">{uiText("features.contracts.ContractDetailPage.kein_anderer_contract_nutzt_ihn_4582b8")}</li>}
                     {consumers.map((id) => (
                       <li key={id} className="px-4 py-2.5 text-sm"><Link className="font-mono text-xs text-accent hover:underline" to={`/contracts/${encodeURIComponent(id)}`}>{id}</Link></li>
                     ))}
                   </ul>
                 </Panel>
-                </LayoutPanel><LayoutPanel id="type" title="Typ"><Panel>
-                  <PanelHeader title="Typ" />
+                </LayoutPanel><LayoutPanel id="type" title={uiText("features.contracts.ContractDetailPage.typ_1b0241")}><Panel>
+                  <PanelHeader title={uiText("features.contracts.ContractDetailPage.typ_1b0241")} />
                   <div className="p-4 text-sm">
                     {typeEntry?.declarative ? (
-                      <>Deklarative Definition <Link className="font-mono text-accent hover:underline" to={`/definitions/${encodeURIComponent(typeEntry.type_id)}/${typeEntry.type_version}`}>{typeEntry.key}</Link></>
+                      <>{uiText("features.contracts.ContractDetailPage.deklarative_definition_b0121f")}<Link className="font-mono text-accent hover:underline" to={`/definitions/${encodeURIComponent(typeEntry.type_id)}/${typeEntry.type_version}`}>{typeEntry.key}</Link></>
                     ) : (
-                      <>Paket-Typ <code>{str(contract.type_id)}@{String(contract.type_version)}</code> (fest im Code, nicht über die Workbench änderbar)</>
+                      <>{uiText("features.contracts.ContractDetailPage.paket_typ_44867a")}<code>{str(contract.type_id)}@{String(contract.type_version)}</code> {uiText("features.contracts.ContractDetailPage.fest_im_code_nicht_uber_die_workbench_anderbar_ee4ae9")}</>
                     )}
                   </div>
                 </Panel>
@@ -138,9 +153,9 @@ export default function ContractDetailPage() {
       <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}
-        title="Contract entfernen?"
-        description={<>„{contractId}“ wird aus dem Draft entfernt. Contracts, die ihn als Eingang nutzen, werden bei der Validierung als fehlerhaft markiert.{consumers.length > 0 && <> Betroffen: {consumers.join(', ')}.</>}</>}
-        confirmLabel="Entfernen"
+        title={uiText("features.contracts.ContractDetailPage.contract_entfernen_f6bc55")}
+        description={<>„{contractId}{uiText("features.contracts.ContractDetailPage.wird_aus_dem_draft_entfernt_contracts_die_ihn_al_932341")}{consumers.length > 0 && <> {uiText("features.contracts.ContractDetailPage.betroffen_c20137")}{consumers.join(', ')}.</>}</>}
+        confirmLabel={uiText("features.contracts.ContractDetailPage.entfernen_382837")}
         tone="danger"
         onConfirm={() => {
           doc.edit((c) => setAt(c, pointer, undefined));
@@ -155,8 +170,7 @@ export default function ContractDetailPage() {
 function BackLink() {
   return (
     <Link to="/contracts" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
-      <ArrowLeft size={13} /> Alle Contracts
-    </Link>
+      <ArrowLeft size={13} /> {uiText("features.contracts.ContractDetailPage.alle_contracts_67b49f")}</Link>
   );
 }
 

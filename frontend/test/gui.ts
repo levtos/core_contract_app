@@ -122,16 +122,16 @@ export function gui(user: UserEvent) {
       await user.selectOptions(screen.getByLabelText('Wert.fixture'), 'true');
     });
 
-    await tab(/State Machine/);
-    await user.click(screen.getByRole('button', { name: 'State Machine hinzufügen' }));
+    await tab(/Ablauf/);
+    await user.click(screen.getByRole('button', { name: "Ablauf hinzufügen" }));
     const m = `${base}/machine`;
     await type(screen.getByLabelText('Maschinen-ID'), 'lifecycle');
     await user.click(screen.getByRole('button', { name: 'Zustand' }));
     await type(screen.getByLabelText('Zustand zustand'), 'done');
     await user.tab();
-    await user.click(screen.getByRole('checkbox', { name: /Sessions/ }));
-    await user.click(screen.getByRole('checkbox', { name: /Deadline verwenden/ }));
-    await type(screen.getByLabelText(/Deadline \(s\)/), '10');
+    await user.click(screen.getByRole('checkbox', { name: /Sitzungen/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Frist verwenden/ }));
+    await type(screen.getByLabelText(/Frist \(s\)/), '10');
     await setOp(`${m}/reinitialize_when`, 'input');
     await user.click(screen.getByRole('button', { name: 'Befehl' }));
     await type(screen.getByLabelText('Befehlsname'), 'start');
@@ -139,13 +139,13 @@ export function gui(user: UserEvent) {
     await user.click(screen.getByRole('button', { name: 'Argument' }));
     await type(screen.getAllByLabelText('Argument').find((el) => (el as HTMLInputElement).value === 'arg')!, 'confirm');
     await user.tab();
-    await user.click(screen.getByRole('button', { name: 'Transition' }));
+    await user.click(screen.getByRole('button', { name: "Übergang" }));
     await user.selectOptions(screen.getAllByLabelText('Nach')[0]!, 'active');
     await user.selectOptions(screen.getAllByLabelText('Ereignis')[0]!, 'start');
     await type(screen.getAllByLabelText('Grund')[0]!, 'requested');
     await user.click(screen.getByRole('checkbox', { name: /confirm =/ }));
     await setOp(`${m}/transitions/0/guard`, 'input');
-    await user.click(screen.getByRole('button', { name: 'Transition' }));
+    await user.click(screen.getByRole('button', { name: "Übergang" }));
     await user.selectOptions(screen.getAllByLabelText('Von')[1]!, 'active');
     await user.selectOptions(screen.getAllByLabelText('Nach')[1]!, 'done');
     await user.selectOptions(screen.getAllByLabelText('Ereignis')[1]!, 'deadline');
