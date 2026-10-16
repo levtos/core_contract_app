@@ -1,6 +1,16 @@
 # Changelog
 
-## 1.0.0a6 — UX12-Korrekturen (vorbereitet, 2026-10-15)
+## 1.0.0a7 — Terra nach Aufgaben bedienen (vorbereitet, 2026-10-17)
+
+- Module mit eigenen Unterseiten, geführte Geräteanlage, einfache Entwürfe und verständliche Vertragswerte.
+- Geprüfter Quellenumzug; administrativer Ablauf-Neustart nur bei ausdrücklicher Freigabe
+  der Vorlage, mit Bestätigung, Audit und manueller Kennzeichnung bis zum Datennachweis.
+- Versionen mit freiwilliger Notiz, lesbare Zusammenhänge/Nachweise, deutsche Texte und
+  gedämpfte Gestaltung mit geprüften Kontrasten.
+- [Alpha-7-Umfang und Upgrade](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a7.md).
+  Noch nicht veröffentlicht. Merge, Tag, Release, Images und Installation benötigen Bennis neues Go.
+
+## 1.0.0a6 — UX12-Korrekturen (2026-10-16)
 
 - Korrekte HA-/Bridge-Statusanzeige, historische Typ-/Einheitssperre und ausdrückliche
   HA-Typumwandlung samt Reparaturknopf und Prüfung.
@@ -9,7 +19,8 @@
 - Dialoge, Entwurfskonflikte, Assistent, Grenzwerte, Meldungen, Logs und Zahlenanzeige korrigiert.
 - Deutsche Oberfläche über de.json, Terra/Einstellungen und Sprachprüfungen in CI.
 - [Alpha-6-Notiz](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a6.md).
-  Kein Merge/Release/Publishing/Deployment/DB-Reset ohne Bennis Go; Live-Abnahme offen.
+  Nach Bennis Go als Pre-release mit beiden Images veröffentlicht und anonym geprüft.
+  Installation, DB-Reset und Live-Abnahme bleiben separat.
 
 ## 1.0.0a5 — Terra Workbench (2026-10-14)
 

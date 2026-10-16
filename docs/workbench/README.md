@@ -1,8 +1,12 @@
-# Terra Workbench (Phase 1B)
+# Terra — Arbeitsoberfläche (Alpha 7)
 
-Administrative Weboberfläche der App: React-19-Ersatz der Engineering-UI aus Alpha 4. Nur
-Frontend; Backend, API, Legacy-Integration und Engine sind unverändert. Basis: Release
-`v1.0.0a4`. Stand: Implementierung zur unabhängigen Prüfung — **keine** Live-/Ingress-Abnahme.
+Administrative Weboberfläche der App auf React 19. Alpha 7 ordnet die vorhandenen
+Editoren und Diagnosewege nach Aufgaben. Basis ist `main@4687c35` / `v1.0.0a6`.
+Verbindlich: [Issue #19](https://github.com/levtos/core_contract_app/issues/19),
+[PR #20](https://github.com/levtos/core_contract_app/pull/20) und der dort benannte UX12-Bericht.
+Ziel: Firefox und Google Chrome am Desktop mit 1920×1080; keine mobile Umgestaltung.
+Die [Abnahmematrix](alpha7/ABNAHME.md) führt jeden Punkt P1–P13, A.11 und Top-15
+mit Umsetzung, Test und Bildnachweis. Technischer Nachweis ist keine Live-Abnahme.
 
 ## Prinzipien
 
@@ -15,7 +19,9 @@ Frontend; Backend, API, Legacy-Integration und Engine sind unverändert. Basis: 
 - **Der Server validiert:** Der Browser enthält keine zweite Regel-/Validierungsengine.
   Fehler (`issues[]`, JSON-Pointer) werden am betroffenen Feld und in einer Liste mit
   Sprungziel gezeigt. Statische Diff-/Impact-Anzeige stammt vom Server.
-- **Drafts sind nie live.** Aktivierung/Rollback nur über Dialog mit Bestätigung und beiden
+- **Entwürfe gelten erst nach Übernehmen.** Live ansehen und Bearbeiten stehen in der
+  Kopfzeile. Anlegen startet bei Bedarf automatisch einen Entwurf und bleibt auf der Seite.
+  Übernehmen/Zurücksetzen nur über Dialog mit Bestätigung und beiden
   Versionsprüfungen (`draft_version`, `expected_active_revision`); Konflikte werden gezeigt,
   nie verdeckt oder automatisch wiederholt.
 - **Ehrliche Zustände:** `unknown` ist weder `false` noch `off`; Readiness ≠ Qualität;
@@ -48,21 +54,55 @@ in IndexedDB für das gemeinsame Tab-Budget. Layout-Metadaten enthalten keine
 Registry-Inhalte. „Layout anpassen“ bietet Verschieben, Breitenwahl und Reset;
 Editorzustand und Sicherheitsdialoge bleiben erhalten.
 
-## Bereiche (Routen)
+## Module und Unterseiten (Hash-Routen)
 
 | Route | Inhalt |
 |---|---|
-| `#/` | Übersicht: Readiness, Bedingungen, Installation, Contract-Zahlen, Probleme, Ereignisse |
-| `#/contracts`, `#/contracts/:id` | Instanzen: Liste/Filter, Live-Zustand, Konfiguration, Abhängigkeiten |
-| `#/definitions`, `#/definitions/:typeId/:version` | Definitionen (getrennt von Instanzen), Sperre aktivierter Versionen, „Neue Version“ mit Instanz-Migration |
-| `#/sources` | Sources, Bindings (HA-Entity-Picker, MQTT, Transform), Kataloge, Dependencies |
-| `#/registry`, `#/registry/drafts/:id` | Drafts, Revisionen, Validierung, Diff/Impact, Aktivierung, Rollback, Import/Export, JSON-Experte |
-| `#/graph` | Quellen/Contracts/Ergebnisse, Nachbarschaft, Suche, Sprung in Editor/Diagnose |
-| `#/diagnostics` | Live-Zustand, Contract-Diagnose (Explain, Temporal, Restore, Machine), Historie, Publikationen/Lücken, Evidence, Commands |
-| `#/admin` | Installation/Einrichtung, Readiness, Bridge-Diagnose, Rollen/Tokens, Audit |
+| `#/` | Drei Blöcke: Schnellaktionen, Verträge/Probleme, letzte relevante Ereignisse |
+| `#/contracts/list/all` | Meine Verträge: Name, Wert, Zustand, Quelle und Filter |
+| `#/contracts/select/contract`, `#/contracts/view/:id` | Vertrag wählen; Wert jetzt, Warum, Woher, Verlauf, Befehle und Konfiguration |
+| `#/contracts/import/json` | Vertrag als JSON/Importtext in einen neuen Entwurf übernehmen und prüfen |
+| `#/contracts/relations/graph` | Zusammenhänge: lesbarer, verschiebbarer Graph; Entwurf und Live getrennt |
+| `#/templates/own`, `#/templates/built-in` | Eigene und eingebaute Vorlagen |
+| `#/templates/details/:typeId/:version` | Vorlageneditor, Sperre übernommener Versionen und „Neue Version“ mit Vertragsauswahl |
+| `#/sources/devices` | Geräte aus Home Assistant, geführte Anlage und Quellenumzug |
+| `#/sources/bindings` | Verknüpfungen und ausdrückliche Umwandlungen |
+| `#/sources/catalogs`, `#/sources/dependencies` | Wertelisten und erweiterte Abhängigkeiten |
+| `#/changes/drafts`, `#/changes/drafts/:id` | Entwürfe und Entwurfsdetails mit Prüfung und Vergleich |
+| `#/changes/versions` | Unveränderliche Versionen mit Zeit, Akteur, Notiz und Zurücksetzen |
+| `#/changes/transfer` | Import/Export auf eigener Seite |
+| `#/settings/system` | Systemstatus |
+| `#/settings/installation` | Installation und Einrichtung |
+| `#/settings/connections` | HA-Anbindung, Datenbank und MQTT |
+| `#/settings/keys` | Zugangsschlüssel |
+| `#/settings/log` | Protokoll einschließlich Entwurfsaktionen |
+| `#/settings/diagnostics` | Sechs Expertenbereiche: Live-Zustand, Vertragsdiagnose, Verlauf, Veröffentlichungen/Lücken, Nachweise, Befehle |
 
-Der Einrichtungsassistent ist mit identischen Texten, CSRF-Handling (`X-Setup-CSRF`) und
-Bestätigungen portiert (`src/setup/`), inkl. der sieben Alt-Tests.
+Alte Routen leiten mit ihren Auswahl-/Fehlerparametern auf die neue Aufgabe um.
+„Layout anpassen“ liegt im kleinen ⋯-Menü; die untere doppelte Einrichtungsaktion entfällt.
+Die Kopfplakette zeigt jede offene Bereitschaftsbedingung mit einem Lösungslink.
+
+Der Einrichtungsassistent behält CSRF (`X-Setup-CSRF`), ausdrückliche Bestätigungen
+und die Korrekturen aus Alpha 6. Das Öffnen oder Prüfen der Oberfläche ist keine
+Freigabe, eine Installation oder Datenbank zu ändern.
+
+## Alpha-7-Pakete und technische Grenzen
+
+- [Geräteführung](alpha7/GERAETEFUEHRUNG.md): automatische Abhängigkeit, Quelle,
+  Verknüpfung und passende ausdrückliche Umwandlung; höchstens sechs Klicks für den ersten Temperaturvertrag.
+- [Quellenumzug](alpha7/QUELLENUMZUG.md): neue Kennung und gezielte Vertragsauswahl,
+  alte Quelle/Historie erhalten; komplexe eigene Regeln werden nicht still uminterpretiert.
+- [Ablauf-Neustart](alpha7/ABLAUF-NEUSTART.md): angenommene ADR 0004, Standard aus,
+  ausschließlich Administrator und definierter Startzustand; Audit, Bestätigung und Datennachweis.
+- [Versionen](alpha7/VERSIONEN.md): ausdrücklich freigegebene redaktionelle Metadaten,
+  außerhalb von Konfiguration und Prüfsumme, ohne Änderung der Auswertungsregeln.
+- [Farben und Sprache](alpha7/FARBEN-SPRACHE.md): deutsche Texte aus `de.json`,
+  graues Unbekannt, neutrale Dekoration und rechnerisch geprüfte AA-Kontraste.
+
+Fachliche Backend-Erweiterungen betreffen ausschließlich Quellenumzug und Ablauf-Neustart;
+die Geräteführung verwendet die bestehenden Registry-Modelle und eine ausdrücklich
+angeforderte, nur lesende Admin-Vorschau von HA-Metadaten. Keine Änderung an Legacy,
+HA-Konfiguration, Einhornzentrale oder `en.json`. Keine Installation oder DB-Reset.
 
 ## Capability-Abdeckung
 
@@ -109,8 +149,29 @@ Werte (`ValueEditor`): Text, Zahl, Wahrheitswert, Null, Objekte und Listen, beli
 eine optionale Zusatzansicht. Dynamische Schemas: `SchemaForm` + `Extras` (siehe
 [review-resolution.md](review-resolution.md)).
 
-## Review und offene Punkte
+## Review und Freigaben
 
-Befunde T1B-01…07 und UX-01 des Codex-Reviews sind mit Ursache, Korrektur, Test und Restrisiko in
-[review-resolution.md](review-resolution.md) dokumentiert. Offen: Firefox, echte HA-Ingress-/Supervisor-Einbettung,
-reale Discovery-Größe, Barrierefreiheits-Messung, menschliche Live-Abnahme, CI-Nachweis beider Supervisor-Images.
+Die reproduzierbare Bildprüfung liegt in `frontend/scripts/browser-review.mjs`.
+Nach `npm ci`, `npx playwright install firefox` und dem Frontend-Build startet sie
+eigene In-Memory-Prozesse auf den freien Loopback-Ports 8196 und 8198 und beendet
+nur diese Prozesse. Beispiel aus `frontend/`:
+
+```
+node scripts/browser-review.mjs --baseline C:/path/to/alpha6 --browser both --phase both
+```
+
+Der Vergleichscheckout muss den exakten freigegebenen Alpha-6-Dateibaum enthalten;
+das Skript prüft dies. Es verwendet installiertes **Google Chrome** und einen
+**Firefox-/Gecko-Testbuild von Playwright**, jeweils mit frischem Profil im
+Headless-Modus, 1920×1080 CSS-Pixeln und Pixelfaktor 1. PNG-Dateien bleiben
+unveränderte Browseraufnahmen. Das Manifest benennt Browserversionen, Quellstand,
+Routen, Prüfergebnisse und SHA-256 jeder Aufnahme. Eine sichtbare Prüfung des
+persönlichen Browserprofils oder eine reale HA-Ingress-Abnahme ist damit nicht behauptet.
+
+Die historischen Befunde T1B-01…07 und UX-01 stehen in
+[review-resolution.md](review-resolution.md). Die aktuelle Alpha-7-Matrix enthält
+die konkret durchgeführten Tests und Browserbilder sowie jede begründete Auslassung.
+Anschließend folgen Claudes UX-Nachtest und Bennis Live-Abnahme. Echte
+HA-Ingress-/Supervisor-Einbettung, reale Discovery-Größe und vollständige
+Barrierefreiheitsabnahme bleiben eigenständige Nachweise. Merge, Tag, Release,
+Image-Publish und Installation erfordern Bennis ausdrückliches neues Go.

@@ -84,10 +84,10 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P12.01 | Gedämpftes Petrol nur Marke/Navigation/Hauptknopf | umgesetzt; Browserprüfung offen | presentation.test.tsx; FARBEN-SPRACHE.md | offen |
 | P12.02 | Exklusive Statusfarben Grün/Gelb/Rot/Grau/Blau, keine Dekoration | umgesetzt; unbekannt grau, Regelkästen neutral, Hinweise ohne gelbe Kästen | presentation.test.tsx; status.test.ts | offen |
 | P12.03 | Gesund-Grün unterscheidbar; WCAG AA für alle Status-Chips, besonders Grau | umgesetzt; Kontrast mindestens 4,5:1 auf verwendeten Flächen, Browserprüfung offen | presentation.test.tsx | offen |
-| P13.01 | Historische Alpha-6-Veröffentlichung korrekt dokumentieren | offen | offen | entfällt: Dokumentation |
-| P13.02 | Workbench-README und CHANGELOG neue Struktur | offen | offen | entfällt: Dokumentation |
-| P13.03 | Release-Notiz 1.0.0a7 | offen | offen | entfällt: Dokumentation |
-| P13.04 | Versionen App/Python/Frontend 1.0.0a7 vorbereiten | offen | offen | offen |
+| P13.01 | Historische Alpha-6-Veröffentlichung korrekt dokumentieren | umgesetzt; Release und unverändertes main erneut gelesen | GitHub v1.0.0a6; main 4687c35 | entfällt: Dokumentation |
+| P13.02 | Workbench-README und CHANGELOG neue Struktur | umgesetzt | Routenabgleich navigation.test.tsx | entfällt: Dokumentation |
+| P13.03 | Release-Notiz 1.0.0a7 | umgesetzt; Vorbereitung, keine Veröffentlichung | docs/releases/1.0.0a7.md | entfällt: Dokumentation |
+| P13.04 | Versionen App/Python/Frontend 1.0.0a7 vorbereiten | umgesetzt; Lockfiles mitgeführt | test_image_distribution.py; Build; verify:dist | offen |
 | T.01 | Vitest/RTL je Paket und bestehende Regressionen | läuft paketweise | offen | entfällt: Testlauf |
 | T.02 | Engine-E2E mit originaler UX12-Datei über Geräteführung ohne manuelle Transformation | offen | offen | offen |
 | T.03 | i18n-Scan 0, en.json unverändert | laufend | scan:i18n | entfällt: Testlauf |
