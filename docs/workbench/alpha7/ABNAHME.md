@@ -57,10 +57,10 @@ Nur synthetische lokale Testdaten, keine HA-/DB-Verbindung. `en.json` bleibt unv
 | P6.06 | Aktualitätsvorlagen Temperatur/Kontakt/Bewegung/Zähler mit Modus und Frist, änderbar | umgesetzt; Kontakt ohne Altersfrist, übrige mit änderbarer Frist | devices.test.tsx; build-registry.test.tsx | offen |
 | P6.07 | Modi deutsch, Ein-Satz-Erklärung; Kontakt: Alter allein kein Mangel, Lebenszeichen | umgesetzt; Sichtprüfung offen | devices.test.tsx; scan:i18n | offen |
 | P6.08 | Quellen-Unterseiten erhalten jeweilige Auswahl beim Wechsel | umgesetzt; Kennung je Installation/Entwurf/Sammlung, Umbenennung ohne Editorverlust | devices.test.tsx; manualFirst.test.tsx | offen |
-| P7.01 | Getrennte eigene/eingebaute Vorlagen; korrekte Mehrzahl | Seiten getrennt; Mehrzahl offen | navigation.test.tsx | offen |
-| P7.02 | Neue Vorlage typkonsistent, Typ-ID ohne Sofortfehler, Präfix automatisch | offen | offen | offen |
-| P7.03 | Alle sechs Zeitregeln deutsch plus Ein-Satz-Erklärung | offen | offen | offen |
-| P7.04 | Konstanten zeigen Wert, Schema unter Erweitert | offen | offen | offen |
+| P7.01 | Getrennte eigene/eingebaute Vorlagen; korrekte Mehrzahl | umgesetzt; Sichtprüfung offen | navigation.test.tsx; templates.test.tsx | offen |
+| P7.02 | Neue Vorlage typkonsistent, Typ-ID ohne Sofortfehler, Präfix automatisch | umgesetzt; Name genügt, Kennung optional unter Erweitert; Ja/Nein-Ein- und Ausgabe konsistent | templates.test.tsx; e2e.test.tsx | offen |
+| P7.03 | Alle sechs Zeitregeln deutsch plus Ein-Satz-Erklärung | umgesetzt; Sichtprüfung offen | templates.test.tsx, sechs Zeitregelfälle | offen |
+| P7.04 | Konstanten zeigen Wert, Schema unter Erweitert | umgesetzt; Bearbeitung beliebiger Wertearten bleibt erreichbar | templates.test.tsx; manualFirst.test.tsx; e2e.test.tsx | offen |
 | P8.01 | Dialog neue Quelle mit anderem Typ/Einheit, Häkchen je umzustellendem Vertrag | offen | offen | offen |
 | P8.02 | Alte Quelle und Geschichte bleiben erhalten; Referenzen bewusst umstellen | offen | offen | offen |
 | P8.03 | Alltagstext für immutable_source_type mit Umzugsknopf | offen | offen | offen |

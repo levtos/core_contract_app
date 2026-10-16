@@ -8,13 +8,15 @@ import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Collapsible } from '@/components/ui/controls';
+import { codeLabel } from '@/i18n/codes';
 import { Field, Input } from '@/components/ui/form';
 import { ID_HINT, ID_LIMIT, validIdentifier } from '@/lib/identifiers';
 import { Empty, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { LockBadge } from '@/editors/DefinitionEditor';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { useAllIssues } from '@/features/authoring/issues';
-import { asArray, asObject, definitionKey, newDefinition, str } from '@/features/authoring/model';
+import { asArray, asObject, definitionKey, newDefinition, str, uniqueName } from '@/features/authoring/model';
 import { contractsUsingDefinition } from '@/features/authoring/usage';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -45,11 +47,12 @@ export default function DefinitionsPage() {
   const issues = useAllIssues();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const [typeId, setTypeId] = useState('test.');
+  const [typeId, setTypeId] = useState('');
+  const [name, setName] = useState('');
   const [creationError, setCreationError] = useState('');
   const start = async () => {
     setCreationError('');
-    try { await doc.ensureDraft(); setCreating(true); }
+    try { await doc.ensureDraft(); setTypeId(''); setName(''); setCreating(true); }
     catch (error) { setCreationError(describeError(error)); }
   };
 
@@ -83,8 +86,11 @@ export default function DefinitionsPage() {
     [],
   );
 
-  const exists = definitions.some((d) => str(d.type_id) === typeId.trim());
-  const validId = typeId.trim().startsWith('test.') && validIdentifier(typeId.trim());
+  const usedIds = [...definitions.map(definition => str(definition.type_id)), ...(caps.data?.types.map(type => type.type_id) ?? [])];
+  const suggested = name.trim().toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 96) || 'vorlage';
+  const fullId = typeId.trim() ? `test.${typeId.trim().replace(/^test\./, '')}` : uniqueName(`test.${suggested}`, usedIds);
+  const exists = usedIds.includes(fullId);
+  const validId = validIdentifier(fullId);
 
   return (
     <>
@@ -118,7 +124,7 @@ export default function DefinitionsPage() {
             <li key={`${t.type_id}@${t.type_version}`} className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm">
               <code className="text-xs">{t.type_id}</code>
               <Badge>{uiText("features.contracts.DefinitionsPage.v_4c9448")}{t.type_version}</Badge>
-              <span className="text-xs text-muted">{t.producer} · {Object.keys(t.schema.fields).length} {uiText("features.contracts.DefinitionsPage.felder_b26f0b")}</span>
+              <span className="text-xs text-muted">{codeLabel(t.producer)} · {uiText(Object.keys(t.schema.fields).length === 1 ? 'alpha7.template.oneField' : 'alpha7.template.fields', { count: Object.keys(t.schema.fields).length })}</span>
             </li>
           ))}
           {packageTypes.length === 0 && <li className="px-4 py-3 text-sm text-muted">{uiText("features.contracts.DefinitionsPage.keine_paket_typen_gemeldet_e04f62")}</li>}
@@ -137,9 +143,9 @@ export default function DefinitionsPage() {
               variant="primary"
               disabled={!validId || exists}
               onClick={() => {
-                const id = typeId.trim();
+                const id = fullId;
                 // Declarative definitions require fingerprint_version 2 (explicit in the document).
-                doc.edit((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), newDefinition(id, 1)] }));
+                doc.edit((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), { ...newDefinition(id, 1), ...(name.trim() ? { display_name: name.trim() } : {}) }] }));
                 setCreating(false);
                 navigate(`/templates/details/${encodeURIComponent(id)}/1`);
               }}
@@ -148,9 +154,15 @@ export default function DefinitionsPage() {
           </>
         }
       >
-        <Field label={uiText("features.contracts.DefinitionsPage.typ_id_b7db41")} hint={uiText("features.contracts.DefinitionsPage.synthetischer_namensraum_test_z_b_test_licht_log_7ef664")} errors={exists ? [{ code: 'duplicate_identity', message: uiText("features.contracts.DefinitionsPage.diese_typ_id_existiert_bereits_fur_anderungen_ei_01c137") }] : !validId ? [{ code: 'schema.pattern', message: uiText("features.contracts.DefinitionsPage.muss_mit_test_beginnen_erlaubt_sind_buchstaben_z_c3e941") }] : []}>
-          {(p) => <Input {...p} autoFocus maxLength={ID_LIMIT} value={typeId} aria-invalid={typeId !== '' && !validId} title={ID_HINT} onChange={(e) => setTypeId(e.target.value)} />}
-        </Field>
+        <div className="space-y-4">
+          <Field label={uiText('alpha7.template.name')}>{props => <Input {...props} autoFocus maxLength={128} value={name} placeholder={uiText('alpha7.template.nameExample')} onChange={event => setName(event.target.value)} />}</Field>
+          <p className="text-sm text-muted">{uiText('alpha7.template.initial')}</p>
+          <Collapsible title={uiText('alpha7.contract.advanced')}>
+            <Field label={uiText("features.contracts.DefinitionsPage.typ_id_b7db41")} hint={uiText('alpha7.template.prefix')} errors={typeId && exists ? [{ code: 'duplicate_identity', message: uiText("features.contracts.DefinitionsPage.diese_typ_id_existiert_bereits_fur_anderungen_ei_01c137") }] : typeId && !validId ? [{ code: 'schema.pattern', message: ID_HINT }] : []}>
+              {(p) => <Input {...p} maxLength={ID_LIMIT - 5} value={typeId} placeholder={fullId.replace(/^test\./, '')} title={ID_HINT} onChange={(e) => setTypeId(e.target.value.replace(/^test\./, ''))} />}
+            </Field>
+          </Collapsible>
+        </div>
       </Dialog>
     </>
   );

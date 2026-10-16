@@ -2,7 +2,7 @@ import { codeLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { ChevronRight, Copy, Trash2 } from 'lucide-react';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { Checkbox } from '@/components/ui/controls';
+import { Checkbox, Collapsible } from '@/components/ui/controls';
 import { Input, Select } from '@/components/ui/form';
 import {
   asArray,
@@ -343,13 +343,13 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
       const schema = asObject(value.schema) as FieldSchema;
       return (
         <div className="flex flex-col gap-3">
-          <FieldSchemaEditor
+          <TypedValueEditor schema={schema} value={(value.value ?? null) as Json} pointer={join(pointer, 'value')} onChange={(v) => set({ value: v })} />
+          <Collapsible title={uiText('alpha7.template.constantAdvanced')}><FieldSchemaEditor
             compact
             pointer={join(pointer, 'schema')}
             value={schema}
             onChange={(next) => set({ schema: next, ...(next.type !== schema.type ? { value: defaultLiteralValue(next) } : {}) })}
-          />
-          <TypedValueEditor schema={schema} value={(value.value ?? null) as Json} pointer={join(pointer, 'value')} onChange={(v) => set({ value: v })} />
+          /></Collapsible>
         </div>
       );
     }
@@ -531,7 +531,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
               <Checkbox checked={value.accepts_held === true} onCheckedChange={(on) => set({ accepts_held: on || undefined })} label={uiText("editors.RuleEditor.gehaltene_werte_akzeptieren_034eb1")} />
             </div>
           </div>
-          {TEMPORAL_HINTS[operation] && <p className="text-xs text-muted">{TEMPORAL_HINTS[operation]} {uiText("editors.RuleEditor.zeitkontexte_werden_mit_absoluten_fristen_wieder_91a4b2")}</p>}
+          {TEMPORAL_HINTS[operation] && <p className="text-xs text-muted">{TEMPORAL_HINTS[operation]}</p>}
           <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} min={arity} max={arity} labels={arity === 2 ? ['Aktuell', 'Vergleich'] : ['Eingang']} />
         </div>
       );

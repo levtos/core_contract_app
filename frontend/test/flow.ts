@@ -64,6 +64,7 @@ export function flow(user: UserEvent) {
       await go('#/definitions');
       await user.click(await screen.findByRole('button', { name: /Neue Vorlage/ }));
       const dialog = await screen.findByRole('dialog', { name: "Neue Vorlage" });
+      await user.click(within(dialog).getByRole('button', { name: 'Erweitert' }));
       await steps.type(within(dialog).getByLabelText('Typ-ID'), typeId);
       await user.click(within(dialog).getByRole('button', { name: 'Anlegen' }));
       await screen.findByRole('tab', { name: 'Allgemein' });
