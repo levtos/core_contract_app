@@ -26,7 +26,12 @@ export function OverviewPage() {
   const grouped = new Map<string, Reason[]>();
   for (const problem of problems.data?.problems ?? []) grouped.set(problem.contract_id, [...(grouped.get(problem.contract_id) ?? []), ...problem.reasons]);
   const enabledIds = new Set(asArray(config?.contracts).filter(isObject).filter(contract => contract.enabled !== false).map(contract => str(contract.contract_id)));
-  for (const envelope of Object.values(current ?? {})) if (enabledIds.has(envelope.contract_id) && envelope.contract_health === 'degraded' && !grouped.has(envelope.contract_id)) grouped.set(envelope.contract_id, Object.values(envelope.fields).flatMap(field => field.reasons));
+  for (const envelope of Object.values(current ?? {})) {
+    if (!enabledIds.has(envelope.contract_id)) continue;
+    // Counts and problem details must describe the same current server publication.
+    if (envelope.contract_health === 'degraded') grouped.set(envelope.contract_id, Object.values(envelope.fields).flatMap(field => field.reasons));
+    else grouped.delete(envelope.contract_id);
+  }
   const entries = [...grouped].filter(([id]) => enabledIds.has(id));
   const metrics = [
     { key: 'active', filter: 'active' }, { key: 'healthy', filter: 'healthy' },

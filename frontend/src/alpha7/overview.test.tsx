@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { Workbench } from '@/Workbench';
 import { contractCounts, eventText, overviewEvents, problemAdvice } from '@/features/overview/overviewModel';
 import { relativeTime } from '@/lib/format';
@@ -55,10 +55,25 @@ it('offers everyday explanations with a direct solution and German relative time
   expect(relativeTime('broken')).toBe('Zeit unbekannt');
 });
 
-function app() {
+function app(live = idleLive()) {
   window.location.hash = '#/';
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={live} /></QueryClientProvider>);
 }
+
+it.each(['healthy', 'degraded'] as const)('uses current %s publications instead of stale polled problem details', async health => {
+  const api = installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
+  api.routes.push({ match: /^diagnostics\/problems$/, respond: () => reply(200, { problems: [{ contract_id: 'room', reasons: [{ code: 'evaluation_error', since: at }] }] }) });
+  const current = { ...envelope('room', health), fields: { value: { status: 'unknown', value: null, quality: 'degraded', evidence: [], reasons: health === 'degraded' ? [{ code: 'input_stale', since: at }] : [] } } } as Envelope;
+  const live = idleLive();
+  vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, registryRevision: 4, contracts: { room: current } });
+  app(live);
+  if (health === 'degraded') expect(await screen.findByText('Ein benötigter Wert ist zu alt.')).toBeVisible();
+  else {
+    await screen.findByRole('link', { name: /1 gesund/ });
+    expect(await screen.findByText('Zurzeit sind keine Probleme gemeldet.')).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Temperatur im Zimmer' })).not.toBeInTheDocument();
+  }
+});
 
 it('renders exactly three overview blocks and links the count to a filtered list', async () => {
   const user = userEvent.setup();
