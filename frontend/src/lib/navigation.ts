@@ -4,7 +4,6 @@ export interface NavigationModule { id: string; label: string; children: { to: s
 export const NAVIGATION: NavigationModule[] = [
   { id: 'contracts', label: t('alpha7.nav.contracts'), children: [
     { to: '/contracts/list/all', label: t('alpha7.nav.mine') },
-    { to: '/contracts/select/contract', label: t('alpha7.nav.contract') },
     { to: '/contracts/import/json', label: t('alpha7.nav.contractImport') },
     { to: '/contracts/relations/graph', label: t('alpha7.nav.relations') },
   ] },
@@ -37,8 +36,8 @@ export const NAVIGATION: NavigationModule[] = [
 export function legacyTarget(path: string, search = ''): string {
   const query = new URLSearchParams(search);
   let target = path;
-  if (['/contracts/list/all', '/contracts/select/contract', '/contracts/import/json', '/contracts/relations/graph'].includes(path)) return path + search;
-  if (path === '/contracts') target = '/contracts/list/all';
+  if (['/contracts/list/all', '/contracts/import/json', '/contracts/relations/graph'].includes(path)) return path + search;
+  if (path === '/contracts' || path === '/contracts/select/contract') target = '/contracts/list/all';
   else if (/^\/contracts\/[^/]+$/.test(path)) target = path.replace('/contracts/', '/contracts/view/');
   else if (path === '/definitions') target = '/templates/own';
   else if (path.startsWith('/definitions/')) target = path.replace('/definitions/', '/templates/details/');

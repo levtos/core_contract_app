@@ -19,7 +19,7 @@ describe('P1: separate module routes and retained links', () => {
   it('assigns every sidebar subpage an explicit route rather than the fallback', () => {
     const routes = workbenchRoutes(() => {});
     const pages = NAVIGATION.flatMap(module => module.children);
-    expect(new Set(pages.map(page => page.to)).size).toBe(19);
+    expect(new Set(pages.map(page => page.to)).size).toBe(18);
     for (const page of pages) {
       expect(legacyTarget(page.to), page.to).toBe(page.to);
       const matched = matchRoutes(routes, page.to);
@@ -29,6 +29,7 @@ describe('P1: separate module routes and retained links', () => {
   });
   it.each([
     ['/contracts', '', '/contracts/list/all'],
+    ['/contracts/select/contract', '?filter=healthy', '/contracts/list/all?filter=healthy'],
     ['/contracts/mine', '', '/contracts/view/mine'],
     ['/contracts/detail', '', '/contracts/view/detail'],
     ['/contracts/room.temperature', '?focus=%2Fcontracts%2F0', '/contracts/view/room.temperature?focus=%2Fcontracts%2F0'],
@@ -58,6 +59,14 @@ describe('P1: separate module routes and retained links', () => {
     await screen.findByRole('heading', { name: 'Verknüpfungen', level: 1 });
     expect(window.location.hash).toBe('#/sources/bindings?tab=bindings&item=0');
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+  it.each(['#/contracts/select/contract', '#/contracts/view/wohnzimmer'])('keeps the contract list selected for %s without a duplicate chooser entry', async hash => {
+    installFakeApi(); app(hash);
+    const navigation = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    const mine = await within(navigation).findByRole('link', { name: 'Meine Verträge' });
+    await waitFor(() => expect(mine).toHaveAttribute('aria-current', 'page'));
+    expect(within(navigation).queryByRole('link', { name: 'Vertrag' })).not.toBeInTheDocument();
+    if (hash.includes('select')) await waitFor(() => expect(window.location.hash).toBe('#/contracts/list/all'));
   });
   it.each(['text', 'file'])('imports %s and validates on its own page without activating or changing the route', async mode => {
     const user = userEvent.setup();

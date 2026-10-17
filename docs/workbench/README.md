@@ -60,7 +60,7 @@ Editorzustand und Sicherheitsdialoge bleiben erhalten.
 |---|---|
 | `#/` | Drei Blöcke: Schnellaktionen, Verträge/Probleme, letzte relevante Ereignisse |
 | `#/contracts/list/all` | Meine Verträge: Name, Wert, Zustand, Quelle und Filter |
-| `#/contracts/select/contract`, `#/contracts/view/:id` | Vertrag wählen; Wert jetzt, Warum, Woher, Verlauf, Befehle und Konfiguration |
+| `#/contracts/view/:id` | Detail aus Meine Verträge: Wert jetzt, Warum, Woher, Verlauf, Befehle und Konfiguration; alte Auswahlroute leitet zur Liste um |
 | `#/contracts/import/json` | Vertrag als JSON/Importtext in einen neuen Entwurf übernehmen und prüfen |
 | `#/contracts/relations/graph` | Zusammenhänge: lesbarer, verschiebbarer Graph; Entwurf und Live getrennt |
 | `#/templates/own`, `#/templates/built-in` | Eigene und eingebaute Vorlagen |

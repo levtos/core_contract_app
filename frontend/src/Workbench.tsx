@@ -35,7 +35,7 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
       children: [
         { index: true, element: <OverviewPage /> },
         { path: 'contracts/list/all', element: lazyPage(() => import('@/features/contracts/ContractsPage')) },
-        { path: 'contracts/select/contract', element: lazyPage(() => import('@/features/contracts/ContractChooser')) },
+        { path: 'contracts/select/contract', element: <LegacyRoute /> },
         { path: 'contracts/view/:contractId', element: lazyPage(() => import('@/features/contracts/ContractDetailPage')) },
         { path: 'contracts/import/json', element: lazyPage(() => import('@/features/registry/ImportExportPage')) },
         { path: 'contracts/relations/graph', element: lazyPage(() => import('@/features/graph/GraphPage')) },

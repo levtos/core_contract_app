@@ -79,7 +79,7 @@ export function Shell(_props: { onSetup: () => void }) {
                 <Icon size={17} /><span className={cn('flex-1', collapsed && 'sr-only')}>{module.label}</span>{!collapsed && <ChevronDown size={14} className={open ? 'rotate-180' : ''} />}
               </button>
               {!collapsed && open && <ul id={`nav-${module.id}`} className="mb-2 ml-5 border-l border-line pl-2">{module.children.map(item => {
-                const selected = pathname === item.to || (item.to === '/contracts/select/contract' && pathname.startsWith('/contracts/view/')) || (item.to === '/templates/own' && pathname.startsWith('/templates/details/'));
+                const selected = pathname === item.to || (item.to === '/contracts/list/all' && pathname.startsWith('/contracts/view/')) || (item.to === '/templates/own' && pathname.startsWith('/templates/details/'));
                 return <li key={item.to}><Link to={item.to} aria-current={selected ? 'page' : undefined} className={cn('block rounded-md px-3 py-2 text-sm leading-snug', selected ? 'bg-accent/10 font-medium text-accent' : 'text-muted hover:bg-raised hover:text-fg')}>{item.label}</Link></li>;
               })}</ul>}
             </div>;
