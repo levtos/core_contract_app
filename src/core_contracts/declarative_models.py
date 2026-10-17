@@ -135,7 +135,7 @@ class FirstMatchRule(Model):
 
 
 class BucketInitial(DeclarativeModel):
-    class_value: Any = Field(default=None, alias="class")
+    class_value: Any = Field(default=None, alias="class", exclude_if=lambda value: value is None)
     unknown: bool = False
 
     @model_validator(mode="after")

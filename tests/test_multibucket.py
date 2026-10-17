@@ -101,3 +101,31 @@ def test_initial_and_static_boundaries_are_validated():
     }
     with pytest.raises(ValueError):
         DeclarativeDefinition.model_validate(definition(output))
+
+
+async def test_unknown_initial_survives_registry_serialization_and_activation(runtime, config):
+    output = {
+        "op": "bucket",
+        "id": "classes",
+        "arg": {"op": "input", "name": "a"},
+        "classes": ["low", "high"],
+        "initial": {"unknown": True},
+        "schema": schema("enum", value_catalog=["low", "high"]),
+        "boundaries": [
+            {
+                "at": literal(20, "number"),
+                "hysteresis": {"lower": literal(18, "number"), "upper": literal(22, "number")},
+            }
+        ],
+    }
+    data = definition(output)
+    data["language_version"] = 2
+    data["inputs"][0]["schema"] = schema("number")
+    data["schema"]["fields"]["value"] = output["schema"]
+    await activate(runtime, registry(config, data))
+    await runtime.submit("observation", observation(runtime, 20))
+    assert runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]["status"] == "unknown"
+    await runtime.submit(
+        "observation", observation(runtime, 22).model_copy(update={"ingest_seq": 2})
+    )
+    assert runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]["value"] == "high"
