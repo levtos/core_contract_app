@@ -9,7 +9,7 @@ from ..model import Model
 
 
 class AdapterConfig(Model):
-    kind: Literal["ha_state", "ha_attribute", "mqtt", "scheduler"]
+    kind: Literal["ha_state", "ha_attribute", "mqtt", "scheduler", "connectivity"]
     ha_entity_id: str | None = None
     ha_attribute: str | None = None
     ha_time_attribute: str | None = None

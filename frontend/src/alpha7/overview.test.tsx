@@ -60,6 +60,17 @@ function app(live = idleLive()) {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={live} /></QueryClientProvider>);
 }
 
+it('shows the server count of unbounded values during HA loss', async () => {
+  installFakeApi();
+  const live = idleLive();
+  vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, service: {
+    ready: true, publication_confirmed: true, persistence: 'available', ha: 'disconnected', bridge: 'unavailable', mqtt: 'disabled', reasons: [],
+    ha_disconnected_since: at, ha_unbounded_values: 3,
+  } });
+  app(live);
+  expect(await screen.findByText(/Home Assistant getrennt seit .* – 3 Werte ohne Frist gelten unverändert weiter/)).toBeVisible();
+});
+
 it('uses status colors for known counts and equally sized quick actions', async () => {
   const user = userEvent.setup();
   installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });

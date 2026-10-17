@@ -2161,5 +2161,6 @@
   "alpha7.diff.reinitialize": "Bestehende Abläufe beginnen neu",
   "alpha7.diff.reinitializeHelp": "Die Berechnungsregeln haben sich geändert. Betroffene Abläufe beginnen nach dem Übernehmen neu.",
   "alpha8.parameters.title": "Einstellungen für diesen Vertrag",
-  "alpha8.parameters.draftHint": "Deine Änderung gilt erst, wenn du den Entwurf übernimmst."
+  "alpha8.parameters.draftHint": "Deine Änderung gilt erst, wenn du den Entwurf übernimmst.",
+  "alpha8.ha.disconnected": "Home Assistant getrennt seit {since} – {count} Werte ohne Frist gelten unverändert weiter"
 }

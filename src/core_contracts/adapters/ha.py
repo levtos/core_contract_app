@@ -354,7 +354,15 @@ class BridgeAdapter:
                     ),
                 },
             )
-            await self.runtime.submit("bridge_state", ("connected", "connected"))
+            await self.runtime.submit(
+                "bridge_state",
+                (
+                    "connected",
+                    "connected"
+                    if str(info.get("ha_state", "")).lower() == "running"
+                    else "starting",
+                ),
+            )
             self.retry_delay = 1.0
             LOGGER.info("bridge_connected")
             while True:
@@ -371,7 +379,16 @@ class BridgeAdapter:
                         if message["id"] == 5:
                             await self.event(message["event"], config, revision)
                         else:
-                            raise ConnectionError("ha_lifecycle")
+                            event_type = message.get("event", {}).get("event_type")
+                            await self.runtime.submit(
+                                "bridge_state",
+                                (
+                                    "connected",
+                                    "connected"
+                                    if event_type == "homeassistant_started"
+                                    else "stopping",
+                                ),
+                            )
                 finally:
                     for task in pending:
                         if not task.done():

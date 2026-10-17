@@ -90,6 +90,7 @@ class Runtime:
         self.bridge_subscriptions = 0
         self.dependency_connections: dict[str, bool] = {}
         self.ha = "not_needed"
+        self.ha_changed_at = self.clock.now_utc()
         self.mqtt = "disabled"
         self.latest: dict[str, Observation] = {}
         self.overflow = False
@@ -133,7 +134,36 @@ class Runtime:
             "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
             "reasons": self.readiness_reasons,
+            "ha_disconnected_since": self.ha_changed_at.isoformat()
+            if self.bridge == "unavailable"
+            else None,
+            "ha_unbounded_values": self._unbounded_ha_values(),
         }
+
+    def _unbounded_ha_values(self) -> int:
+        config = self.config
+        if config is None or self.bridge != "unavailable":
+            return 0
+        bindings = {b.source_id: b for b in config.bindings if b.adapter.kind.startswith("ha_")}
+        return sum(
+            1
+            for source in config.sources
+            if source.source_id in bindings
+            and source.freshness.mode == "event_stateful"
+            and assess(
+                Observation.model_validate(raw)
+                if (
+                    raw := self.state.tables["source_observation_current"].get(
+                        bindings[source.source_id].binding_id
+                    )
+                )
+                else None,
+                source.freshness,
+                self.clock.now_utc(),
+                source.source_id,
+            ).status
+            == "valid"
+        )
 
     @property
     def readiness_reasons(self) -> list[str]:
@@ -288,7 +318,9 @@ class Runtime:
             return False
         needed = required_sources(config)
         return any(
-            b.source_id in needed and b.adapter.kind.startswith("ha_") for b in config.bindings
+            b.source_id in needed
+            and (b.adapter.kind.startswith("ha_") or b.adapter.kind == "connectivity")
+            for b in config.bindings
         )
 
     async def start(self) -> None:
@@ -462,31 +494,24 @@ class Runtime:
             return None
         if operation == "bridge_state":
             previous_bridge = self.bridge
+            previous_state = (self.bridge, self.ha)
             self.bridge, self.ha = payload
+            if previous_state != payload:
+                self.ha_changed_at = self.clock.now_utc()
             self.dependency_connections["ha"] = self.bridge == "connected"
             self._broadcast(self.service_state())
-            if (
-                self.bridge == "unavailable"
-                and previous_bridge != self.bridge
-                and self.persistence
-                and self.config
-            ):
+            if previous_state != payload and self.persistence and self.config:
                 staged = self.state.clone()
                 bindings = {
                     b.binding_id for b in self.config.bindings if b.adapter.kind.startswith("ha_")
                 }
-                self._gap(staged, "ha_disconnect")
-                self._invalidate(staged, self.config, bindings)
-                for binding in self.config.bindings:
-                    if binding.adapter.kind.startswith("ha_"):
-                        current_observation = staged.tables["source_observation_current"].get(
-                            binding.binding_id
-                        )
-                        if current_observation:
-                            current_observation["availability"] = "unavailable"
+                if self.bridge == "unavailable" and previous_bridge != "unavailable":
+                    self._gap(staged, "ha_disconnect")
+                    self._invalidate(staged, self.config, bindings)
                 self._evaluate(staged, self.config, origin="revision")
                 try:
                     await self._commit(staged, publication=True)
+                    self._broadcast(self.service_state())
                 except Exception as error:
                     LOGGER.warning(
                         "transport_status_uncommitted", extra={"error_type": type(error).__name__}
@@ -937,6 +962,8 @@ class Runtime:
             source = sources[ref]
             dependency = dependencies[source.dependency_id]
             available = self.dependency_connections.get(dependency.kind, True)
+            if dependency.kind == "ha" and dependency.monitor == "internal":
+                available = True  # Transport loss is not sensor evidence.
             if dependency.monitor == "source":
                 monitor = source_value(dependency.source_id or "", visited | {ref})
                 available = (
@@ -1355,16 +1382,27 @@ class Runtime:
         now = self.clock.now_utc()
         for binding in config.bindings:
             calendar = binding.adapter.calendar
-            if calendar is None:
+            if calendar is None and binding.adapter.kind != "connectivity":
                 continue
-            value, _ = project(calendar, now)
+            if calendar is not None:
+                value, _ = project(calendar, now)
+            else:
+                value = (
+                    "ready"
+                    if self.bridge == "connected" and self.ha == "connected"
+                    else "starting"
+                    if self.ha in {"starting", "stopping"}
+                    else "unavailable"
+                    if self.bridge == "unavailable"
+                    else None
+                )
             old = state.tables["source_observation_current"].get(binding.binding_id)
             if old and old.get("value_raw") == value and old.get("observation_kind") != "restore":
                 continue
             observation = Observation(
                 source_id=binding.source_id,
                 binding_id=binding.binding_id,
-                adapter="scheduler",
+                adapter="scheduler" if calendar is not None else "connectivity",
                 value_raw=value,
                 device_time=now,
                 received_at=now,
@@ -1373,6 +1411,7 @@ class Runtime:
                 ingest_seq=int(old["ingest_seq"]) + 1 if old else 0,
                 reference_version=2,
                 registry_revision=state.active_revision,
+                availability="available" if value is not None else "unknown",
             )
             state.tables["source_observation_current"][binding.binding_id] = (
                 observation.storage_document()

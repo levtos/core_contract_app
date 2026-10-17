@@ -107,12 +107,12 @@ def project(config: CalendarInput, now: datetime) -> tuple[Any, datetime]:
             for s in config.seasons
         ]
         return current.name, min(at for at in dates if at > now)
-    dates = [
+    anniversary_dates = [
         day for year in range(today.year, today.year + 9) if (day := anniversary(config, year))
     ]
     events = [
         berlin_utc(datetime.combine(day + timedelta(days=offset), time()))
-        for day in dates
+        for day in anniversary_dates
         for offset in (0, 1)
     ]
-    return today in dates, min(at for at in events if at > now)
+    return today in anniversary_dates, min(at for at in events if at > now)

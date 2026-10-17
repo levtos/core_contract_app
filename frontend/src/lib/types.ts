@@ -24,6 +24,8 @@ export interface ServiceState {
   bridge: string;
   mqtt: string;
   reasons: string[];
+  ha_disconnected_since?: string | null;
+  ha_unbounded_values?: number;
 }
 
 export type FieldStatus = 'valid' | 'held' | 'unknown' | 'not_applicable' | 'unresolved';
