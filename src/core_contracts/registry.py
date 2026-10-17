@@ -13,6 +13,7 @@ from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
+from .retention import RetentionPolicy
 from .schema import ContractType, FieldSchema, TypeRegistry
 
 
@@ -90,6 +91,9 @@ class Catalog(Model):
 class RegistryConfig(Model):
     config_schema_version: Literal[1]
     fingerprint_version: Literal[1, 2] = 1
+    history_retention: RetentionPolicy | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     dependencies: tuple[Dependency, ...]
     sources: tuple[Source, ...]
     bindings: tuple[Binding, ...]

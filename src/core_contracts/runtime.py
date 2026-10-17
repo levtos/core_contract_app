@@ -82,6 +82,10 @@ class Runtime:
     ) -> None:
         self.store, self.clock, self.types = store, clock, types
         self.state = State()
+        self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
+        self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
+        self.reuse_unaffected = True
+        self.evaluation_stats = {"evaluated": 0, "reused": 0}
         self.queue: asyncio.Queue[Work] = asyncio.Queue(queue_size)
         self.task: asyncio.Task[None] | None = None
         self.confirmed = False
@@ -94,6 +98,8 @@ class Runtime:
         self.dependency_connections: dict[str, bool] = {}
         self.ha = "not_needed"
         self.ha_changed_at = self.clock.now_utc()
+        self.next_retention = self.clock.now_utc()
+        self.retention_receipt: dict[str, Any] | None = None
         self.mqtt = "disabled"
         self.latest: dict[str, Observation] = {}
         self.overflow = False
@@ -120,7 +126,30 @@ class Runtime:
 
     @property
     def config(self) -> RegistryConfig | None:
-        return self._config(self.state)
+        revision = self.state.tables["registry_revision"].get(str(self.state.active_revision), {})
+        key = (self.state.active_revision, str(revision.get("checksum", "")))
+        if self._config_cache is None or self._config_cache[:2] != key:
+            self._config_cache = (*key, self._config(self.state))
+        return self._config_cache[2]
+
+    def _evaluation_plan(
+        self, state: State, config: RegistryConfig
+    ) -> tuple[dict[str, str], TypeRegistry, list[Contract]]:
+        revision = state.tables["registry_revision"].get(str(state.active_revision), {})
+        key = (
+            state.active_revision,
+            revision.get("checksum"),
+            tuple((key, id(value)) for key, value in self.types.types.items()),
+        )
+        if key not in self._plans:
+            self._plans[key] = (
+                fingerprints(config, self.types),
+                registry_types(config, self.types),
+                topological(config),
+            )
+            if len(self._plans) > 4:
+                self._plans.pop(next(iter(self._plans)))
+        return self._plans[key]
 
     @staticmethod
     def _config(state: State) -> RegistryConfig | None:
@@ -212,7 +241,9 @@ class Runtime:
                             code="immutable_definition_version",
                             path=f"/{kind}/{index}/{version_key}",
                             object_id=identity,
-                            message="immutable version",
+                            message="immutable definition version"
+                            if kind == "definitions"
+                            else "immutable catalog version",
                         )
                     )
                 if previous and not transition_allowed(
@@ -436,7 +467,11 @@ class Runtime:
             for context in self._temporal_contexts(node):
                 if "temporal" in context:
                     context["restore_pending"] = copy.deepcopy(context["temporal"])
-        config = self._config(state)
+        config = (
+            self.config
+            if state.active_revision == self.state.active_revision
+            else self._config(state)
+        )
         if config:
             self._evaluate(state, config, origin="restore", initial_latches={})
         else:
@@ -643,6 +678,15 @@ class Runtime:
         # conflict, duplicate event or failed command cannot discard the buffer.
         if self.overflow:
             await self._drain_overflow()
+        if operation in {"retention_preview", "retention_run"}:
+            if self.config is None or self.config.history_retention is None:
+                raise ValueError("history_retention_not_configured")
+            return await self.store.maintain_history(
+                self.state,
+                self.clock.now_utc(),
+                self.config.history_retention,
+                dry_run=operation == "retention_preview",
+            )
         if operation == "tick":
             try:
                 await self.store.probe()
@@ -650,6 +694,18 @@ class Runtime:
                 self._unavailable()
                 raise
             now = self.clock.now_utc()
+            if (
+                self.config
+                and (policy := self.config.history_retention)
+                and now >= self.next_retention
+            ):
+                self.retention_receipt = await self.store.maintain_history(self.state, now, policy)
+                self.next_retention = now + timedelta(
+                    seconds=60
+                    if self.retention_receipt["selected"] == policy.batch_size
+                    else policy.interval_s
+                )
+                self._plan_evaluation()
             clock_went_back = now < self.last_clock
             self.last_clock = now
             if not clock_went_back and (self.next_evaluation is None or now < self.next_evaluation):
@@ -1085,8 +1141,17 @@ class Runtime:
         self.pending_latches = copy.deepcopy(
             self.latches if initial_latches is None else initial_latches
         )
-        fps = fingerprints(config, self.types)
-        types = registry_types(config, self.types)
+        fps, types, order = self._evaluation_plan(state, config)
+        self.evaluation_stats = {"evaluated": 0, "reused": 0}
+        can_reuse = (
+            self.reuse_unaffected
+            and origin == "input"
+            and trigger_source is not None
+            and machine_override is None
+            and state.active_revision == self.state.active_revision
+            and now >= self.last_clock
+            and (self.next_evaluation is None or self.next_evaluation > now)
+        )
         self.pending_refresh = set()
         previous_config = self.config
         if previous_config:
@@ -1106,7 +1171,7 @@ class Runtime:
         )
         previous_contracts = state.tables["contract_state_current"]
         state.tables["contract_state_current"] = {}
-        for contract in topological(config):
+        for contract in order:
             key = contract.contract_id
             lifecycle = state.tables["contract_lifecycle"].get(key)
             if not contract.enabled:
@@ -1121,6 +1186,16 @@ class Runtime:
             )
             if triggered:
                 affected.add(key)
+            if (
+                can_reuse
+                and not triggered
+                and key in previous_contracts
+                and state.tables["node_state"].get(key, {}).get("fingerprint") == fps[key]
+            ):
+                state.tables["contract_state_current"][key] = previous_contracts[key]
+                self.evaluation_stats["reused"] += 1
+                continue
+            self.evaluation_stats["evaluated"] += 1
             contract_origin = "revision" if origin == "input" and not triggered else origin
             if origin == "tick" and triggered:
                 contract_origin = "input"
@@ -1505,12 +1580,14 @@ class Runtime:
         due: list[datetime] = []
         config = self.config
         if config:
+            if config.history_retention:
+                due.append(self.next_retention)
             due.extend(
                 project(binding.adapter.calendar, now)[1]
                 for binding in config.bindings
                 if binding.adapter.calendar is not None
             )
-            types = registry_types(config, self.types)
+            _, types, _ = self._evaluation_plan(self.state, config)
             bindings = {b.source_id: b.binding_id for b in config.bindings}
             observations = self.state.tables["source_observation_current"]
             for source in config.sources:

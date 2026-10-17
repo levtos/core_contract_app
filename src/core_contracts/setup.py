@@ -172,7 +172,7 @@ async def probe(connection: Connection, *, resume: bool = False) -> dict[str, An
             )
             public_functions = await client.fetchval(
                 "SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n "
-                "ON n.oid=p.pronamespace WHERE n.nspname='public')"
+                "ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname<>'cc_index_observation')"
             )
             identity = None
             if "cc_meta" in tables:
@@ -181,6 +181,12 @@ async def probe(connection: Connection, *, resume: bool = False) -> dict[str, An
                 )
                 identity = json.loads(value) if value else None
             allowed = set(TABLES) | {"cc_meta", "cc_schema_migrations", "publication"}
+            if identity:
+                allowed |= {
+                    "cc_observation_index",
+                    "cc_observation_rollup",
+                    "cc_evidence_watermark",
+                }
             if (
                 tables - allowed
                 or (tables and not identity and not resume)

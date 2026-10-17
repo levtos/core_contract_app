@@ -719,9 +719,7 @@ async def test_handshake_revision_wakeup_and_report_filter(
         monkeypatch.setattr(adapter, "_result", request)
         async with asyncio.timeout(3):
             await adapter.connect(runtime.config)
-    subscription = next(
-        item for item in fake.requests if item["type"] == "bifrost/subscribe"
-    )
+    subscription = next(item for item in fake.requests if item["type"] == "bifrost/subscribe")
     assert subscription["report_entity_ids"] == reports
     assert runtime.revision_changed.is_set()
     assert runtime.mqtt_revision_changed.is_set()
