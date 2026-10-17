@@ -232,7 +232,7 @@ class MachineDefinition(Model):
 
 
 class DeclarativeDefinition(DeclarativeModel):
-    type_id: str = Field(pattern=r"^test\.[a-zA-Z0-9_.-]+$")
+    type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
     language_version: Literal[1] = 1
     display_name: str = ""
@@ -252,8 +252,6 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("unknown_refresh_input")
         if self.outputs.keys() != self.output_schema.fields.keys():
             raise ValueError("output_schema_mismatch")
-        if not self.output_schema.fixture:
-            raise ValueError("phase_one_requires_fixture")
         if self.output_schema.grace_capable:
             raise ValueError("declarative_grace_uses_rule_duration")
         return self

@@ -213,7 +213,7 @@ export function newDefinition(typeId: string, version: number): JsonObject {
     type_id: typeId,
     type_version: version,
     inputs: [{ name: 'a', schema: newFieldSchema('bool') }],
-    schema: { fields: { value: newFieldSchema('bool') }, available_projection: ['value'] },
+    schema: { fields: { value: newFieldSchema('bool') }, available_projection: ['value'], ...(typeId.startsWith('test.') ? {} : { fixture: false }) },
     outputs: { value: { op: 'input', name: 'a' } },
   };
 }

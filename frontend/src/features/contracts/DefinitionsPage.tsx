@@ -88,7 +88,7 @@ export default function DefinitionsPage() {
 
   const usedIds = [...definitions.map(definition => str(definition.type_id)), ...(caps.data?.types.map(type => type.type_id) ?? [])];
   const suggested = name.trim().toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 96) || 'vorlage';
-  const fullId = typeId.trim() ? `test.${typeId.trim().replace(/^test\./, '')}` : uniqueName(`test.${suggested}`, usedIds);
+  const fullId = typeId.trim() ? (typeId.includes('.') ? typeId.trim() : `vertrag.${typeId.trim()}`) : uniqueName(`vertrag.${suggested}`, usedIds);
   const exists = usedIds.includes(fullId);
   const validId = validIdentifier(fullId);
 
@@ -159,7 +159,7 @@ export default function DefinitionsPage() {
           <p className="text-sm text-muted">{uiText('alpha7.template.initial')}</p>
           <Collapsible title={uiText('alpha7.contract.advanced')}>
             <Field label={uiText("features.contracts.DefinitionsPage.typ_id_b7db41")} hint={uiText('alpha7.template.prefix')} errors={typeId && exists ? [{ code: 'duplicate_identity', message: uiText("features.contracts.DefinitionsPage.diese_typ_id_existiert_bereits_fur_anderungen_ei_01c137") }] : typeId && !validId ? [{ code: 'schema.pattern', message: ID_HINT }] : []}>
-              {(p) => <Input {...p} maxLength={ID_LIMIT - 5} value={typeId} placeholder={fullId.replace(/^test\./, '')} title={ID_HINT} onChange={(e) => setTypeId(e.target.value.replace(/^test\./, ''))} />}
+              {(p) => <Input {...p} maxLength={ID_LIMIT} value={typeId} placeholder={fullId} title={ID_HINT} onChange={(e) => setTypeId(e.target.value)} />}
             </Field>
           </Collapsible>
         </div>
