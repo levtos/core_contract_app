@@ -60,6 +60,22 @@ function app(live = idleLive()) {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={live} /></QueryClientProvider>);
 }
 
+it('uses status colors for known counts and equally sized quick actions', async () => {
+  const user = userEvent.setup();
+  installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
+  const live = idleLive();
+  vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, registryRevision: 4, contracts: { room: { ...envelope('room', 'healthy'), fields: {} } } });
+  app(live);
+  const healthy = await screen.findByRole('link', { name: '1 gesund' });
+  expect(healthy.querySelector('span')).toHaveClass('text-ok');
+  expect(screen.getByRole('link', { name: '0 eingeschränkt' }).querySelector('span')).toHaveClass('text-warn');
+  expect(screen.getByRole('link', { name: '1 ausgeschaltet' }).querySelector('span')).toHaveClass('text-muted');
+  expect(screen.getByRole('link', { name: '1 eingeschaltet' }).querySelector('span')).toHaveClass('text-fg');
+  await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+  const apply = await screen.findByRole('button', { name: 'Änderungen übernehmen' });
+  for (const action of [apply, screen.getByRole('button', { name: 'Neuer Vertrag' }), screen.getByRole('button', { name: 'Vertrag importieren' })]) expect(action).toHaveClass('h-9');
+});
+
 it.each(['healthy', 'degraded'] as const)('uses current %s publications instead of stale polled problem details', async health => {
   const api = installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
   api.routes.push({ match: /^diagnostics\/problems$/, respond: () => reply(200, { problems: [{ contract_id: 'room', reasons: [{ code: 'evaluation_error', since: at }] }] }) });

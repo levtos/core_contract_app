@@ -208,9 +208,9 @@ export default function ContractsPage() {
           </Select>
           <Select aria-label={uiText("features.contracts.ContractsPage.gesundheit_1c7f2f")} className="w-44" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value as typeof healthFilter)}>
             <option value="all">{uiText("features.contracts.ContractsPage.jede_gesundheit_b848a7")}</option>
-            <option value="healthy">{uiText("features.contracts.ContractsPage.gesund_35c867")}</option>
-            <option value="degraded">{uiText("features.contracts.ContractsPage.eingeschrankt_7c77f8")}</option>
-            <option value="none">{uiText("features.contracts.ContractsPage.ohne_zustand_f3605b")}</option>
+            <option value="healthy">{uiText('alpha7.contract.state.healthy')}</option>
+            <option value="degraded">{uiText('alpha7.contract.state.limited')}</option>
+            <option value="none">{uiText('alpha7.contract.state.unknown')}</option>
           </Select>
         </div>
       </Panel></LayoutPanel><LayoutPanel id="instances" title={uiText("features.contracts.ContractsPage.contract_instanzen_1a0c12")}><Panel>

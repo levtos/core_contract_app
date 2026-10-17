@@ -34,8 +34,8 @@ export function OverviewPage() {
   }
   const entries = [...grouped].filter(([id]) => enabledIds.has(id));
   const metrics = [
-    { key: 'active', filter: 'active' }, { key: 'healthy', filter: 'healthy' },
-    { key: 'degraded', filter: 'degraded' }, { key: 'off', filter: 'off' },
+    { key: 'active', filter: 'active', color: 'text-fg' }, { key: 'healthy', filter: 'healthy', color: 'text-ok' },
+    { key: 'degraded', filter: 'degraded', color: 'text-warn' }, { key: 'off', filter: 'off', color: 'text-muted' },
   ] as const;
   return <>
     <PageHeader title={t('alpha7.nav.overview')} description={t('alpha7.overview.explanation')} />
@@ -45,7 +45,7 @@ export function OverviewPage() {
         <div className="flex flex-wrap gap-3 p-5">
           <Button variant="primary" onClick={() => navigate('/contracts/list/all?new=1')}><Plus size={16} />{t('alpha7.overview.newContract')}</Button>
           <Button onClick={() => navigate('/contracts/import/json')}><Upload size={16} />{t('alpha7.nav.contractImport')}</Button>
-          {doc.draft && <ReviewDraftButton>{t('alpha7.overview.apply')}</ReviewDraftButton>}
+          {doc.draft && <ReviewDraftButton size="md">{t('alpha7.overview.apply')}</ReviewDraftButton>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="contracts" title={t('alpha7.nav.contracts')}><Panel>
@@ -53,7 +53,7 @@ export function OverviewPage() {
         <div className="space-y-5 p-5">
           {active.isPending ? <Spinner /> : active.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.overview.contractsUnavailable')}</p> : <div className="grid gap-3 sm:grid-cols-4">
             {metrics.map(metric => <Link key={metric.key} to={`/contracts/list/all?filter=${metric.filter}`} onClick={() => doc.setEditing(false)} className="rounded-xl border border-line px-4 py-3 text-sm hover:border-faint focus-visible:outline-2 focus-visible:outline-accent">
-              <span className="block text-2xl font-semibold tabular-nums">{counts[metric.key] ?? '–'}</span>{' '}<span className="text-muted">{t(`alpha7.overview.${metric.key}`)}</span>
+              <span className={`block text-2xl font-semibold tabular-nums ${counts[metric.key] === null ? 'text-muted' : metric.color}`}>{counts[metric.key] ?? '–'}</span>{' '}<span className="text-muted">{t(`alpha7.overview.${metric.key}`)}</span>
             </Link>)}
           </div>}
           {current === null && <p className="text-xs text-muted">{t('alpha7.overview.waitingValues')}</p>}

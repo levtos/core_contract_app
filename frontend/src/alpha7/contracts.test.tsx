@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { Workbench } from '@/Workbench';
@@ -60,6 +60,22 @@ it('shows only four list columns, a single state chip and the HA name', async ()
   expect(await within(table).findByText('Zimmerthermometer')).toBeVisible();
   expect(within(table).getAllByText('Gesund')).toHaveLength(1);
   expect(within(table).getByRole('link', { name: 'Temperatur im Zimmer' })).toHaveAttribute('title', 'zimmer');
+  expect(within(screen.getByRole('combobox', { name: 'Zustand' })).getAllByRole('option').map(option => option.textContent)).toEqual(['Jeder Zustand', 'Gesund', 'Eingeschränkt', 'Unbekannt']);
+});
+
+it('shows the HA identifier only once when it is also the available name', async () => {
+  const api = fake();
+  api.routes.unshift({ match: /^ha\/entities/, respond: () => reply(200, { items: [{ ...entities[0], display_name: 'sensor.zimmer' }], next_cursor: null, read_only: true }) });
+  app('#/contracts/view/zimmer');
+  await screen.findByRole('link', { name: 'sensor.zimmer' });
+  expect(screen.getAllByText('sensor.zimmer')).toHaveLength(1);
+});
+
+it('formats a timestamp contract value in the list instead of exposing its wire format', async () => {
+  fake(); app('#/contracts/list/all', { ...envelope, fields: { stamp: { ...field, value: '2026-01-01T12:00:00Z' } } });
+  const table = await screen.findByRole('table', { name: 'Verträge' });
+  await waitFor(() => expect(within(table).getByText('1. Jan. 2026, 13:00')).toBeVisible());
+  expect(within(table).queryByText('2026-01-01T12:00:00Z')).not.toBeInTheDocument();
 });
 
 it('shows now, a sentence for why, named origin and history with gaps', async () => {

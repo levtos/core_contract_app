@@ -1,17 +1,16 @@
 import { t } from '@/i18n';
 
-/** Display-only helpers. Timestamps are shown as the server delivered them (UTC instants). */
+/** Display-only helpers. Preserve instants and show them in German/Berlin time. */
 
 const dateTime = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
-  timeStyle: 'medium',
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   timeZone: 'Europe/Berlin',
 });
 
 export function formatTime(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : dateTime.format(date);
+  return Number.isNaN(date.getTime()) ? t('alpha7.time.unknown') : dateTime.format(date);
 }
 
 export function shortId(value: string, length = 8): string {

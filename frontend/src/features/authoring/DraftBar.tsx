@@ -140,7 +140,7 @@ export function ValidationChip() {
   </>;
 }
 
-export function ReviewDraftButton({ children }: { children?: React.ReactNode }) {
+export function ReviewDraftButton({ children, size = 'sm' }: { children?: React.ReactNode; size?: 'sm' | 'md' }) {
   const doc = useWorkingDocument();
   const [target, setTarget] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,7 +152,7 @@ export function ReviewDraftButton({ children }: { children?: React.ReactNode }) 
     finally { setBusy(false); }
   };
   return <>
-    <Button size="sm" variant="primary" disabled={!doc.draft || busy || doc.saving} onClick={() => void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText('alpha7.draft.apply')}</Button>
+    <Button size={size} variant="primary" disabled={!doc.draft || busy || doc.saving} onClick={() => void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText('alpha7.draft.apply')}</Button>
     {!doc.draft && <span className="text-xs text-muted">{uiText('alpha7.draft.noDraft')}</span>}
     {error && <span role="alert" className="text-xs text-bad">{error}</span>}
     {target && <ActivateDialog draft={target} open onOpenChange={open => !open && setTarget(null)} />}

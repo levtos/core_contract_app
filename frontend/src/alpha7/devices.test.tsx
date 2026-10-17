@@ -32,6 +32,7 @@ it('creates and takes over a temperature contract in six clicks without entering
   await click(within(wizard).getByRole('radio', { name: 'Temperatur im Zimmer' }));
   expect(within(wizard).getByLabelText('Gerätetyp für die Aktualität')).toHaveValue('temperature');
   expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveValue(900);
+  expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveAccessibleDescription('= 15 Minuten');
   await click(within(wizard).getByRole('button', { name: 'Vertrag anlegen' }));
   await click(await screen.findByRole('button', { name: 'Übernehmen' }));
   const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });

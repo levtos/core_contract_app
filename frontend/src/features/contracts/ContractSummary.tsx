@@ -66,7 +66,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
     </Panel>
     <Panel><PanelHeader title={t('alpha7.contract.why')} /><p className="p-5 text-sm">{why}</p></Panel>
     <Panel><PanelHeader title={t('alpha7.contract.where')} /><div className="p-5">
-      {sources.length ? <ul className="space-y-3">{sources.map((source, index) => <li key={index}><Link className="font-medium hover:text-fg" to={`/sources/devices?item=${source.sourceIndex}`} title={source.id}>{source.name}</Link>{source.entityId && <p className="mt-1 max-w-full truncate text-xs text-muted" title={source.entityId}>{source.entityId}</p>}</li>)}</ul> : <p className="text-sm text-muted">{t('alpha7.contract.noSource')}</p>}
+      {sources.length ? <ul className="space-y-3">{sources.map((source, index) => <li key={index}><Link className="font-medium hover:text-fg" to={`/sources/devices?item=${source.sourceIndex}`} title={source.id}>{source.name}</Link>{source.entityId && source.entityId !== source.name && <p className="mt-1 max-w-full truncate text-xs text-muted" title={source.entityId}>{source.entityId}</p>}</li>)}</ul> : <p className="text-sm text-muted">{t('alpha7.contract.noSource')}</p>}
       {ha.isError && <p className="mt-2 text-xs text-muted">{t('alpha7.contract.namesUnavailable')}</p>}
     </div></Panel>
     <Panel><PanelHeader title={t('alpha7.contract.history')} description={t('alpha7.contract.historyScope')} /><div className="space-y-5 p-5">

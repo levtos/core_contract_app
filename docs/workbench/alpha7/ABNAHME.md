@@ -139,6 +139,7 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 | K.02 | Schlanke Leiste, ein Speicherzustand, ein Prüfergebnis je Stelle; Übernahme ausschließlich in der Leiste | erledigt; Speichern im ⋯-Menü, Übernahmekarte nur Checkliste | versions.test.tsx; draftMode.test.tsx; bestehende Speichern-/Übernahme-Flows | neue Bilder unter K.06 folgen |
 | K.03 | Doppelten Menüpunkt Vertrag entfernen, alte Route weiterleiten und Detail der Liste zuordnen | erledigt; Meine Verträge bleibt bei Details markiert | navigation.test.tsx (Umleitung mit Parametern und Seitenleistenauswahl) | neue Bilder unter K.06 folgen |
 | K.04 | Alltagssprache für Entwurf, Übernahme und Versionen; Wertelisten; technische Details nur unter Erweitert | erledigt; Kennung, Semantik-Prüfsumme und Fristdetails verborgen, Übernahme statt Einschalten | versions.test.tsx; lifecycle.test.tsx; i18n-Scan | neue Bilder unter K.06 folgen |
+| K.05 | Zustandsfilter, deutsche Zeitwerte, verständliche Frist, Statusfarben, eindeutige HA-Kennung und gleiche Schnellaktionsgröße | erledigt; Filter nutzt Chip-Texte, Frist erklärt Minuten, ISO-Zeitwerte nur im Datenformat | contracts.test.tsx; devices.test.tsx; overview.test.tsx; format.test.ts | neue Bilder unter K.06 folgen |
 
 ### Vorheriger Gesamtnachweis
 
