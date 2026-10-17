@@ -133,17 +133,92 @@ class FirstMatchRule(Model):
     cases: tuple[Case, ...] = Field(min_length=1, max_length=MAX_INPUTS)
 
 
-class BucketRule(Model):
+class BucketInitial(DeclarativeModel):
+    class_value: Any = Field(default=None, alias="class")
+    unknown: bool = False
+
+    @model_validator(mode="after")
+    def one_choice(self) -> Self:
+        if ("class_value" in self.model_fields_set) == self.unknown:
+            raise ValueError("bucket_initial_choice")
+        return self
+
+
+class HysteresisBoundary(Model):
+    lower: Rule
+    upper: Rule
+
+
+class BucketBoundary(Model):
+    at: Rule
+    hysteresis: HysteresisBoundary | None = None
+
+
+class BucketRule(DeclarativeModel):
     op: Literal["bucket"]
     id: Identifier
     arg: Rule
-    initial: bool
-    lower: float
-    upper: float
+    initial: bool | BucketInitial
+    lower: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    upper: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    classes: tuple[Any, ...] = Field(default=(), max_length=64, exclude_if=lambda value: not value)
+    boundaries: tuple[BucketBoundary, ...] = Field(
+        default=(), max_length=63, exclude_if=lambda value: not value
+    )
+    field_schema: FieldSchema | None = Field(
+        default=None, alias="schema", exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def bounds(self) -> Self:
-        if self.lower > self.upper:
+        if self.classes:
+            if (
+                len(self.classes) < 2
+                or len(self.boundaries) != len(self.classes) - 1
+                or self.field_schema is None
+            ):
+                raise ValueError("bucket_classes_and_boundaries_required")
+            if (
+                self.lower is not None
+                or self.upper is not None
+                or not isinstance(self.initial, BucketInitial)
+            ):
+                raise ValueError("bucket_mode_mismatch")
+            if (
+                self.field_schema.type == "object"
+                or any(not self.field_schema.accepts(v) for v in self.classes)
+                or any(a == b for i, a in enumerate(self.classes) for b in self.classes[i + 1 :])
+            ):
+                raise ValueError("bucket_class_type_mismatch")
+            if not self.initial.unknown and self.initial.class_value not in self.classes:
+                raise ValueError("bucket_initial_class")
+            literal_bands = []
+            for boundary in self.boundaries:
+                nodes = (
+                    [boundary.at, boundary.hysteresis.lower, boundary.hysteresis.upper]
+                    if boundary.hysteresis
+                    else [boundary.at] * 3
+                )
+                if all(
+                    isinstance(node, LiteralRule) and type(node.value) in {int, float}
+                    for node in nodes
+                ):
+                    literal_bands.append(
+                        tuple(node.value for node in nodes if isinstance(node, LiteralRule))
+                    )
+            if len(literal_bands) == len(self.boundaries) and (
+                any(not lower <= at <= upper for at, lower, upper in literal_bands)
+                or any(a[2] >= b[1] for a, b in zip(literal_bands, literal_bands[1:]))
+            ):
+                raise ValueError("invalid_bucket_boundaries")
+        elif (
+            not isinstance(self.initial, bool)
+            or self.lower is None
+            or self.upper is None
+            or self.lower > self.upper
+            or self.boundaries
+            or self.field_schema
+        ):
             raise ValueError("invalid_hysteresis_bounds")
         return self
 
@@ -334,6 +409,8 @@ for _model in (
     Case,
     FirstMatchRule,
     BucketRule,
+    BucketBoundary,
+    HysteresisBoundary,
     FormulaRule,
     FusionRule,
     TemporalRule,

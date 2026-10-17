@@ -14,6 +14,7 @@ from . import declarative_models as dm
 from .engines import FORMULA_SCHEMAS, FORMULAS, FUSION, FUSION_INPUTS
 from .instance_parameters import number_slot, parameter_model
 from .model import Model
+from .multibucket import MultiBucket
 from .producer import Context, Producer, TemporalParameters, next_machine_due, next_temporal_due
 from .producer import state_machine as evaluate_machine
 from .producer import temporal as evaluate_temporal
@@ -54,6 +55,18 @@ def map_key(value: Any) -> str:
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
+    if isinstance(rule, dm.BucketRule) and rule.classes:
+        result = [("arg", rule.arg)]
+        for index, boundary in enumerate(rule.boundaries):
+            result.append((f"boundaries/{index}/at", boundary.at))
+            if boundary.hysteresis:
+                result.extend(
+                    [
+                        (f"boundaries/{index}/hysteresis/lower", boundary.hysteresis.lower),
+                        (f"boundaries/{index}/hysteresis/upper", boundary.hysteresis.upper),
+                    ]
+                )
+        return result
     if isinstance(rule, dm.TimeReachedRule):
         return [("at", rule.at)]
     if isinstance(rule, dm.CompareRule):
@@ -271,6 +284,15 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
             return joined(args[1::2])
         if isinstance(rule, dm.BucketRule):
             require(args[0], scalar("number"))
+            if rule.classes:
+                if definition.language_version != 2:
+                    raise ValueError("language_version_2_required")
+                for arg in args[1:]:
+                    require(arg, args[0])
+                    if arg.unit != args[0].unit:
+                        raise ValueError("unit_mismatch")
+                assert rule.field_schema is not None
+                return rule.field_schema
             return scalar("bool")
         if isinstance(rule, dm.FormulaRule):
             if (rule.name, rule.version) not in FORMULA_SCHEMAS:
@@ -575,6 +597,24 @@ class Evaluation:
             # G6: hysteresis is volatile, including after database recovery. Remove
             # pre-review Alpha-4 context without touching other temporal nodes.
             self.context.node.get("rules", {}).pop(rule.id, None)
+            if rule.classes:
+                assert isinstance(rule.initial, dm.BucketInitial)
+                initial = (
+                    None if rule.initial.unknown else rule.classes.index(rule.initial.class_value)
+                )
+                multi = self.context.latches.setdefault(key, MultiBucket(rule.classes, initial))
+                assert isinstance(multi, MultiBucket)
+                bands: list[tuple[int, int, int]] = []
+                pos = 1
+                for boundary in rule.boundaries:
+                    bands.append(
+                        (pos, pos + 1, pos + 2) if boundary.hysteresis else (pos, pos, pos)
+                    )
+                    pos += 3 if boundary.hysteresis else 1
+                return multi.classify(args, bands, now)
+            assert (
+                isinstance(rule.initial, bool) and rule.lower is not None and rule.upper is not None
+            )
             bucket = self.context.latches.setdefault(
                 key, Bucket(rule.initial, rule.lower, rule.upper)
             )
