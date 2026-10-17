@@ -108,7 +108,7 @@ describe('draft lifecycle: working document and OCC', () => {
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: "gespeicherter Stand übernehmen" }));
+    await user.click(await screen.findByRole('button', { name: "Gespeicherten Stand laden" }));
     await waitFor(() => expect(state()).toMatchObject({ dirty: false, marker: 'other-session', version: 2 }));
   });
 
@@ -119,7 +119,7 @@ describe('draft lifecycle: working document and OCC', () => {
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: /gespeicherter Stand überschreiben/ }));
+    await user.click(await screen.findByRole('button', { name: /Gespeicherten Stand überschreiben/ }));
     expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' }); // first click changes nothing
     await user.click(screen.getByRole('button', { name: 'Wirklich überschreiben' }));
     await waitFor(() => expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited' }));

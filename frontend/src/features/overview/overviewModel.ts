@@ -3,14 +3,15 @@ import { asArray, asObject, str } from '@/features/authoring/model';
 import { isObject, type JsonObject } from '@/lib/json';
 import type { BrowserConnectionEvent } from '@/lib/live';
 import type { Envelope, HistoryItem, Reason, Registry } from '@/lib/types';
+import { contractState } from '@/features/contracts/presentation';
 
 export function contractCounts(config: Registry | null | undefined, envelopes: Record<string, Envelope> | null) {
   const contracts = asArray(config?.contracts).filter(isObject);
   const enabled = contracts.filter(contract => contract.enabled !== false);
   return {
     active: enabled.length,
-    healthy: envelopes === null ? null : enabled.filter(contract => envelopes[str(contract.contract_id)]?.contract_health === 'healthy').length,
-    degraded: envelopes === null ? null : enabled.filter(contract => envelopes[str(contract.contract_id)]?.contract_health === 'degraded').length,
+    healthy: envelopes === null ? null : enabled.filter(contract => contractState(envelopes[str(contract.contract_id)] ?? null, true).category === 'healthy').length,
+    degraded: envelopes === null ? null : enabled.filter(contract => contractState(envelopes[str(contract.contract_id)] ?? null, true).category === 'degraded').length,
     off: contracts.length - enabled.length,
   };
 }

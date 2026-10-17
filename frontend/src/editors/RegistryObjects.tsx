@@ -14,6 +14,7 @@ import { enumAt, requiredWhen, type JsonSchema } from '@/lib/capabilities';
 import { join, type Json, type JsonObject } from '@/lib/json';
 import { useHaEntities } from '@/lib/queries';
 import { sourceCast } from '@/lib/sourceCast';
+import { formatNumber } from '@/lib/format';
 import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
@@ -83,7 +84,6 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
   const set = patcher(value, onChange);
   const freshness = asObject(value.freshness);
   const mode = str(freshness.mode);
-  const required = requiredWhen(schema, 'Freshness', 'mode', mode);
   const setFreshness = (patch: Record<string, Json | undefined>) => {
     const next: JsonObject = { ...freshness };
     for (const [k, v] of Object.entries(patch)) {
@@ -155,7 +155,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
                <Select {...p} value={mode} onChange={(e) => {
                  const nextMode = e.target.value;
                  const needs = requiredWhen(schema, 'Freshness', 'mode', nextMode);
-                 setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s === undefined ? { interval_s: 60 } : {}) });
+                  setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s == null ? { interval_s: 60 } : {}) });
                }}>
                 {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).map((k) => (
                   <option key={k} value={k}>{codeLabel(k)}</option>
@@ -164,12 +164,12 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
             )}
           </Fld>
           <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
-          {(required.includes('interval_s') || freshness.interval_s !== undefined) && (
-            <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: (required.includes('interval_s') ? ' *' : '') })} pointer={join(fp, 'interval_s')} min={1} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
+          {mode !== 'event_stateful' && (
+            <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: ' *' })} hint={uiText(Number(freshness.interval_s ?? 60) === 60 ? 'alpha7.freshness.oneMinute' : 'alpha7.freshness.minutes', { minutes: formatNumber(Number(freshness.interval_s ?? 60) / 60, 1) })} pointer={join(fp, 'interval_s')} min={1} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
           )}
         </div>
-        {(required.includes('liveness_source') || freshness.liveness_source !== undefined) && (
-          <Fld label={uiText("editors.RegistryObjects.liveness_quelle_66259e")} pointer={join(fp, 'liveness_source')}>
+        {mode === 'liveness_source' && (
+          <Fld label={uiText("editors.RegistryObjects.liveness_quelle_66259e")} hint={uiText('post1.freshness.livenessRequired')} pointer={join(fp, 'liveness_source')}>
             {(p) => (
               <Select {...p} value={str(freshness.liveness_source)} onChange={(e) => setFreshness({ liveness_source: e.target.value })}>
                 <option value="">{uiText("editors.RegistryObjects.wahlen_602246")}</option>

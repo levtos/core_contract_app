@@ -29,14 +29,20 @@ export function localInputToUtc(value: string): string | undefined {
 }
 
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return t('duration.seconds', { value: formatNumber(seconds) });
-  if (seconds < 3600) return t('duration.minutes', { value: formatNumber(seconds / 60) });
-  if (seconds < 86400) return t('duration.hours', { value: formatNumber(seconds / 3600) });
-  return t('duration.days', { value: formatNumber(seconds / 86400) });
+  if (seconds < 60) return t('duration.seconds', { value: formatNumber(seconds, 1) });
+  if (seconds < 3600) return t('duration.minutes', { value: formatNumber(seconds / 60, 1) });
+  if (seconds < 86400) return t('duration.hours', { value: formatNumber(seconds / 3600, 1) });
+  return t('duration.days', { value: formatNumber(seconds / 86400, 1) });
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 }).format(Object.is(value, -0) ? 0 : value);
+export function formatNumber(value: number, maximumFractionDigits = 6): string {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits }).format(Object.is(value, -0) ? 0 : value);
+}
+
+/** Display precision only; the stored measurement and engine values stay intact. */
+export function formatMeasurement(value: number, unit?: string): string {
+  const precision: Record<string, number> = { '°C': 1, '°F': 1, min: 1, h: 1, d: 1, '%': 1, W: 1, kW: 2, kWh: 2 };
+  return `${formatNumber(value, unit ? precision[unit] ?? 3 : 6)}${unit ? ` ${unit}` : ''}`;
 }
 
 export function relativeTime(value: string, now = Date.now()): string {

@@ -102,5 +102,6 @@ it('defaults the editor opt-in to off and preserves a deliberate grant; the cont
   expect(grant).not.toBeChecked(); await user.click(grant);
   expect(value).toHaveProperty('allow_manual_restart', true);
   const state = contractState({ fields: {}, state_machine: { manual_restart: true }, contract_health: 'degraded' } as unknown as Envelope, true);
-  expect(state).toMatchObject({ label: 'Manuell gestartet', tone: 'info' });
+  expect(state).toMatchObject({ category: 'degraded', label: 'Eingeschränkt', tone: 'warn' });
+  expect(state.hint).toContain('manuell');
 });

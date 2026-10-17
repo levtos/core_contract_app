@@ -4,7 +4,7 @@ import { asArray, asObject, str, type FieldSchema } from '@/features/authoring/m
 import type { TypeEntry } from '@/features/authoring/catalog';
 import { resolveRef } from '@/features/authoring/usage';
 import { isObject, type JsonObject } from '@/lib/json';
-import { displayValue } from '@/lib/status';
+import { displayValue, FIELD_STATUS } from '@/lib/status';
 import type { Envelope, HaEntity, Registry } from '@/lib/types';
 import type { Tone } from '@/components/ui/badge';
 
@@ -27,22 +27,21 @@ export function contractValue(envelope: Envelope | null, fields: Record<string, 
   return Object.entries(envelope.fields).map(([name, field]) => `${Object.keys(envelope.fields).length > 1 ? `${fieldLabel(name)}: ` : ''}${displayValue(field, str(fields[name]?.unit))}`).join(' · ');
 }
 
-/** A single presentation chip; health and field states remain server facts. */
-export function contractState(envelope: Envelope | null, enabled: boolean, draftOnly = false, stale = false): { label: string; tone: Tone; hint: string } {
-  const state = (key: string, tone: Tone) => ({ label: t(`alpha7.contract.state.${key}`), tone, hint: t(`alpha7.contract.state.${key}Help`) });
-  if (draftOnly) return state('draft', 'info');
-  if (!enabled) return state('off', 'neutral');
-  if (!envelope) return state('unknown', 'neutral');
-  if (stale) return state('oldConnection', 'warn');
-  const fields = Object.values(envelope.fields);
-  const codes = fields.flatMap(field => field.reasons.map(reason => reason.code));
-  if (codes.some(code => ['evaluation_error', 'invalid_value', 'config_incomplete'].includes(code))) return state('error', 'bad');
-  if (envelope.state_machine?.manual_restart === true || codes.includes('manual_restart')) return state('manual', 'info');
-  if (codes.includes('input_stale')) return state('stale', 'warn');
-  if (fields.some(field => field.status === 'unknown' || field.status === 'unresolved')) return state('unknown', 'neutral');
-  if (envelope.contract_health === 'degraded') return state('limited', 'warn');
-  if (fields.some(field => field.status === 'held')) return state('held', 'info');
-  return state('healthy', 'ok');
+export const CONTRACT_CATEGORIES = ['healthy', 'degraded', 'unknown', 'off', 'draft'] as const;
+export type ContractCategory = typeof CONTRACT_CATEGORIES[number];
+
+/** The server owns health. Field reasons and transport age only explain it. */
+export function contractState(envelope: Envelope | null, enabled: boolean, draftOnly = false, stale = false): { category: ContractCategory; label: string; tone: Tone; hint: string } {
+  const category: ContractCategory = draftOnly ? 'draft' : !enabled ? 'off' : envelope?.contract_health ?? 'unknown';
+  const key = category === 'degraded' ? 'limited' : category;
+  const tone: Tone = category === 'healthy' ? 'ok' : category === 'degraded' ? 'warn' : category === 'draft' ? 'info' : 'neutral';
+  const details: string[] = [];
+  if (stale) details.push(t('alpha7.contract.state.oldConnectionHelp'));
+  const codes = Object.values(envelope?.fields ?? {}).flatMap(field => field.reasons.map(reason => reason.code));
+  if (codes.includes('input_stale')) details.push(t('post1.state.staleExtra'));
+  for (const [name, field] of Object.entries(envelope?.fields ?? {})) if (field.status !== 'valid') details.push(t('post1.state.fieldExtra', { name: fieldLabel(name), state: FIELD_STATUS[field.status].label }));
+  if (envelope?.state_machine?.manual_restart || codes.includes('manual_restart')) details.push(t('alpha7.contract.state.manualHelp'));
+  return { category, label: t(`alpha7.contract.state.${key}`), tone, hint: [t(`alpha7.contract.state.${key}Help`), ...details].join(' ') };
 }
 
 export interface ContractSource { id: string; name: string; entityId?: string; sourceIndex: number }

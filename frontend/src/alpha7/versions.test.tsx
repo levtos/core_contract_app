@@ -50,7 +50,7 @@ it('keeps the draft identifier, semantic checksum and deadline details under Erw
 it('shows time, recorded actor and note; exposes rollback only on an older version', async () => {
   installFakeApi({ revisions: [revision(1), { ...revision(2), actor: { kind: 'ingress', role: 'admin' }, note: 'Wohnzimmer ergänzt' }] }); app('#/changes/versions');
   await screen.findByText('Wohnzimmer ergänzt', {}, { timeout: 5000 });
-  expect(screen.getByText('Akteur damals nicht aufgezeichnet', { exact: false })).toBeVisible();
+  expect(screen.getByText('Wer: nicht bekannt', { exact: false })).toBeVisible();
   expect(screen.getByText('Administrator · App-Oberfläche', { exact: false })).toBeVisible();
   const old = screen.getByText('Version 1', { exact: true }).closest('li')!;
   const current = screen.getByText('Wohnzimmer ergänzt').closest('li')!;

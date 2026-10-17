@@ -167,6 +167,7 @@ export function DraftBar() {
   const [startError, setStartError] = useState('');
   const diff = doc.validation.state === 'done' && !doc.validation.stale ? doc.validation.result?.diff : undefined;
   const changes = diff ? changedObjectCount(diff) : null;
+  const invalid = doc.validation.state === 'done' && !doc.validation.stale && doc.validation.issues.length > 0;
   const begin = async () => { setStartError(''); try { await doc.ensureDraft(); } catch (error) { setStartError(describeError(error)); } };
 
   useEffect(() => {
@@ -192,7 +193,7 @@ export function DraftBar() {
       {doc.draft && doc.editing ? (
         <>
           <span className="min-w-0 text-xs text-muted"><span title={draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })} className="block max-w-40 truncate">{draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })}</span><span id={saveStatusId} role="status" className="block">{uiText(doc.saving ? 'alpha7.draft.saving' : doc.dirty ? 'alpha7.draft.notSaved' : 'alpha7.draft.saved')}</span></span>
-          <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
+          <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{invalid ? <>–<span className="block text-xs font-normal text-muted">{uiText('post1.draft.countAfterErrors')}</span></> : changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
           <ValidationChip />
           <Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button>
           <ReviewDraftButton />

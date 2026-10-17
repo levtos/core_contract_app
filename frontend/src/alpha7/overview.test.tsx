@@ -91,6 +91,23 @@ it.each(['healthy', 'degraded'] as const)('uses current %s publications instead 
   }
 });
 
+it.each(['healthy', 'degraded'] as const)('uses the same %s category for counts, filter and chip even with an unknown stale field', async health => {
+  const user = userEvent.setup();
+  installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
+  const live = idleLive();
+  const current = { ...envelope('room', health), registry_revision: 4, fields: { value: { status: 'unknown', value: null, quality: 'degraded', evidence: [], reasons: [{ code: 'input_stale', input: 'a', since: at }] } } } as Envelope;
+  vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, registryRevision: 4, contracts: { room: current } });
+  app(live);
+  await user.click(await screen.findByRole('link', { name: health === 'healthy' ? '1 gesund' : '1 eingeschränkt' }));
+  const table = await screen.findByRole('table', { name: 'Verträge' });
+  expect(within(table).getByRole('link', { name: 'Temperatur im Zimmer' })).toBeVisible();
+  expect(within(table).getByText(health === 'healthy' ? 'Gesund' : 'Eingeschränkt')).toBeVisible();
+  expect(within(table).queryByText('Veraltet')).not.toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Zustand' })).toHaveValue(health);
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Zustand' }), 'unknown');
+  expect(screen.queryByRole('link', { name: 'Temperatur im Zimmer' })).not.toBeInTheDocument();
+});
+
 it('renders exactly three overview blocks and links the count to a filtered list', async () => {
   const user = userEvent.setup();
   const api = installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });

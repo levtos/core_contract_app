@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { post1Pages } from './post1-review.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const args = process.argv.slice(2);
@@ -14,10 +15,12 @@ const baseline = argument('--baseline', null);
 const phaseChoice = argument('--phase', 'both');
 const browserChoice = argument('--browser', 'both');
 const corrections = phaseChoice === 'corrections';
-const out = path.join(root, 'docs/workbench/alpha7/screenshots');
+const post1 = phaseChoice === 'post1';
+const out = path.join(root, post1 ? 'docs/workbench/alpha7-post1/screenshots' : 'docs/workbench/alpha7/screenshots');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const children = new Set();
 const manifest = { viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, locale: 'de-DE', timezone: 'Europe/Berlin', syntheticOnly: true, startedAt: new Date().toISOString(), sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), browsers: [], screenshots: [], checks: [], errors: [] };
+if (post1) manifest.viewport = { width: 1568, height: 710 };
 if (baseline) {
   manifest.baselineHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path.resolve(baseline), encoding: 'utf8' }).trim();
   manifest.baselineTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: path.resolve(baseline), encoding: 'utf8' }).trim();
@@ -54,7 +57,7 @@ const pages = [
 async function start(checkout, port) {
   await new Promise((resolve, reject) => { const probe = createServer(); probe.once('error', reject); probe.listen(port, '127.0.0.1', () => probe.close(resolve)); });
   const python = path.join(checkout, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-  const child = spawn(python, ['-u', 'dev/workbench_demo.py', '--seed', '--feed', '--interval', '2', '--port', String(port)], { cwd: checkout, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(python, ['-u', 'dev/workbench_demo.py', ...(post1 ? ['--post1'] : ['--seed', '--feed', '--interval', '2']), '--port', String(port)], { cwd: checkout, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   children.add(child);
   let startError;
   child.on('error', error => { startError = error; });
@@ -85,7 +88,7 @@ async function capture(page, phase, browser, name, comparison) {
   await mkdir(path.dirname(target), { recursive: true });
   const image = await page.screenshot({ path: target, fullPage: false, animations: 'disabled' });
   const dimensions = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth }));
-  if (dimensions.width !== 1920 || dimensions.height !== 1080 || dimensions.documentWidth > 1920) throw new Error(`Invalid viewport or document overflow on ${name}: ${JSON.stringify(dimensions)}`);
+  if (dimensions.width !== manifest.viewport.width || dimensions.height !== manifest.viewport.height || dimensions.documentWidth > manifest.viewport.width) throw new Error(`Invalid viewport or document overflow on ${name}: ${JSON.stringify(dimensions)}`);
   if (phase !== 'before') {
     for (const menu of await page.getByLabel('Weitere Seitenaktionen', { exact: true }).all()) {
       const overlaps = await menu.evaluate(element => {
@@ -294,7 +297,7 @@ try {
     const browser = name === 'chrome' ? await chromium.launch({ channel: 'chrome', headless: true }) : await firefox.launch({ headless: true });
     manifest.browsers.push({ name, version: browser.version(), engine: name === 'chrome' ? 'Google Chrome (installed channel)' : 'Mozilla Firefox (Playwright build)', headless: true });
     try {
-      for (const phase of ['before', 'after'].filter(phase => corrections ? phase === 'after' : phaseChoice === 'both' || phase === phaseChoice)) {
+      for (const phase of ['before', 'after'].filter(phase => corrections || post1 ? phase === 'after' : phaseChoice === 'both' || phase === phaseChoice)) {
         if (phase === 'before' && !baseline) throw new Error('--baseline checkout required for real before-images');
         const server = await start(phase === 'before' ? path.resolve(baseline) : root, phase === 'before' ? 8196 : 8198);
         const context = await browser.newContext({ viewport: manifest.viewport, deviceScaleFactor: 1, locale: manifest.locale, timezoneId: manifest.timezone, colorScheme: 'dark', reducedMotion: 'reduce' });
@@ -302,9 +305,10 @@ try {
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
         page.on('console', message => { if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url})`); });
-        page.on('response', response => { if (response.status() >= 400 && !(phase === 'before' && new URL(response.url()).pathname === '/favicon.ico')) errors.push(`HTTP ${response.status()} ${response.url()}`); });
+        page.on('response', response => { if (response.status() >= 400 && !(post1 && ([400, 422].includes(response.status()) && new URL(response.url()).pathname === '/api/v1/registry/validate' || response.status() === 409 && /\/api\/v1\/registry\/drafts\//.test(response.url()))) && !(phase === 'before' && new URL(response.url()).pathname === '/favicon.ico')) errors.push(`HTTP ${response.status()} ${response.url()}`); });
         try {
-          if (corrections) await correctionPages(page, server, name);
+          if (post1) await post1Pages(page, server, name, { visit, capture, manifest });
+          else if (corrections) await correctionPages(page, server, name);
           else {
             if (phase === 'after') await guidedContract(page, server, name);
             await taskPages(page, server, phase, name);

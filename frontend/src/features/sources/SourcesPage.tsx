@@ -22,8 +22,16 @@ import { DeviceWizard } from './DeviceWizard';
 import { codeLabel } from '@/i18n/codes';
 import { useSourceSelection } from './useSourceSelection';
 import { SourceMigrationDialog } from './SourceMigrationDialog';
+import { useHaCatalog } from './useHaCatalog';
 
 type Name = 'dependencies' | 'sources' | 'bindings' | 'catalogs';
+
+const newSource = (config: JsonObject, ids: string[]): JsonObject => ({
+  source_id: uniqueName('source.neu', ids), source_type: 'boolean', source_origin: 'local',
+  freshness: { mode: 'event_stateful', future_tolerance_s: 1 },
+  dependency_id: str(asArray(config.dependencies).filter(isObject)[0]?.dependency_id),
+  physical_source_key: uniqueName('physical.neu', asArray(config.sources).filter(isObject).map(source => str(source.physical_source_key))),
+});
 
 interface CollectionProps {
   name: Name;
@@ -42,6 +50,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
   const doc = useWorkingDocument();
   const issues = useAllIssues();
   const config = src.config ?? {};
+  const ha = useHaCatalog(name === 'sources');
   const list = useMemo(() => asArray(config[name]).filter(isObject), [config, name]);
   const [selected, setSelected, selectIdentity] = useSourceSelection(name, list, idKey, src.editable);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
@@ -54,8 +63,8 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
   const ids = list.map((item) => str(item[idKey]));
   const items = list.map((item, index) => ({
     key: String(index),
-    label: str(item[idKey]),
-    sub: subtitle(item),
+    label: name === 'sources' ? str(item.display_name) || ha.entities.find(entity => asArray(config.bindings).filter(isObject).some(binding => binding.source_id === item.source_id && isObject(binding.adapter) && binding.adapter.ha_entity_id === entity.entity_id))?.display_name || str(item[idKey]) : str(item[idKey]),
+    sub: name === 'sources' ? `${str(item[idKey])} · ${subtitle(item)}` : subtitle(item),
     errors: issues.filter((i) => i.path === `/${name}/${index}` || i.path.startsWith(`/${name}/${index}/`)).length,
   }));
   const add = async () => {
@@ -83,7 +92,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
         items={items}
         selected={current ? String(selected) : null}
         onSelect={(key) => setSelected(Number(key))}
-        onAdd={() => void add()}
+        onAdd={name === 'sources' ? undefined : () => void add()}
         addLabel={uiText("features.sources.SourcesPage.v0_hinzufugen_198d5a", { v0: (singular) })}
         empty={<Empty title={uiText("features.sources.SourcesPage.v0_wahlen_24a7a9", { v0: (singular) })}>{src.editable ? uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_oder_legen_sie_mi_17add4") : uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_zur_ansicht_257139")}</Empty>}
       >
@@ -150,6 +159,15 @@ export default function SourcesPage() {
   const doc = useWorkingDocument();
   const [params, setParams] = useSearchParams();
   const addDevice = async () => { setDeviceError(''); try { await doc.ensureDraft(); setAddingDevice(true); } catch (error) { setDeviceError(describeError(error)); } };
+  const addWithoutDevice = async () => {
+    try {
+      const config = await doc.ensureDraft();
+      const sources = asArray(config.sources);
+      doc.edit(current => setAt(current, '/sources', [...sources, newSource(config, sources.filter(isObject).map(source => str(source.source_id)))]));
+      setAddingDevice(false);
+      setParams({ item: String(sources.length) }, { replace: true });
+    } catch (error) { setDeviceError(describeError(error)); }
+  };
   const beginMove = async (id: string) => { setDeviceError(''); try { await doc.ensureDraft(); setMovingSource(id); } catch (error) { setDeviceError(describeError(error)); } };
   const requestedMove = params.get('move');
   useEffect(() => {
@@ -162,7 +180,7 @@ export default function SourcesPage() {
     <>
       <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
       {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
-      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
       {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
       <SourceSection
@@ -177,14 +195,7 @@ export default function SourcesPage() {
                 singular={uiText("features.sources.SourcesPage.source_0e570c")}
                 onMove={id => void beginMove(id)}
                 subtitle={(s) => `${codeLabel(s.source_type)} · ${codeLabel((isObject(s.freshness) ? s.freshness : {}).mode)}`}
-                make={(c, ids) => ({
-                  source_id: uniqueName('source.neu', ids),
-                  source_type: 'boolean',
-                  source_origin: 'local',
-                  freshness: { mode: 'event_stateful', future_tolerance_s: 1 },
-                  dependency_id: str(asArray(c.dependencies).filter(isObject)[0]?.dependency_id),
-                  physical_source_key: uniqueName('physical.neu', asArray(c.sources).filter(isObject).map((s) => str(s.physical_source_key))),
-                })}
+                make={newSource}
                 usage={(item, config) => {
                   const used = consumersOfSource(config, str(item.source_id));
                   return <span className="flex flex-col gap-1">{chips(uiText('alpha7.nav.bindings'), used.bindings)}{chips(uiText('alpha7.nav.contracts'), used.contracts, (id) => `/contracts/view/${encodeURIComponent(id)}`)}{used.sources.length > 0 && chips(uiText("features.sources.SourcesPage.liveness_fur_09aba4"), used.sources)}</span>;

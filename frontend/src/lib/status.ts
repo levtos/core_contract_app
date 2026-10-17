@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import type { Tone } from '@/components/ui/badge';
 import type { Connection } from './live';
 import type { FieldStatus, FieldValue, ServiceState } from './types';
-import { formatDuration, formatNumber, formatTime } from './format';
+import { formatDuration, formatMeasurement, formatNumber, formatTime } from './format';
 import { codeLabel, fieldLabel } from '@/i18n/codes';
 
 /**
@@ -32,7 +32,7 @@ export function displayValue(field: FieldValue, unit?: string): string {
   const value = field.value;
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? uiText("lib.status.ja_cde9e5") : uiText("lib.status.nein_90ebc1");
-  if (typeof value === 'number') return unit === 's' ? formatDuration(value) : `${formatNumber(value)}${unit ? ` ${unit}` : ''}`;
+  if (typeof value === 'number') return unit === 's' ? formatDuration(value) : formatMeasurement(value, unit);
   return structuredValue(value);
 }
 

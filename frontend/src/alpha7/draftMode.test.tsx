@@ -32,18 +32,20 @@ it('makes a successful explicit check visible', async () => {
 
 it('starts a named draft automatically from a creation action and stays on the source page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   expect(fake.drafts.size).toBe(1);
   expect([...fake.drafts.values()][0]?.display_name).toMatch(/^Änderungen vom /);
-  expect(window.location.hash).toBe('#/sources/devices');
+  expect(window.location.hash).toMatch(/^#\/sources\/devices(?:\?|$)/);
   expect(screen.getByRole('button', { name: 'Bearbeiten' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.queryByText(/schreibgeschützte Ansicht/)).not.toBeInTheDocument();
 });
 
 it('switches to live and back while retaining unsaved edits and the current editor', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   const name = await screen.findByLabelText('Name');
   await user.type(name, 'Fenster im Zimmer');
   await user.click(screen.getByRole('button', { name: 'Live ansehen' }));
@@ -63,19 +65,20 @@ it('opens the error list in place and gives visible feedback after an explicit c
   await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
   await user.click(await screen.findByRole('button', { name: '1 Fehler' }));
   expect(await screen.findByRole('dialog', { name: 'Prüfergebnis' })).toBeVisible();
-  expect(window.location.hash).toBe('#/sources/devices');
+  expect(window.location.hash).toMatch(/^#\/sources\/devices(?:\?|$)/);
 });
 
 it('saves the candidate and opens confirmation from the bar without activating or leaving the page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
   await waitFor(() => expect([...fake.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
   expect(fake.revisions).toHaveLength(0);
-  expect(window.location.hash).toBe('#/sources/devices');
+  expect(window.location.hash).toMatch(/^#\/sources\/devices(?:\?|$)/);
 });
 
 it('shows the committed activation acknowledgement while cache refreshes are still pending', async () => {

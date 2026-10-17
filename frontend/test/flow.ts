@@ -42,9 +42,12 @@ export function flow(user: UserEvent) {
     await steps.type(screen.getByLabelText("Abhängigkeit-ID"), 'dep.test');
     await go('#/sources/devices');
     for (const [id, key] of [['source.a', 'physical.a'], ['source.b', 'physical.b']] as const) {
-      await user.click(await screen.findByRole('button', { name: "Quelle hinzufügen" }));
+      await user.click(await screen.findByRole('button', { name: "Gerät aus Home Assistant hinzufügen" }));
+      await user.click(await screen.findByRole('button', { name: "Ohne Gerät anlegen" }));
+      await screen.findByLabelText('Name');
       const advanced = screen.getAllByRole('button', { name: 'Erweitert' })[0]!;
       if (advanced.getAttribute('aria-expanded') !== 'true') await user.click(advanced);
+      await waitFor(() => expect(screen.getByLabelText('Quelle-ID')).toHaveValue('source.neu'));
       await steps.type(screen.getByLabelText("Quelle-ID"), id);
       await steps.type(screen.getByLabelText('Physischer Schlüssel'), key);
     }

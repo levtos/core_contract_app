@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import json
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -31,7 +32,7 @@ from workbench_devices import feed as feed_devices
 
 from core_contracts.adapters.ha import BridgeAdapter
 from core_contracts.api import API
-from core_contracts.clock import SystemClock
+from core_contracts.clock import FakeClock, SystemClock
 from core_contracts.evidence import Observation
 from core_contracts.persistence import MemoryStore
 from core_contracts.runtime import Runtime
@@ -90,11 +91,14 @@ async def main() -> None:
     parser.add_argument("--port", type=int, default=8099)
     parser.add_argument("--seed", action="store_true", help="activate the Alpha-4 example registry")
     parser.add_argument("--feed", action="store_true", help="feed source.a / source.b periodically")
+    parser.add_argument(
+        "--post1", action="store_true", help="deterministic synthetic correction screenshots"
+    )
     parser.add_argument("--interval", type=float, default=8.0, help="feed period in seconds")
     parser.add_argument("--frontend", type=Path, default=ROOT / "frontend" / "dist")
     args = parser.parse_args()
 
-    clock = SystemClock()
+    clock = FakeClock(datetime(2026, 10, 17, 10, tzinfo=UTC)) if args.post1 else SystemClock()
     runtime = Runtime(MemoryStore(), clock, type_registry())
     await runtime.start()
     session = ClientSession()
@@ -124,6 +128,10 @@ async def main() -> None:
             await clock.sleep(0.5)
 
     tasks = [asyncio.create_task(scheduler())]
+    if args.post1:
+        from workbench_post1 import seed
+
+        await seed(runtime)
     if args.seed:
         document = json.loads(
             (ROOT / "docs" / "alpha4" / "example-registry.json").read_text(encoding="utf-8")

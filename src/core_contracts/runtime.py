@@ -185,7 +185,10 @@ class Runtime:
 
         issues = []
         for index, source in enumerate(config.sources):
-            for document in await self.store.source_history(source.source_id):
+            for document in await self.store.source_history(
+                source.source_id, include_revision=True
+            ):
+                previous_revision = document.pop("_registry_revision")
                 old = Source.model_validate(document)
                 schema, previous = source.value_schema, old.value_schema
                 inferred = {"boolean": "bool", "numeric": "number", "text": "text"}
@@ -212,6 +215,34 @@ class Runtime:
                 )
                 for field, changed in checks:
                     if changed:
+                        old_value = (
+                            old.source_type
+                            if field == "source_type"
+                            else {
+                                "value_schema/type": previous.type
+                                if previous
+                                else inferred.get(old.source_type),
+                                "value_schema/unit": previous.unit if previous else None,
+                                "value_schema/value_catalog": list(previous.value_catalog)
+                                if previous
+                                else [],
+                            }[field]
+                        )
+                        new_value = (
+                            source.source_type
+                            if field == "source_type"
+                            else {
+                                "value_schema/type": schema.type
+                                if schema
+                                else inferred.get(source.source_type),
+                                "value_schema/unit": schema.unit if schema else None,
+                                "value_schema/value_catalog": list(schema.value_catalog)
+                                if schema
+                                else [],
+                            }[field]
+                        )
+                        old_text = str(old_value) if old_value is not None else None
+                        new_text = str(new_value) if new_value is not None else None
                         issues.append(
                             ValidationIssue(
                                 code="immutable_source_catalog"
@@ -219,7 +250,13 @@ class Runtime:
                                 else "immutable_source_type",
                                 path=f"/sources/{index}/{field}",
                                 object_id=source.source_id,
-                                message="Übernommene Quellen behalten Typ und Einheit; ihre Werteliste darf nur ergänzt werden.",
+                                message=f"{field}: {old_text!r} aus Version {previous_revision} → {new_text!r}. Übernommene Quellen behalten Typ und Einheit; ihre Werteliste darf nur ergänzt werden.",
+                                parameters={
+                                    "field": field,
+                                    "oldValue": old_text,
+                                    "newValue": new_text,
+                                    "revision": previous_revision,
+                                },
                             )
                         )
         if issues:

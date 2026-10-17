@@ -55,3 +55,15 @@ it('invalidates a comparison when the active version changes and automatically r
   await waitFor(() => expect(respond).toBeDefined()); respond!(reply(200, emptyVerdict()));
   await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']));
 });
+
+it('shows a dash and correction hint after invalid validation, then a fresh count after repair', async () => {
+  const fake = installFakeApi(); const user = userEvent.setup();
+  let valid = false;
+  fake.routes.push({ match: /^registry\/validate$/, respond: () => valid ? reply(200, emptyVerdict()) : reply(422, { error: 'invalid_registry', issues: [{ code: 'missing_source', path: '/contracts/0/inputs/0', message: 'missing' }] }) });
+  editor(); await user.click(screen.getByText('Open'));
+  await waitFor(() => expect(screen.getByLabelText('Anzahl der Änderungen')).toHaveTextContent('–erst nach Fehlerkorrektur'));
+  expect(screen.getByLabelText('Anzahl der Änderungen')).not.toHaveTextContent('…');
+  valid = true;
+  await user.click(screen.getByRole('button', { name: 'Prüfen' }));
+  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']));
+});
