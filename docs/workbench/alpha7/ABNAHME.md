@@ -131,6 +131,14 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 
 ## Verifikation und Freigabegrenze
 
+## Korrekturen nach UX-Nachprüfung
+
+| Punkt | Anforderung | Status / Grund | Test | Screenshot |
+|---|---|---|---|---|
+| K.01 | Ein aktueller Serververgleich zählt hinzugefügte, geänderte und entfernte Objekte; sonst „…“ | erledigt; identische Stände ergeben 0, keine Browser-Pfaddifferenz | corrections.test.tsx; geführter Vertrag und identischer Stand im Engine-E2E | neue Bilder unter K.06 folgen |
+
+### Vorheriger Gesamtnachweis
+
 Frontend: 264 Tests, acht Scanner-Regressionen, TypeScript, Build/dist und Sprachscan grün.
 Backend: 489 Tests lokal grün, 21 umgebungsgebundene Prüfungen lokal übersprungen; vollständige CI
 mit PostgreSQL, MQTT, HA-Kernel sowie beiden Image-Architekturen ist auf dem finalen PR-Head verlinkt.

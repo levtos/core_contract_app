@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
 import { clone, deepEqual, getAt, setAt, type Json } from '@/lib/json';
-import { useDraftMutations, validateConfig } from '@/lib/queries';
+import { useActiveRevision, useDraftMutations, validateConfig } from '@/lib/queries';
 import { IssuesProvider } from './issues';
 import type { Draft, Registry, ValidationResult } from '@/lib/types';
 import { emptyRegistry } from './model';
@@ -102,6 +102,9 @@ const IDLE: ValidationView = { state: 'idle', result: null, issues: [], stale: f
 
 export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }: { children: ReactNode; validateDebounceMs?: number }) {
   const { create, update } = useDraftMutations();
+  const active = useActiveRevision();
+  const activeRevision = active.data === undefined ? undefined : active.data?.revision ?? 0;
+  const validatedRevision = useRef<number | undefined>(undefined);
   const [snap, setSnap] = useState<Snapshot>({ draft: null, config: null, name: '', past: [], future: [] });
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -251,10 +254,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       const result = await validateConfig(config);
       if (id !== runId.current) return;
       validatedFor.current = config;
+      validatedRevision.current = activeRevision;
       setValidation({ state: 'done', result, issues: result.issues ?? [], stale: latest.current.config !== config, error: null });
     } catch (error) {
       if (id !== runId.current) return;
       validatedFor.current = config;
+      validatedRevision.current = activeRevision;
       if (error instanceof ApiError && error.kind === 'validation') {
         setValidation({ state: 'done', result: { valid: false, issues: error.issues }, issues: error.issues, stale: latest.current.config !== config, error: null });
       } else {
@@ -264,7 +269,15 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         if (limited) retryTimer.current = setTimeout(() => { if (id === runId.current && autoValidateRef.current) void validateNow(); }, 60_000);
       }
     }
-  }, []);
+  }, [activeRevision]);
+
+  // A comparison belongs to both its candidate and its active server version.
+  useEffect(() => {
+    clearTimeout(retryTimer.current);
+    runId.current += 1;
+    validatedFor.current = null;
+    setValidation(IDLE);
+  }, [activeRevision]);
 
   // Debounced unsaved validation after every edit.
   useEffect(() => {
@@ -275,7 +288,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     if (!autoValidate || validatedFor.current === snap.config) return;
     const timer = setTimeout(() => void validateNow(), validateDebounceMs);
     return () => clearTimeout(timer);
-  }, [snap.config, autoValidate, validateNow, validateDebounceMs]);
+  }, [snap.config, autoValidate, validateNow, validateDebounceMs, activeRevision]);
 
   useEffect(() => () => { runId.current += 1; clearTimeout(retryTimer.current); }, []);
 
@@ -385,7 +398,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       canRedo: snap.future.length > 0,
       saving,
       conflict,
-      validation,
+      validation: { ...validation, stale: validation.stale || activeRevision === undefined || (validation.result !== null && (validatedFor.current !== snap.config || validatedRevision.current !== activeRevision)) },
       autoValidate,
       setAutoValidate,
       open,
@@ -404,7 +417,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, activeRevision, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (

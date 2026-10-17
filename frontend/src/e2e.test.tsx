@@ -247,6 +247,18 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await within(adding).findByRole('radio', { name: ux12.sources[0]!.display_name }, { timeout: 65_000 }));
     await f.type(within(adding).getByLabelText('Name'), 'P8 Temperatur');
     await user.click(within(adding).getByRole('button', { name: 'Vertrag anlegen' }));
+    // K.01: the guided objects use the same server comparison in the bar and page.
+    await user.click(f.saveButton());
+    const guided = await waitFor(async () => {
+      const drafts = (await raw<{ draft_id: string; display_name: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
+      const draft = drafts.find(item => item.display_name === 'P8 Quellenumzug')!;
+      expect(draft.draft_version).toBeGreaterThan(1); return draft;
+    }, { timeout: 65_000 });
+    const comparison = (await raw<Verdict>('registry/validate', json('POST', guided.config))).body;
+    const objectCount = Object.values(comparison.diff.objects).reduce((total, group) => total + group.added.length + group.changed.length + group.removed.length, 0);
+    await f.go(`#/changes/drafts/${guided.draft_id}`);
+    await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
+    await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual([`${objectCount} Änderungen`, `${objectCount} Änderungen`]), { timeout: 65_000 });
     const takeover = async () => {
       await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
       const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
@@ -258,6 +270,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       await user.click(within(confirm).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     };
     await takeover();
+    await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']), { timeout: 65_000 });
     const before = (await raw<JsonObject>('registry/active/export')).body;
     const sourceId = String(objects(before.sources)[0]!.source_id); const contractId = String(objects(before.contracts)[0]!.contract_id);
     await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown } } }>(`contracts/${contractId}`)).body.fields.value.value).toBe(21.5), { timeout: 65_000 });

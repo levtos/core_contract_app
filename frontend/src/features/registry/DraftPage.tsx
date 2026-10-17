@@ -131,7 +131,7 @@ export default function DraftPage() {
           </LayoutPanel><LayoutPanel id="diff" title={uiText("features.registry.DraftPage.diff_auswirkungen_b6da5d")} span={2}><Panel>
             <PanelHeader title={uiText("features.registry.DraftPage.diff_auswirkungen_b6da5d")} description={uiText("features.registry.DraftPage.gegenuber_der_aktiven_revision_nur_sichtbar_wenn_b51778")} />
             <div className="p-4">
-              {validation.result?.diff && validation.result.valid ? <DiffView diff={validation.result.diff} against={uiText("features.registry.DraftPage.die_aktive_revision_ccaa57")} /> : <p className="text-sm text-muted">{validation.issues.length ? uiText("features.registry.DraftPage.erst_nach_korrektur_der_fehler_verfugbar_bd3e1e") : uiText("features.registry.DraftPage.wird_nach_der_validierung_angezeigt_0f660e")}</p>}
+              {validation.state === 'done' && !validation.stale && validation.result?.diff && validation.result.valid ? <DiffView diff={validation.result.diff} against={uiText("features.registry.DraftPage.die_aktive_revision_ccaa57")} /> : <p className="text-sm text-muted">{validation.issues.length ? uiText("features.registry.DraftPage.erst_nach_korrektur_der_fehler_verfugbar_bd3e1e") : uiText("features.registry.DraftPage.wird_nach_der_validierung_angezeigt_0f660e")}</p>}
             </div>
           </Panel>
           </LayoutPanel><LayoutPanel id="json" title={uiText("features.registry.DraftPage.json_experte_7a839f")} span={2}><Collapsible title={uiText("features.registry.DraftPage.json_expertenmodus_8ca416")}><JsonExpert /></Collapsible></LayoutPanel>

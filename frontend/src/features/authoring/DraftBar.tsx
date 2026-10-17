@@ -9,11 +9,10 @@ import { Notice, Spinner } from '@/components/ui/layout';
 import { formatTime } from '@/lib/format';
 import { canonicalJson } from '@/lib/json';
 import { describeError } from '@/lib/api';
-import { useActiveExport, useDrafts } from '@/lib/queries';
+import { useDrafts } from '@/lib/queries';
+import { changedObjectCount } from '@/lib/diff';
 import { ActivateDialog } from '@/features/registry/ActivationDialogs';
 import { IssueList } from '@/features/registry/IssueList';
-import { changedPaths } from './locate';
-import { emptyRegistry } from './model';
 import type { Draft } from '@/lib/types';
 import { CreateDraftDialog } from './CreateDraftDialog';
 import { useWorkingDocument } from './WorkingDocument';
@@ -162,11 +161,11 @@ export function ReviewDraftButton({ children }: { children?: React.ReactNode }) 
 
 export function DraftBar() {
   const doc = useWorkingDocument();
-  const active = useActiveExport();
   const [picker, setPicker] = useState(false);
   const [closing, setClosing] = useState(false);
   const [startError, setStartError] = useState('');
-  const changes = doc.config ? changedPaths(active.data ?? emptyRegistry(), doc.config).length : 0;
+  const diff = doc.validation.state === 'done' && !doc.validation.stale ? doc.validation.result?.diff : undefined;
+  const changes = diff ? changedObjectCount(diff) : null;
   const begin = async () => { setStartError(''); try { await doc.ensureDraft(); } catch (error) { setStartError(describeError(error)); } };
 
   useEffect(() => {
@@ -192,7 +191,7 @@ export function DraftBar() {
       {doc.draft && doc.editing ? (
         <>
           <span title={doc.displayName} className="max-w-36 truncate text-xs text-muted">{doc.displayName}</span>
-          <span className="text-sm font-medium">{uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
+          <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
           <span className="text-xs text-muted">{doc.dirty ? uiText('alpha7.draft.notSaved') : uiText('alpha7.draft.saved')}</span>
           <ValidationChip />
           <Button size="sm" disabled={!doc.dirty || doc.saving} disabledReason={doc.saving ? uiText('alpha7.draft.saving') : uiText('alpha7.draft.saved')} onClick={() => void doc.save()} title={uiText("features.authoring.DraftBar.strg_s_bda7e5")}>
