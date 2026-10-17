@@ -26,7 +26,7 @@ it('counts each condition and exposes an actionable sentence and direct route on
   const trigger = screen.getByRole('button', { name: 'Nicht bereit · 2' });
   await user.click(trigger);
   const window = screen.getByRole('dialog', { name: 'Offene Bedingungen' });
-  expect(within(window).getByText('Terra erreicht die Datenbank nicht.')).toBeVisible();
+  expect(within(window).getByText('Mimir erreicht die Datenbank nicht.')).toBeVisible();
   expect(within(window).getAllByRole('link', { name: 'Verbindung prüfen' })).toHaveLength(2);
   expect(within(window).getAllByRole('link')[0]).toHaveAttribute('href', '/settings/connections');
   expect(window).not.toHaveTextContent('raw code');

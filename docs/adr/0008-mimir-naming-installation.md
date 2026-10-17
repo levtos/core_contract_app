@@ -11,7 +11,7 @@ Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 | Oberfläche/Identität | Terra-Basis | Alpha-8-Ziel |
 |---|---|---|
 | GitHub-Repository | `Levtos/core_contract_app` | `Levtos/mimir`, GitHub-Weiterleitung prüfen |
-| App-Verzeichnis | `core_contracts/` | `mimir/` |
+| App-Verzeichnis | `core_contracts/` | `mimir/`; alter Terra-Store-Eintrag bleibt unverändert |
 | App-Name / Panel / UI-Kopf / Browser-Titel | Terra / Core Contracts | Mimir |
 | Supervisor-Slug | `core_contracts` | `mimir` (Neuinstallation) |
 | App-/Projekt-URL, Repository-Metadaten | altes Repository | `https://github.com/Levtos/mimir` |

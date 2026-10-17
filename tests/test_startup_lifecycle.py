@@ -133,7 +133,7 @@ async def test_startup_listener_and_sigterm_across_slow_initialization(
     monkeypatch.setattr(application.MQTTAdapter, "run", idle)
     root = Path(__file__).resolve().parents[1]
     options = application.Options.model_validate(
-        yaml.safe_load((root / "core_contracts/config.yaml").read_text())["options"]
+        yaml.safe_load((root / "mimir/config.yaml").read_text())["options"]
     )
     if phase not in {"fresh", "invalid_options"} and not wizard:
         options = options.model_copy(

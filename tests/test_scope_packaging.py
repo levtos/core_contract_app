@@ -95,21 +95,21 @@ def test_example_registry_and_no_forbidden_context():
 
 
 def test_watchdog_security_and_container():
-    config = yaml.safe_load((ROOT / "core_contracts/config.yaml").read_text())
+    config = yaml.safe_load((ROOT / "mimir/config.yaml").read_text())
     assert config["watchdog"].endswith("/health/live")
     assert config["hassio_api"] is False and config["homeassistant_api"] is True
     assert config["ports"]["8787/tcp"] is None
     assert config["arch"] == ["amd64", "aarch64"]
     assert not any(config.get(key) for key in ("privileged", "docker_api", "host_network"))
-    docker = (ROOT / "core_contracts/Dockerfile").read_text()
+    docker = (ROOT / "mimir/Dockerfile").read_text()
     assert "BUILD_FROM" not in docker and "uv sync --frozen" in docker
-    assert not (ROOT / "core_contracts/build.yaml").exists()
-    entry = (ROOT / "core_contracts/rootfs/entrypoint.sh").read_text()
+    assert not (ROOT / "mimir/build.yaml").exists()
+    entry = (ROOT / "mimir/rootfs/entrypoint.sh").read_text()
     assert "setpriv --reuid=10001 --regid=10001" in entry
 
 
 def test_bridge_has_no_domain_or_await_in_subscription():
-    path = ROOT / "custom_components/core_contracts_bridge/__init__.py"
+    path = ROOT / "custom_components/bifrost/__init__.py"
     tree = ast.parse(path.read_text())
     subscribe = next(
         n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "subscribe"

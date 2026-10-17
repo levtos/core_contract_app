@@ -46,7 +46,7 @@ def test_ci_reaps_its_engine_and_preserves_test_failure(tmp_path, outcome):
         + shlex.quote(
             "import os,urllib.request; from pathlib import Path; "
             "os.kill(int(Path('engine.pid').read_text()),0); "
-            "assert urllib.request.urlopen(os.environ['TERRA_E2E_URL']).status==200; "
+            "assert urllib.request.urlopen(os.environ['MIMIR_E2E_URL']).status==200; "
             "Path('tests-ran').write_text('engine alive')"
         )
         + "\n"
@@ -62,7 +62,7 @@ def test_ci_reaps_its_engine_and_preserves_test_failure(tmp_path, outcome):
         env={
             **os.environ,
             "PATH": str(tools_dir) + os.pathsep + os.environ["PATH"],
-            "TERRA_E2E_PORT": str(port),
+            "MIMIR_E2E_PORT": str(port),
             "CI_TEST_OUTCOME": outcome,
         },
         capture_output=True,

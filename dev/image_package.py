@@ -15,16 +15,16 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = "levtos/core_contract_app"
+REPOSITORY = "levtos/mimir"
 SOURCE = "https://github.com/" + REPOSITORY
 ARCHITECTURES = {"amd64": "amd64", "aarch64": "arm64"}
 
 
 def metadata(arch, revision, root=ROOT):
-    config = yaml.safe_load((root / "core_contracts/config.yaml").read_text())
+    config = yaml.safe_load((root / "mimir/config.yaml").read_text())
     version = str(config["version"])
     assert set(config["arch"]) == set(ARCHITECTURES), "Unsupported Supervisor architectures"
-    assert config["image"] == "ghcr.io/levtos/{arch}-core-contracts", "Unexpected image namespace"
+    assert config["image"] == "ghcr.io/levtos/{arch}-mimir", "Unexpected image namespace"
     assert arch in ARCHITECTURES, "Use Supervisor arch names: amd64 or aarch64"
     assert re.fullmatch(r"[0-9a-f]{40}", revision), "A full tested commit SHA is required"
     assert re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", version), "Invalid image tag"
@@ -76,7 +76,7 @@ def check_content(image, meta):
         + sorted((ROOT / "migrations").glob("*.sql"))
     }
     expected["/entrypoint.sh"] = hashlib.sha256(
-        (ROOT / "core_contracts/rootfs/entrypoint.sh").read_bytes()
+        (ROOT / "mimir/rootfs/entrypoint.sh").read_bytes()
     ).hexdigest()
     probe = (
         "import hashlib,importlib.metadata,json,sys; from pathlib import Path; "
@@ -151,7 +151,7 @@ def pull(meta):
 
 def publish(meta, receipt):
     local = verify("core-contracts:smoke", meta)
-    name = meta["arch"] + "-core-contracts"
+    name = meta["arch"] + "-mimir"
     before = package_api(name)
     print(
         json.dumps(

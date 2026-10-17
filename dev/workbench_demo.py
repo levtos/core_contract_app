@@ -1,4 +1,4 @@
-"""Local review harness for the Terra Workbench (no Home Assistant, no PostgreSQL).
+"""Local review harness for the Mimir Workbench (no Home Assistant, no PostgreSQL).
 
 Runs the *real* HTTP/WebSocket API and the real engine on the in-memory store and
 serves the built frontend (``frontend/dist``) on the Ingress listener, so the UI can
@@ -110,7 +110,7 @@ async def main() -> None:
         runtime,
         Tokens(data / "secrets"),
         str(uuid4()),
-        installation_label="Terra Workbench Demo (lokal, nicht produktiv)",
+        installation_label="Mimir Workbench Demo (lokal, nicht produktiv)",
         ingress_address="127.0.0.1",
         frontend=args.frontend,
         setup=FinishedSetup(data, None),
