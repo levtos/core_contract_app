@@ -39,6 +39,7 @@ export function OverviewPage() {
   ] as const;
   return <>
     <PageHeader title={t('alpha7.nav.overview')} description={t('alpha7.overview.explanation')} />
+    {!live.stale && live.service?.ha_disconnected_since && <p role="status" className="mb-4 rounded-xl border border-warn/40 p-4 text-sm text-warn">{t('alpha8.ha.disconnected', { since: new Date(live.service.ha_disconnected_since).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }), count: live.service.ha_unbounded_values ?? 0 })}</p>}
     <PanelLayout view="overview.alpha7">
       <LayoutPanel id="actions" title={t('alpha7.overview.actions')}><Panel>
         <PanelHeader title={t('alpha7.overview.actions')} />
@@ -57,7 +58,7 @@ export function OverviewPage() {
             </Link>)}
           </div>}
           {current === null && <p className="text-xs text-muted">{t('alpha7.overview.waitingValues')}</p>}
-          <h3 className="font-medium">{t('alpha7.overview.needHelp')}</h3>
+          <h3 className="font-medium">{t('alpha8.configuration.signal')}</h3>
           {problems.isPending ? <Spinner /> : problems.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.overview.problemsUnavailable')}</p> : entries.length === 0 ? <p className="text-sm text-muted">{t('alpha7.overview.noProblems')}</p> : <ul className="divide-y divide-line">
             {entries.slice(0, 8).map(([id, reasons]) => {
               const advice = problemAdvice(reasons, config, id);
@@ -69,6 +70,8 @@ export function OverviewPage() {
             })}
           </ul>}
           {entries.length > 8 && <Link to="/contracts/list/all?filter=degraded" className="text-sm text-fg underline">{t('alpha7.overview.moreProblems', { count: entries.length - 8 })}</Link>}
+          <h3 className="font-medium">{t('alpha8.configuration.title')}</h3>
+          {current === null ? <p className="text-sm text-muted">{t('alpha7.overview.waitingValues')}</p> : <ul className="space-y-3">{Object.values(current).filter(envelope => enabledIds.has(envelope.contract_id)).flatMap(envelope => Object.entries(envelope.fields).filter(([, field]) => field.configuration?.complete === false).map(([name, field]) => <li key={`${envelope.contract_id}:${name}`} className="rounded-xl border border-line p-3 text-sm"><Link to={`/contracts/view/${encodeURIComponent(envelope.contract_id)}`} className="font-medium underline">{contractName(config, envelope.contract_id)}</Link><p>{field.configuration?.hints.map(hint => hint.message || t('alpha8.configuration.unassigned')).join(' · ')}</p><p className="text-muted">{t('alpha8.configuration.validHint')}</p></li>))}</ul>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="events" title={t('alpha7.overview.events')}><Panel>

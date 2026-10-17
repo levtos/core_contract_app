@@ -11,7 +11,7 @@ pytest.importorskip("homeassistant")
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
-from custom_components.core_contracts_bridge import async_setup_entry
+from custom_components.bifrost import async_setup_entry
 
 
 @pytest.mark.ha
@@ -60,7 +60,7 @@ async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatc
         )
         connection.subscriptions.pop(number)()
     assert len(unload) == 1
-    assert len(hass.data["core_contracts_bridge"]) == 1
+    assert len(hass.data["bifrost"]) == 1
     connection.subscriptions.pop(1)()
     count = len(events)
     hass.states.async_set("sensor.fixture", "on")

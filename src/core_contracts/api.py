@@ -19,6 +19,7 @@ from .capabilities import capabilities, configuration_schema, describe_types, re
 from .history import HISTORY_TABLES, HistoryQuery
 from .model import canonical
 from .registry import fingerprints, registry_types
+from .retention import EvidenceOutsideRetention
 from .runtime import Runtime
 from .security import RateLimiter, Tokens
 from .setup import Setup
@@ -359,6 +360,12 @@ class API:
             result = result["result"]
         elif path == "diagnostics/problems" and method == "GET":
             result = {
+                "configuration_problems": [
+                    {"contract_id": k, "field": f, "configuration": v["configuration"]}
+                    for k, c in state.tables["contract_state_current"].items()
+                    for f, v in c["fields"].items()
+                    if not v.get("configuration", {}).get("complete", True)
+                ],
                 "service": runtime.service_state(),
                 "problems": [
                     {"contract_id": k, "field": f, "status": v["status"], "reasons": v["reasons"]}
@@ -461,6 +468,12 @@ class API:
                 if machine
                 else None,
             }
+        elif path in {"history/retention/preview", "history/retention/run"} and method == "POST":
+            result = await runtime.submit(
+                "retention_preview" if path.endswith("preview") else "retention_run"
+            )
+        elif path == "history/rollups" and method == "GET":
+            result = await runtime.store.rollups(HistoryQuery.model_validate(dict(request.query)))
         elif path.startswith("history/query/") and method == "GET":
             kind = path.removeprefix("history/query/")
             if kind not in HISTORY_TABLES:
@@ -472,7 +485,17 @@ class API:
             reference = path.removeprefix("evidence/reference/")
             if len(reference) > 1024:
                 raise ValueError("invalid evidence reference")
-            result = await runtime.store.evidence(reference)
+            try:
+                result = await runtime.store.evidence(reference)
+            except EvidenceOutsideRetention as error:
+                return web.json_response(
+                    {
+                        "error": "evidence_outside_retention",
+                        "reference": error.reference,
+                        "retained_after": error.cutoff,
+                    },
+                    status=410,
+                )
             if result is None:
                 return web.json_response(
                     {"error": "evidence_not_found", "reference": reference}, status=404

@@ -18,6 +18,7 @@ export interface TypeEntry {
   parameterSchema?: JsonObject;
   declarative: boolean;
   machine: boolean;
+  lifecycle?: string;
 }
 
 export const typeKey = (id: string, version: number | string): string => `${id}@${version}`;
@@ -40,7 +41,9 @@ export function typeCatalog(caps: Capabilities | undefined, config: JsonObject |
       origin: 'draft-definition',
       declarative: true,
       machine: isObject(raw.machine),
+      lifecycle: str(raw.lifecycle) || 'active',
       fields,
+      parameterSchema: declarativeParameterSchema(raw),
       inputs: asArray(raw.inputs)
         .filter(isObject)
         .map((i) => {
@@ -60,11 +63,32 @@ function fromDescription(t: TypeDescription): TypeEntry {
     type_version: t.type_version,
     origin: declarative ? 'active-definition' : 'package',
     declarative,
+    lifecycle: str(t.definition?.lifecycle) || 'active',
     machine: t.producer === 'state_machine' || (declarative && isObject(t.definition?.machine)),
     fields: t.schema.fields as Record<string, FieldSchema>,
     inputs: t.inputs.map((i) => ({ name: i.name, required: i.required })),
-    parameterSchema: declarative ? undefined : t.parameter_schema,
+    parameterSchema: t.parameter_schema,
   };
+}
+
+export function declarativeParameterSchema(definition: JsonObject): JsonObject {
+  const properties: JsonObject = {};
+  const required: string[] = [];
+  for (const [name, declaration] of Object.entries(asObject(definition.parameter_schema))) {
+    if (!isObject(declaration)) continue;
+    const schema = asObject(declaration.schema);
+    if (schema.required === true) required.push(name);
+    properties[name] = {
+      type: schema.type === 'bool' ? 'boolean' : schema.type === 'number' ? 'number' : 'string',
+      title: schema.unit ? uiText('alpha8.parameters.unitHint', { description: str(declaration.label) || name, unit: str(schema.unit) }) : str(declaration.label) || name,
+      ...(schema.unit ? { description: uiText('alpha8.parameters.unitHint', { description: str(declaration.description), unit: str(schema.unit) }) } : declaration.description ? { description: declaration.description } : {}),
+      ...(Array.isArray(schema.value_catalog) && schema.value_catalog.length ? { enum: schema.value_catalog } : {}),
+      ...(schema.type === 'timestamp' ? { format: 'date-time' } : {}),
+      ...(typeof declaration.minimum === 'number' ? { minimum: declaration.minimum } : {}),
+      ...(typeof declaration.maximum === 'number' ? { maximum: declaration.maximum } : {}),
+    };
+  }
+  return { type: 'object', properties, required, additionalProperties: false };
 }
 
 /** Reference candidates for an instance input: sources and `contract.field` outputs. */

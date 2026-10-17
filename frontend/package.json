@@ -1,7 +1,7 @@
 {
-  "name": "terra-workbench",
+  "name": "mimir-workbench",
   "private": true,
-  "version": "1.0.0a7.post1",
+  "version": "1.0.0a8",
   "type": "module",
   "scripts": {
     "dev": "vite",

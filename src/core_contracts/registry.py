@@ -11,13 +11,15 @@ from pydantic import Field, model_validator
 from .adapters import AdapterConfig
 from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
+from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
+from .retention import RetentionPolicy
 from .schema import ContractType, FieldSchema, TypeRegistry
 
 
 class Dependency(Model):
     dependency_id: str
-    kind: Literal["ha", "mqtt", "other"]
+    kind: Literal["ha", "mqtt", "other", "clock", "connectivity"]
     monitor: Literal["internal", "source"]
     source_id: str | None = None
 
@@ -80,11 +82,18 @@ class Catalog(Model):
     kind: Literal["map"]
     version: int = Field(ge=1)
     entries: dict[str, Any]
+    lifecycle: Lifecycle = Field(default="active", exclude_if=lambda value: value == "active")
+    reactivation_note: str | None = Field(
+        default=None, max_length=256, exclude_if=lambda value: value is None
+    )
 
 
 class RegistryConfig(Model):
     config_schema_version: Literal[1]
     fingerprint_version: Literal[1, 2] = 1
+    history_retention: RetentionPolicy | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     dependencies: tuple[Dependency, ...]
     sources: tuple[Source, ...]
     bindings: tuple[Binding, ...]
@@ -251,7 +260,7 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
                 ),
                 "bindings": bindings,
                 "catalogs": [
-                    c.model_dump()
+                    c.model_dump(exclude={"lifecycle", "reactivation_note"})
                     for c in config.catalogs
                     if any(
                         b.transform and b.transform.catalog_id == c.catalog_id
@@ -294,10 +303,17 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     for key in sources:
         result[key] = monitored_fingerprint(key)
     for contract in topological(config):
+        description = types.get(contract.type_id, contract.type_version).description()
+        if "definition" in description:
+            description["definition"] = {
+                k: v
+                for k, v in description["definition"].items()
+                if k not in {"lifecycle", "reactivation_note"}
+            }
         result[contract.contract_id] = semantic_fingerprint(
             {
                 **({"fingerprint_version": 2} if config.fingerprint_version == 2 else {}),
-                "definition": types.get(contract.type_id, contract.type_version).description(),
+                "definition": description,
                 "contract": contract.model_dump(mode="json", exclude={"enabled"}),
                 "inputs": [result[resolve_ref(i.ref, config)[0]] for i in contract.inputs],
             }

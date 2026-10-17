@@ -317,7 +317,7 @@ class BridgeAdapter:
             await socket.send_json({"type": "auth", "access_token": self.token})
             if (await socket.receive_json()).get("type") != "auth_ok":
                 raise ConnectionError("ha_auth_failed")
-            info = await self._result(socket, {"id": 1, "type": "core_contracts_bridge/info"})
+            info = await self._result(socket, {"id": 1, "type": "bifrost/info"})
             if info.get("protocol_version") != 1:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
@@ -342,7 +342,7 @@ class BridgeAdapter:
                 socket,
                 {
                     "id": 5,
-                    "type": "core_contracts_bridge/subscribe",
+                    "type": "bifrost/subscribe",
                     "protocol_version": 1,
                     "entity_ids": entities,
                     "report_entity_ids": sorted(
@@ -354,7 +354,15 @@ class BridgeAdapter:
                     ),
                 },
             )
-            await self.runtime.submit("bridge_state", ("connected", "connected"))
+            await self.runtime.submit(
+                "bridge_state",
+                (
+                    "connected",
+                    "connected"
+                    if str(info.get("ha_state", "")).lower() == "running"
+                    else "starting",
+                ),
+            )
             self.retry_delay = 1.0
             LOGGER.info("bridge_connected")
             while True:
@@ -371,7 +379,16 @@ class BridgeAdapter:
                         if message["id"] == 5:
                             await self.event(message["event"], config, revision)
                         else:
-                            raise ConnectionError("ha_lifecycle")
+                            event_type = message.get("event", {}).get("event_type")
+                            await self.runtime.submit(
+                                "bridge_state",
+                                (
+                                    "connected",
+                                    "connected"
+                                    if event_type == "homeassistant_started"
+                                    else "stopping",
+                                ),
+                            )
                 finally:
                     for task in pending:
                         if not task.done():

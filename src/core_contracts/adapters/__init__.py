@@ -2,22 +2,26 @@
 
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 
+from ..calendar_inputs import CalendarInput
 from ..model import Model
 
 
 class AdapterConfig(Model):
-    kind: Literal["ha_state", "ha_attribute", "mqtt", "scheduler"]
+    kind: Literal["ha_state", "ha_attribute", "mqtt", "scheduler", "connectivity"]
     ha_entity_id: str | None = None
     ha_attribute: str | None = None
     ha_time_attribute: str | None = None
     mqtt_topic: str | None = None
     mqtt_value_path: str | None = None
     mqtt_time_path: str | None = None
+    calendar: CalendarInput | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def address(self) -> Self:
+        if (self.kind == "scheduler") != (self.calendar is not None):
+            raise ValueError("scheduler_calendar_required")
         if self.kind.startswith("ha_") and not self.ha_entity_id:
             raise ValueError("entity required")
         if self.kind == "ha_attribute" and not self.ha_attribute:

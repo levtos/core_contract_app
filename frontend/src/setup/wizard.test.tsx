@@ -59,8 +59,8 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('reload after DB initialization resumes the unfinished Bridge step', async () => {
     backend({ ...initial, phase: 'completed', authority: 'wizard', database_configured: true });
     render(<App />);
-    await screen.findByRole('heading', { name: "Terra HA-Anbindung" });
-    expect(document.querySelector('h1')?.textContent).toBe("Terra");
+    await screen.findByRole('heading', { name: "Mimir HA-Anbindung" });
+    expect(document.querySelector('h1')?.textContent).toBe("Mimir");
     expect(document.body.textContent).toContain('SELF-INSTALL-01');
   });
 
@@ -75,7 +75,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     const status = { ...initial, phase: 'connecting' as SetupStatus['phase'], authority: 'wizard', database_configured: true, onboarding_complete: true };
     backend(status);
     render(<App />);
-    await screen.findByText("Terra");
+    await screen.findByText("Mimir");
     status.phase = 'completed';
     // Polling performs the same recovery refresh without changing configuration.
     await screen.findByText("Einstellungen", {}, { timeout: 5000 });
@@ -87,7 +87,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('fresh installation renders guided UI before any ordinary API request', async () => {
     const fetch = backend();
     render(<App />);
-    await screen.findByText("Terra");
+    await screen.findByText("Mimir");
     expect(document.body.textContent).toContain('Willkommen');
     expect(fetch.mock.calls.every(([url]) => url.includes('/setup/'))).toBe(true);
   });

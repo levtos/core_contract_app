@@ -137,11 +137,17 @@ class FormulaCatalog:
         now: datetime,
         *,
         raise_errors: bool = False,
+        names: tuple[str, ...] | None = None,
     ) -> FieldValue:
         if any(not i.usable(now) for i in inputs):
             return derive(None, inputs, now)
         try:
-            value = self._items[name, version]([i.value for i in inputs])
+            values: Any = (
+                dict(zip(names, (i.value for i in inputs), strict=True))
+                if names is not None
+                else [i.value for i in inputs]
+            )
+            value = self._items[name, version](values)
             return derive(value, inputs, now)
         except KeyError, TypeError, ValueError, ArithmeticError:
             if raise_errors:

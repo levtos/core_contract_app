@@ -93,18 +93,16 @@ async def configure_bridge(token: str) -> dict[str, Any]:
     base = "http://supervisor/core/api/config/config_entries"
     headers = {"Authorization": "Bearer " + token}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-        async with session.get(
-            base + "/entry?domain=core_contracts_bridge", headers=headers
-        ) as response:
+        async with session.get(base + "/entry?domain=bifrost", headers=headers) as response:
             if response.status != 200:
                 raise ValueError("ha_unavailable")
             entries = await response.json()
         if not isinstance(entries, list):
             raise ValueError("ha_unavailable")
-        if any(entry.get("domain") == "core_contracts_bridge" for entry in entries):
+        if any(entry.get("domain") == "bifrost" for entry in entries):
             return {"created": False, "state": "existing_entry"}
         async with session.post(
-            base + "/flow", headers=headers, json={"handler": "core_contracts_bridge"}
+            base + "/flow", headers=headers, json={"handler": "bifrost"}
         ) as response:
             if response.status != 200:
                 raise ValueError("bridge_not_discovered")
@@ -112,7 +110,7 @@ async def configure_bridge(token: str) -> dict[str, Any]:
         if flow.get("type") == "abort":
             return {"created": False, "state": "existing_entry_or_aborted"}
         if (
-            flow.get("handler") != "core_contracts_bridge"
+            flow.get("handler") != "bifrost"
             or flow.get("type") != "form"
             or flow.get("step_id") != "user"
             or flow.get("data_schema") != []
@@ -125,7 +123,7 @@ async def configure_bridge(token: str) -> dict[str, Any]:
             if response.status != 200:
                 raise ValueError("bridge_configuration_failed")
             result = await response.json()
-        if result.get("type") != "create_entry" or result.get("handler") != "core_contracts_bridge":
+        if result.get("type") != "create_entry" or result.get("handler") != "bifrost":
             raise ValueError("bridge_configuration_failed")
         return {"created": True, "state": "configuration_created"}
 
@@ -174,7 +172,7 @@ async def probe(connection: Connection, *, resume: bool = False) -> dict[str, An
             )
             public_functions = await client.fetchval(
                 "SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n "
-                "ON n.oid=p.pronamespace WHERE n.nspname='public')"
+                "ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname<>'cc_index_observation')"
             )
             identity = None
             if "cc_meta" in tables:
@@ -183,6 +181,12 @@ async def probe(connection: Connection, *, resume: bool = False) -> dict[str, An
                 )
                 identity = json.loads(value) if value else None
             allowed = set(TABLES) | {"cc_meta", "cc_schema_migrations", "publication"}
+            if identity:
+                allowed |= {
+                    "cc_observation_index",
+                    "cc_observation_rollup",
+                    "cc_evidence_watermark",
+                }
             if (
                 tables - allowed
                 or (tables and not identity and not resume)
@@ -207,7 +211,7 @@ async def bridge_status(token: str) -> dict[str, Any]:
                 await socket.send_json({"type": "auth", "access_token": token})
                 if (await socket.receive_json()).get("type") != "auth_ok":
                     return {"state": "authorization_failed", "release_blocker": True}
-                await socket.send_json({"id": 1, "type": "core_contracts_bridge/info"})
+                await socket.send_json({"id": 1, "type": "bifrost/info"})
                 result = await socket.receive_json()
                 if result.get("success"):
                     info = result["result"]
@@ -223,7 +227,7 @@ async def bridge_status(token: str) -> dict[str, Any]:
                     known = await response.json() if response.status == 200 else None
                 if known is None:
                     return {"state": "unavailable", "release_blocker": True}
-                if "core_contracts_bridge" in known:
+                if "bifrost" in known:
                     state = "installed_not_configured"
                 else:
                     # This API cannot see unscanned files. Never claim filesystem absence.

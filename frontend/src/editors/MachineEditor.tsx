@@ -17,7 +17,7 @@ import {
   type Rule,
 } from '@/features/authoring/model';
 import type { Capabilities } from '@/lib/capabilities';
-import { join, type Json, type JsonObject } from '@/lib/json';
+import { isObject, join, type Json, type JsonObject } from '@/lib/json';
 import { AddButton, Fld, IconButton, IssueCount, IssuesAt, NumberField, RowActions, SectionTitle, TypedValueEditor } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { operatorDefaults, RuleEditor, RuleEnvProvider } from './RuleEditor';
@@ -48,7 +48,7 @@ export function MachineEditor({
   const states = asArray(value.states).map(String);
   const transitions = asArray(value.transitions).map(asObject);
   const commands = asObject(value.commands);
-  const hasDeadline = typeof value.deadline_s === 'number';
+  const hasDeadline = typeof value.deadline_s === 'number' || isObject(value.deadline_s);
   const events = ['input', ...(hasDeadline ? ['deadline'] : []), ...Object.keys(commands)];
   const env = { ctx: ruleContext(definition, true), caps };
   const defaults = operatorDefaults(caps);
@@ -106,7 +106,7 @@ export function MachineEditor({
             <Checkbox checked={value.sessions === true} onCheckedChange={(on) => set({ sessions: on })} label={uiText("editors.MachineEditor.sessions_fuhren_a20d63")} />
             <Checkbox checked={hasDeadline} onCheckedChange={(on) => set({ deadline_s: on ? 60 : undefined })} label={uiText("editors.MachineEditor.deadline_verwenden_f1deab")} />
           </div>
-          {hasDeadline && <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={uiText("editors.MachineEditor.eine_deadline_pro_contract_994bde")} onChange={(n) => set({ deadline_s: n })} />}
+          {hasDeadline && (isObject(value.deadline_s) ? <Fld label={uiText('alpha8.parameters.deadlineName')} pointer={join(pointer, 'deadline_s', 'name')}>{props => <Input {...props} value={str(asObject(value.deadline_s).name)} onChange={event => set({ deadline_s: { op: 'parameter', name: event.target.value } })} />}</Fld> : <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={uiText("editors.MachineEditor.eine_deadline_pro_contract_994bde")} onChange={(n) => set({ deadline_s: n })} />)}
         </section>
 
         <section className="space-y-2">

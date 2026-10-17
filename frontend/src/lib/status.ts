@@ -108,6 +108,9 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
       detail: uiText("lib.status.der_erste_snapshot_der_home_assistant_bridge_ste_9e13ec"),
     });
   }
+  if (reasons.includes('history_retention_required')) {
+    result.push({ kind: 'setup_incomplete', tone: 'warn', title: uiText('alpha8.retention.required'), detail: uiText('alpha8.retention.configure') });
+  }
   if (service && ([service.ha, service.bridge].some((state) => state !== 'connected' && state !== 'not_needed'))) {
     const parts = [service.ha !== 'connected' ? uiText('system.haConnection', { state: connectionLabel(service.ha) }) : '', service.bridge !== 'connected' ? uiText('system.bridgeConnection', { state: connectionLabel(service.bridge) }) : '']
       .filter(Boolean)
@@ -157,6 +160,7 @@ export function overallState(conditions: Condition[], service: ServiceState | nu
 }
 
 export const REASON_LABELS: Record<string, string> = {
+  history_retention_required: uiText('alpha8.retention.required'),
   invalid_supervisor_options: uiText("lib.status.ungultige_app_optionen_0faff6"),
   persistence_unavailable: uiText("lib.status.persistenz_nicht_erreichbar_fd7b31"),
   no_active_registry: uiText("lib.status.keine_aktive_registry_f699ee"),

@@ -56,7 +56,8 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
   const ids = asArray(src.config?.contracts).filter(isObject).map((c) => str(c.contract_id));
   const [id, setId] = useState('');
   const [type, setType] = useState('');
-  const chosen = src.types.find((t) => t.key === type) ?? src.types[0];
+  const availableTypes = src.types.filter(entry => entry.lifecycle !== 'retired');
+  const chosen = availableTypes.find((t) => t.key === type) ?? availableTypes[0];
   const taken = ids.includes(id.trim());
   const valid = validIdentifier(id.trim()) && !taken && !!chosen;
   return (
@@ -92,7 +93,7 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
         <Field label={uiText("features.contracts.ContractsPage.typ_version_1b7183")}>
           {(p) => (
             <Select {...p} value={chosen?.key ?? ''} onChange={(e) => setType(e.target.value)}>
-              {src.types.map((t) => (
+              {availableTypes.map((t) => (
                 <option key={t.key} value={t.key}>{t.type_id} {uiText("features.contracts.ContractsPage.v_0bb917")}{t.type_version} {t.declarative ? uiText("features.contracts.ContractsPage.definition_393327") : uiText("features.contracts.ContractsPage.paket_d2cfa9")}</option>
               ))}
             </Select>

@@ -292,7 +292,7 @@ async def test_dependency_internal_and_source_monitor(runtime, config):
     await activate(runtime, config)
     await runtime.submit("observation", obs(runtime))
     await runtime.submit("bridge_state", ("unavailable", "disconnected"))
-    assert field(runtime)["reasons"][0]["code"] == "dependency_unavailable"
+    assert field(runtime)["status"] == "valid"  # G17: event_stateful has no transport TTL.
     await runtime.submit("bridge_state", ("connected", "connected"))
     add_source(config, "b")
     config["dependencies"].append(
@@ -310,7 +310,7 @@ async def test_dependency_internal_and_source_monitor(runtime, config):
 
 def test_scheduler_and_unsupported_monitor_rejected(config):
     config["bindings"][0]["adapter"] = dict(kind="scheduler")
-    with pytest.raises(ValueError, match="not implemented"):
+    with pytest.raises(ValueError, match="invalid configuration field"):
         validate(config, type_registry())
     config["bindings"][0]["adapter"] = dict(
         kind="ha_state", ha_entity_id="input_boolean.cc_alpha_test_a"

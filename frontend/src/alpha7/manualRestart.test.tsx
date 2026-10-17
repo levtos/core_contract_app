@@ -43,7 +43,7 @@ it('shows impact, external automation limits and an exact confirmation before se
   expect(within(dialog).getByText(/Der Startzustand wird manuell gesetzt und ist nicht durch Sensordaten bestätigt/, { selector: 'p' })).toBeVisible();
   expect(within(dialog).getByRole('link', { name: 'Direkte Hilfe' })).toBeVisible();
   expect(within(dialog).getByRole('link', { name: 'Weitere Hilfe' })).toBeVisible();
-  expect(within(dialog).getByText(/Externe Automationen sind Terra nicht vollständig bekannt/)).toBeVisible();
+  expect(within(dialog).getByText(/Externe Automationen sind Mimir nicht vollständig bekannt/)).toBeVisible();
   const execute = within(dialog).getByRole('button', { name: 'Jetzt manuell neu starten' });
   expect(execute).toBeDisabled();
   await user.click(within(dialog).getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));

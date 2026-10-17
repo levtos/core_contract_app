@@ -1,5 +1,11 @@
 # ADR 0003 — Alpha 4 declarative platform and Workbench API
 
+**Fortschreibung 17.10.2026:** Bennis G19-Entscheidung in
+[ADR 0006](0006-instance-parameters.md) ersetzt für Alpha 8 die Beschränkung auf
+leere Instanzparameter. Die Vorlage bleibt versioniert; Parameterwerte dürfen
+je Vertragsinstanz im Entwurf geändert werden. Das technische Design wartet
+auf Review-Freigabe, der heutige Code implementiert diese Erweiterung noch nicht.
+
 Status: implementation proposal for independent review. This does not grant
 release, installation, or Live acceptance. Issue: Levtos/core_contract_app#13.
 

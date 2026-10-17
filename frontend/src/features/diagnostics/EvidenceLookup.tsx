@@ -39,6 +39,7 @@ export function EvidenceResult({ reference }: { reference: string }) {
   const query = useEvidence(reference);
   if (query.isPending) return <Spinner />;
   if (query.isError) {
+    if (query.error instanceof ApiError && query.error.code === 'evidence_outside_retention') return <Notice tone="info" title={t('alpha8.retention.evidenceTitle')}>{describeError(query.error)}</Notice>;
     const notFound = query.error instanceof ApiError && query.error.code === 'evidence_not_found';
     return <Notice tone={notFound ? 'info' : 'bad'} title={t(notFound ? 'features.diagnostics.EvidenceLookup.keine_aufgezeichnete_evidenz_b25154' : 'features.diagnostics.EvidenceLookup.evidenz_nicht_lesbar_f315c2')}>{notFound ? t('features.diagnostics.EvidenceLookup.zu_dieser_referenz_liegt_keine_beobachtung_vor_z_825a45') : describeError(query.error)}</Notice>;
   }

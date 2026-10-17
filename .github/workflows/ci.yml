@@ -22,10 +22,13 @@ jobs:
       TEST_DATABASE_DSN: postgresql://core_contracts_test:ephemeral-test-only@localhost:5432/core_contracts_test
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           python-version: '3.14.5'
       - run: uv sync --frozen
+      - run: uv run python dev/verify_postrelease.py
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy --strict src client/core_contracts_client
@@ -37,6 +40,7 @@ jobs:
           TEST_MQTT_DOCKER: '1'
       - run: uv run python dev/resource_probe.py
       - run: uv run python dev/review_probe.py
+      - run: uv run python dev/alpha8_scale_probe.py
       - run: uv build --wheel
       - run: uv build --wheel --project client
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -46,6 +50,7 @@ jobs:
             dist/*.whl
             client/dist/*.whl
             dist/alpha4-review-performance.json
+            dist/alpha8-scale.json
   frontend:
     runs-on: ubuntu-24.04
     defaults:
@@ -86,7 +91,7 @@ jobs:
         working-directory: frontend
       - name: Workbench end-to-end
         run: |
-          port="${TERRA_E2E_PORT:-8123}"
+          port="${MIMIR_E2E_PORT:-8123}"
           .venv/bin/python dev/workbench_demo.py --feed --interval 1 --port "$port" > /tmp/workbench-demo.log 2>&1 &
           engine_pid=$!
           cleanup() {
@@ -104,7 +109,7 @@ jobs:
             sleep 1
           done
           test "$ready" = true
-          TERRA_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
+          MIMIR_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
       - name: Engine log
         if: failure()
         run: tail -n 80 /tmp/workbench-demo.log
@@ -141,7 +146,7 @@ jobs:
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: core_contracts/Dockerfile
+          file: mimir/Dockerfile
           platforms: ${{ matrix.platform }}
           build-args: |
             BUILD_VERSION=${{ steps.package.outputs.version }}

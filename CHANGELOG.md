@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0a8 — Mimir (vorbereitet, 2026-10-17)
+
+- Neuer App-Slug mimir und Bifröst-Domain bifrost; eigene Installation, Terra bleibt erhalten.
+- Instanzparameter, lokale Uhr/Kalender, n-Klassen, Textregeln und benannte Formeleingänge.
+- Lebenszyklus für Versionen, eigene Vollständigkeitsachse und normale Freshness bei HA-Ausfall.
+- Referenzbewusste Aufbewahrung/Verdichtung und begrenzte Teilbewertung mit Kapazitätsnachweis.
+- Verständliche Texte, fortgeführter Ja/Nein-Verlauf und Quellennamen bei Typsperren.
+- [Alpha-8-Nachweise](https://github.com/levtos/mimir/blob/main/docs/alpha8/ABNAHME.md).
+  Noch kein Release oder Installationsnachweis; Teil B erst nach Bennis Go.
+
 ## 1.0.0a7.post1 — Befunde aus dem UX-Live-Test (vorbereitet, 2026-10-17)
 
 - Einheitlicher Serverzustand in Übersicht, Vertragsplakette und Filter; konkrete historische Typ-/Einheitskonflikte.

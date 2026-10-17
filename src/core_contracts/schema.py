@@ -113,7 +113,8 @@ class ContractType:
                         {
                             k: v
                             for k, v in self.definition.items()
-                            if k not in {"display_name", "description"}
+                            if k
+                            not in {"display_name", "description", "lifecycle", "reactivation_note"}
                         }
                     ),
                 }

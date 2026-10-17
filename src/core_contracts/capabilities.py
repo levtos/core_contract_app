@@ -24,7 +24,7 @@ SEMANTIC_RULES = {
     "monitor_unsupported": "internal monitors support only known adapter kinds",
     "dependency_cycle": "dependency monitor graph is acyclic",
     "source_dependency_cycle": "source and liveness graph is acyclic and at most depth 64 in v2",
-    "adapter_unsupported": "scheduler is not a source adapter",
+    "adapter_unsupported": "adapter kind and declared calendar projection must be supported",
     "duplicate_adapter": "an adapter evidence path is bound once",
     "binding_source": "bindings target distinct existing sources",
     "duplicate_evidence": "physical evidence paths are not counted twice",
@@ -254,7 +254,6 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
             "DeclarativeDefinition": [
                 "distinct inputs",
                 "outputs equal schema.fields",
-                "fixture only",
                 "refresh inputs declared",
                 "grace uses temporal rule duration",
             ],
@@ -283,7 +282,7 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
-        "language_versions": [1],
+        "language_versions": [1, 2],
         "api_protocol": 1,
         "config_schema_version": 1,
         "fingerprint_versions": [1, 2],
@@ -326,6 +325,20 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
             }
             for name, model in (
                 ("input", "InputRule"),
+                ("parameter", "ParameterRule"),
+                ("time_reached", "TimeReachedRule"),
+                ("configuration_hint", "ConfigurationHintRule"),
+                *(
+                    (name, "TextRule")
+                    for name in (
+                        "lower",
+                        "strip",
+                        "normalize_key",
+                        "matches",
+                        "contains",
+                        "compound_key",
+                    )
+                ),
                 ("ref", "ReferenceRule"),
                 ("literal", "LiteralRule"),
                 ("and", "BooleanRule"),
@@ -348,6 +361,17 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
                 "version": version,
                 "input_schema": item.input.model_dump(mode="json"),
                 "output_schema": item.output.model_dump(mode="json"),
+                "category": item.category,
+                "lifecycle": item.lifecycle,
+                "inputs": [
+                    {
+                        "name": i.name,
+                        "schema": i.schema.model_dump(mode="json"),
+                        "quantity": i.quantity,
+                        "required": i.required,
+                    }
+                    for i in item.inputs
+                ],
             }
             for (name, version), item in FORMULA_SCHEMAS.items()
         ],

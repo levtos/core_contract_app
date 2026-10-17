@@ -1,19 +1,31 @@
 """Code-owned engine catalog shared by discovery, typing and evaluation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 
 from .fusion import Fusion
+from .lifecycle import Lifecycle, transition_allowed
 from .quality import FieldValue, ReasonCode, derive, unknown
 from .resolver import FormulaCatalog
 from .schema import FieldSchema
 
 
 @dataclass(frozen=True)
+class FormulaInput:
+    name: str
+    schema: FieldSchema
+    quantity: str
+    required: bool = True
+
+
+@dataclass(frozen=True)
 class FormulaSchema:
     input: FieldSchema
     output: FieldSchema
+    inputs: tuple[FormulaInput, ...] = ()
+    category: str = "test"
+    lifecycle: Lifecycle = "active"
 
 
 FORMULAS = FormulaCatalog()
@@ -33,9 +45,30 @@ def register_formula(
     implementation: Any,
     input_schema: FieldSchema,
     output_schema: FieldSchema,
+    *,
+    inputs: tuple[FormulaInput, ...] = (),
+    category: str = "test",
+    lifecycle: Lifecycle = "active",
 ) -> None:
+    if (
+        not category.strip()
+        or len({i.name for i in inputs}) != len(inputs)
+        or any(not i.name or not i.quantity for i in inputs)
+    ):
+        raise ValueError("invalid_formula_declaration")
     FORMULAS.register(name, version, implementation)
-    FORMULA_SCHEMAS[name, version] = FormulaSchema(input_schema, output_schema)
+    FORMULA_SCHEMAS[name, version] = FormulaSchema(
+        input_schema, output_schema, inputs, category, lifecycle
+    )
+
+
+def set_formula_lifecycle(
+    name: str, version: int, state: Lifecycle, *, reactivation_note: str | None = None
+) -> None:
+    current = FORMULA_SCHEMAS[name, version]
+    if not transition_allowed(current.lifecycle, state, reactivation_note, None):
+        raise ValueError("lifecycle_transition")
+    FORMULA_SCHEMAS[name, version] = replace(current, lifecycle=state)
 
 
 def register_fusion(name: str, implementation: Any, input_type: str | None = None) -> None:

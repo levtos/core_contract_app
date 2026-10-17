@@ -1,4 +1,4 @@
-"""Local review harness for the Terra Workbench (no Home Assistant, no PostgreSQL).
+"""Local review harness for the Mimir Workbench (no Home Assistant, no PostgreSQL).
 
 Runs the *real* HTTP/WebSocket API and the real engine on the in-memory store and
 serves the built frontend (``frontend/dist``) on the Ingress listener, so the UI can
@@ -91,6 +91,7 @@ async def main() -> None:
     parser.add_argument("--port", type=int, default=8099)
     parser.add_argument("--seed", action="store_true", help="activate the Alpha-4 example registry")
     parser.add_argument("--feed", action="store_true", help="feed source.a / source.b periodically")
+    parser.add_argument("--alpha8", action="store_true", help="synthetic Alpha 8 review surfaces")
     parser.add_argument(
         "--post1", action="store_true", help="deterministic synthetic correction screenshots"
     )
@@ -98,7 +99,11 @@ async def main() -> None:
     parser.add_argument("--frontend", type=Path, default=ROOT / "frontend" / "dist")
     args = parser.parse_args()
 
-    clock = FakeClock(datetime(2026, 10, 17, 10, tzinfo=UTC)) if args.post1 else SystemClock()
+    clock = (
+        FakeClock(datetime(2026, 10, 17, 10, tzinfo=UTC))
+        if args.post1 or args.alpha8
+        else SystemClock()
+    )
     runtime = Runtime(MemoryStore(), clock, type_registry())
     await runtime.start()
     session = ClientSession()
@@ -110,7 +115,7 @@ async def main() -> None:
         runtime,
         Tokens(data / "secrets"),
         str(uuid4()),
-        installation_label="Terra Workbench Demo (lokal, nicht produktiv)",
+        installation_label="Mimir Workbench Demo (lokal, nicht produktiv)",
         ingress_address="127.0.0.1",
         frontend=args.frontend,
         setup=FinishedSetup(data, None),
@@ -132,6 +137,10 @@ async def main() -> None:
         from workbench_post1 import seed
 
         await seed(runtime)
+    if args.alpha8:
+        from workbench_alpha8 import seed as seed_alpha8
+
+        await seed_alpha8(runtime)
     if args.seed:
         document = json.loads(
             (ROOT / "docs" / "alpha4" / "example-registry.json").read_text(encoding="utf-8")

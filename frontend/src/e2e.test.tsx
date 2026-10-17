@@ -21,12 +21,12 @@ import { objects } from '@/features/sources/sourceMigration';
 /**
  * End-to-end against the REAL API and engine in an isolated, in-memory instance
  * (`python dev/workbench_demo.py --feed --interval 1`, started fresh and empty). It
- * is skipped unless TERRA_E2E_URL points at such an instance. Never point it at an
+ * is skipped unless MIMIR_E2E_URL points at such an instance. Never point it at an
  * installation: it creates drafts, activates registries and rolls back.
  *
- *   TERRA_E2E_URL=http://127.0.0.1:8123 npm run test:e2e
+ *   MIMIR_E2E_URL=http://127.0.0.1:8123 npm run test:e2e
  */
-const base = process.env.TERRA_E2E_URL;
+const base = process.env.MIMIR_E2E_URL;
 vi.unmock('@/lib/request-budget');
 const user = userEvent.setup();
 const f = flow(user);
@@ -325,7 +325,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const start = await screen.findByRole('button', { name: 'Ablauf neu starten' }, { timeout: 65_000 });
     await waitFor(() => expect(start).toBeEnabled(), { timeout: 65_000 }); await user.click(start);
     const confirmation = await screen.findByRole('dialog', { name: 'Ablauf neu starten' });
-    expect(within(confirmation).getByText(/Externe Automationen sind Terra nicht vollständig bekannt/)).toBeVisible();
+    expect(within(confirmation).getByText(/Externe Automationen sind Mimir nicht vollständig bekannt/)).toBeVisible();
     await user.type(within(confirmation).getByLabelText('Warum startest du den Ablauf neu?'), 'Isolierter Engine-Test');
     await user.click(within(confirmation).getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
     await user.click(within(confirmation).getByRole('button', { name: 'Jetzt manuell neu starten' }));

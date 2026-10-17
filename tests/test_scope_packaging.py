@@ -11,7 +11,7 @@ from core_contracts.testing.contract_types import type_registry
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_no_domain_registration_outside_testing():
+def test_no_builtin_domain_registration_outside_testing():
     domain_terms = {
         "opening",
         "window",
@@ -41,8 +41,7 @@ def test_no_domain_registration_outside_testing():
                 and node.func.id == "ContractType"
             ):
                 # Alpha 4's generic adapter constructs types from validated data.
-                # It cannot register a domain type: the shared public model
-                # rejects every identity outside test.* (tested below).
+                # Alpha 8 accepts data-defined identities; no domain code is added.
                 if path.name == "declarative.py" and any(
                     keyword.arg == "type_id"
                     and isinstance(keyword.value, ast.Attribute)
@@ -59,7 +58,7 @@ def test_no_domain_registration_outside_testing():
                 assert not any(node.value.startswith(term + ".v") for term in domain_terms)
 
 
-def test_declarative_types_cannot_register_domains():
+def test_declarative_identities_allow_nonfixtures_but_remain_closed():
     import pytest
     from pydantic import ValidationError
 
@@ -67,7 +66,13 @@ def test_declarative_types_cannot_register_domains():
 
     from .test_declarative import definition
 
-    for identity in ("opening.v1", "presence.v1", "climate.v1", "test", "other.test"):
+    for identity in ("example.level", "example.state", "other.test"):
+        data = definition()
+        data["type_id"] = identity
+        data["schema"]["fixture"] = False
+        result = DeclarativeDefinition.model_validate(data)
+        assert not result.output_schema.fixture
+    for identity in ("test", "", ".bad", "x;eval(1)"):
         data = definition()
         data["type_id"] = identity
         with pytest.raises(ValidationError):
@@ -95,21 +100,21 @@ def test_example_registry_and_no_forbidden_context():
 
 
 def test_watchdog_security_and_container():
-    config = yaml.safe_load((ROOT / "core_contracts/config.yaml").read_text())
+    config = yaml.safe_load((ROOT / "mimir/config.yaml").read_text())
     assert config["watchdog"].endswith("/health/live")
     assert config["hassio_api"] is False and config["homeassistant_api"] is True
     assert config["ports"]["8787/tcp"] is None
     assert config["arch"] == ["amd64", "aarch64"]
     assert not any(config.get(key) for key in ("privileged", "docker_api", "host_network"))
-    docker = (ROOT / "core_contracts/Dockerfile").read_text()
+    docker = (ROOT / "mimir/Dockerfile").read_text()
     assert "BUILD_FROM" not in docker and "uv sync --frozen" in docker
-    assert not (ROOT / "core_contracts/build.yaml").exists()
-    entry = (ROOT / "core_contracts/rootfs/entrypoint.sh").read_text()
+    assert not (ROOT / "mimir/build.yaml").exists()
+    entry = (ROOT / "mimir/rootfs/entrypoint.sh").read_text()
     assert "setpriv --reuid=10001 --regid=10001" in entry
 
 
 def test_bridge_has_no_domain_or_await_in_subscription():
-    path = ROOT / "custom_components/core_contracts_bridge/__init__.py"
+    path = ROOT / "custom_components/bifrost/__init__.py"
     tree = ast.parse(path.read_text())
     subscribe = next(
         n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "subscribe"

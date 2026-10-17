@@ -9,7 +9,7 @@ from homeassistant.helpers.event import (
     async_track_state_report_event,
 )
 
-DOMAIN = "core_contracts_bridge"
+DOMAIN = "bifrost"
 VERSION = "1.0.0a1"
 
 

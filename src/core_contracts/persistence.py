@@ -7,7 +7,8 @@ import json
 import logging
 import ssl
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -16,6 +17,14 @@ from pydantic import BaseModel, Field
 
 from .history import CONTRACT_SQL, HISTORY_TABLES, TIME_SQL, HistoryQuery, page, timestamp
 from .model import canonical
+from .retention import (
+    EvidenceOutsideRetention,
+    RetentionPolicy,
+    maintain_postgres,
+    pinned_references,
+    reference_scope,
+    summaries,
+)
 
 TABLES = (
     "runtime_epoch",
@@ -55,6 +64,62 @@ class PersistenceUnavailable(RuntimeError):
     pass
 
 
+def history_predicates(
+    query: HistoryQuery, scope: str, time_column: str, key_column: str, source_column: str
+) -> tuple[str, list[Any]]:
+    predicates: list[str] = []
+    values: list[Any] = []
+    for value, expression in (
+        (query.source_id, source_column + "="),
+        (query.since, time_column + ">="),
+        (query.until, time_column + "<="),
+    ):
+        if value is not None:
+            values.append(value)
+            predicates.append(expression + "$" + str(len(values)))
+    if position := query.position(scope):
+        values.extend(position)
+        predicates.append(f"({time_column},{key_column})<(${len(values) - 1},${len(values)})")
+    return ("WHERE " + " AND ".join(predicates) if predicates else ""), values
+
+
+def rollup_rows(
+    records: list[dict[str, Any]], query: HistoryQuery, position: tuple[datetime, str] | None
+) -> list[tuple[str, dict[str, Any]]]:
+    rows: list[tuple[str, dict[str, Any]]] = []
+    for item in records:
+        key = item.get(
+            "rollup_key", f"{item['source_id']}:{item['binding_id']}:{item['registry_revision']}"
+        )
+        at = item["hour"]
+        if (
+            (query.source_id is not None and item["source_id"] != query.source_id)
+            or (query.since and at < query.since)
+            or (query.until and at > query.until)
+            or (position and (at, key) >= position)
+        ):
+            continue
+        payload = {
+            k: (
+                v.isoformat()
+                if isinstance(v, datetime)
+                else str(v)
+                if isinstance(v, Decimal)
+                else v
+            )
+            for k, v in item.items()
+            if k != "rollup_key"
+        }
+        payload["at"] = at.isoformat()
+        payload["average"] = (
+            float(item["total"] / item["numeric_count"]) if item["numeric_count"] else None
+        )
+        rows.append((key, payload))
+    return sorted(rows, key=lambda pair: (timestamp(pair[1]), pair[0]), reverse=True)[
+        : query.limit + 1
+    ]
+
+
 def empty_tables() -> dict[str, dict[str, dict[str, Any]]]:
     return {table: {} for table in TABLES}
 
@@ -92,6 +157,11 @@ class State(BaseModel):
 
 
 class Store(Protocol):
+    async def maintain_history(
+        self, state: State, now: datetime, policy: RetentionPolicy, *, dry_run: bool = False
+    ) -> dict[str, Any]: ...
+    async def rollups(self, query: HistoryQuery) -> dict[str, Any]: ...
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None: ...
     async def load(self) -> State: ...
     async def commit(self, state: State) -> None: ...
     async def probe(self) -> None: ...
@@ -109,6 +179,55 @@ class Store(Protocol):
 
 
 class PostgresStore:
+    async def observation_history(self, query: HistoryQuery) -> dict[str, Any]:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        if query.contract_id is not None:
+            return page([], query, "source_observation_history")
+        where, values = history_predicates(
+            query, "source_observation_history", "i.received_at", "i.reference", "i.source_id"
+        )
+        records = await self.pool.fetch(
+            "SELECT h.key,h.payload FROM cc_observation_index i JOIN source_observation_history h ON h.key=i.reference "
+            + where
+            + " ORDER BY i.received_at DESC,i.reference DESC LIMIT $"
+            + str(len(values) + 1),
+            *values,
+            query.limit + 1,
+        )
+        return page(
+            [(row["key"], json.loads(row["payload"])) for row in records],
+            query,
+            "source_observation_history",
+        )
+
+    async def maintain_history(
+        self, state: State, now: datetime, policy: RetentionPolicy, *, dry_run: bool = False
+    ) -> dict[str, Any]:
+        async with self._mutex:
+            await self.probe()
+            return await maintain_postgres(
+                self._writer(), now, policy, pinned_references(state), dry_run=dry_run
+            )
+
+    async def rollups(self, query: HistoryQuery) -> dict[str, Any]:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        position = query.position("observation_rollups")
+        where, values = history_predicates(
+            query, "observation_rollups", "hour", "rollup_key", "source_id"
+        )
+        records = await self.pool.fetch(
+            "SELECT * FROM cc_observation_rollup "
+            + where
+            + " ORDER BY hour DESC,rollup_key DESC LIMIT $"
+            + str(len(values) + 1),
+            *values,
+            query.limit + 1,
+        )
+        rows = rollup_rows([dict(row) for row in records], query, position)
+        return page(rows, query, "observation_rollups")
+
     def __init__(self, dsn: str, migrations: Path, *, tls: ssl.SSLContext | bool = True) -> None:
         self.dsn = dsn
         self.migrations = migrations
@@ -117,6 +236,7 @@ class PostgresStore:
         self.pool: asyncpg.Pool[Any] | None = None
         self._committed = State()
         self.before_commit: Callable[[], None] | None = None
+
         self._mutex = asyncio.Lock()
 
     async def open(self) -> None:
@@ -307,6 +427,8 @@ class PostgresStore:
     async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]:
         if table not in HISTORY_TABLES.values() or self.pool is None:
             raise ValueError("invalid_history_table")
+        if table == "source_observation_history":
+            return await self.observation_history(query)
         position = query.position(table)
         contract_match = f"{CONTRACT_SQL}=$1"
         if table in {"sm_episode", "deadline"}:
@@ -342,8 +464,19 @@ class PostgresStore:
         value = await self.pool.fetchval(
             "SELECT definition FROM registry_revision, "
             "LATERAL jsonb_array_elements(COALESCE(payload->'config'->'definitions','[]'::jsonb)) AS entries(definition) "
-            "WHERE definition->>'type_id'=$1 AND definition->>'type_version'=$2 LIMIT 1",
+            "WHERE definition->>'type_id'=$1 AND definition->>'type_version'=$2 ORDER BY (payload->>'revision')::bigint DESC LIMIT 1",
             type_id,
+            str(version),
+        )
+        return json.loads(value) if value is not None else None
+
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        value = await self.pool.fetchval(
+            "SELECT catalog FROM registry_revision, LATERAL jsonb_array_elements(COALESCE(payload->'config'->'catalogs','[]'::jsonb)) AS entries(catalog) "
+            "WHERE catalog->>'catalog_id'=$1 AND catalog->>'version'=$2 ORDER BY (payload->>'revision')::bigint DESC LIMIT 1",
+            catalog_id,
             str(version),
         )
         return json.loads(value) if value is not None else None
@@ -373,6 +506,13 @@ class PostgresStore:
         # Current evidence identities are primary keys. Do not turn this indexed
         # lookup into a scan via the legacy computed-reference OR predicate.
         direct = await self.get("source_observation_history", reference)
+        if direct is None and (scope := reference_scope(reference)):
+            watermark = await self.pool.fetchrow(
+                "SELECT max_sequence,retained_after FROM cc_evidence_watermark WHERE scope=$1",
+                scope[0],
+            )
+            if watermark and scope[1] <= watermark["max_sequence"]:
+                raise EvidenceOutsideRetention(reference, watermark["retained_after"].isoformat())
         if direct is not None or reference.startswith("v2:"):
             return direct
         value = await self.pool.fetchval(
@@ -410,6 +550,103 @@ class MemoryStore:
         self.available = True
         self.locked = True
         self.before_commit: Callable[[], None] | None = None
+        self.observation_rollups: dict[tuple[Any, ...], dict[str, Any]] = {}
+        self.evidence_watermarks: dict[str, tuple[int, str]] = {}
+
+    async def maintain_history(
+        self, state: State, now: datetime, policy: RetentionPolicy, *, dry_run: bool = False
+    ) -> dict[str, Any]:
+        await self.probe()
+        pins = pinned_references(state)
+        before = now - timedelta(days=policy.raw_days)
+        rows = sorted(
+            (
+                (key, row)
+                for key, row in self.state.tables["source_observation_history"].items()
+                if key not in pins and timestamp(row) < before
+            ),
+            key=lambda pair: (timestamp(pair[1]), pair[0]),
+        )[: policy.batch_size]
+        groups, watermarks = summaries(rows)
+        receipt = {
+            "selected": len(rows),
+            "rollup_groups": len(groups),
+            "pinned_references": len(pins),
+            "dry_run": dry_run,
+        }
+        if dry_run:
+            return receipt
+        updated = copy.deepcopy(self.observation_rollups)
+        for key, item in groups.items():
+            if key in updated:
+                old = updated[key]
+                item["count"] += old["count"]
+                item["numeric_count"] += old["numeric_count"]
+                item["total"] += old["total"]
+                item["minimum"] = (
+                    min(v for v in (item["minimum"], old["minimum"]) if v is not None)
+                    if item["numeric_count"]
+                    else None
+                )
+                item["maximum"] = (
+                    max(v for v in (item["maximum"], old["maximum"]) if v is not None)
+                    if item["numeric_count"]
+                    else None
+                )
+                item["first_at"], item["last_at"] = (
+                    min(item["first_at"], old["first_at"]),
+                    max(item["last_at"], old["last_at"]),
+                )
+            updated[key] = item
+        if self.before_commit:
+            self.before_commit()
+        self.observation_rollups = {
+            key: item
+            for key, item in updated.items()
+            if key[3] >= now - timedelta(days=policy.rollup_days)
+        }
+        for scope, sequence in watermarks.items():
+            self.evidence_watermarks[scope] = (
+                max(sequence, self.evidence_watermarks.get(scope, (-1, ""))[0]),
+                before.isoformat(),
+            )
+        for reference, _ in rows:
+            self.state.tables["source_observation_history"].pop(reference)
+        return receipt
+
+    async def rollups(self, query: HistoryQuery) -> dict[str, Any]:
+        await self.probe()
+        records = [
+            {
+                "source_id": key[0],
+                "binding_id": key[1],
+                "registry_revision": key[2],
+                "hour": key[3],
+                **item,
+            }
+            for key, item in self.observation_rollups.items()
+        ]
+        return page(
+            rollup_rows(records, query, query.position("observation_rollups")),
+            query,
+            "observation_rollups",
+        )
+
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None:
+        await self.probe()
+        return next(
+            (
+                copy.deepcopy(catalog)
+                for _, revision in sorted(
+                    self.state.tables["registry_revision"].items(),
+                    key=lambda row: int(row[0]),
+                    reverse=True,
+                )
+                for catalog in revision["config"].get("catalogs", [])
+                if (catalog["catalog_id"], catalog["version"]) == (catalog_id, version)
+            ),
+            None,
+        )
 
     async def probe(self) -> None:
         if not self.available or not self.locked:
@@ -500,7 +737,11 @@ class MemoryStore:
         return next(
             (
                 copy.deepcopy(definition)
-                for revision in self.state.tables["registry_revision"].values()
+                for _, revision in sorted(
+                    self.state.tables["registry_revision"].items(),
+                    key=lambda row: int(row[0]),
+                    reverse=True,
+                )
                 for definition in revision["config"].get("definitions", [])
                 if (definition["type_id"], definition["type_version"]) == (type_id, version)
             ),
@@ -528,6 +769,14 @@ class MemoryStore:
     async def evidence(self, reference: str) -> dict[str, Any] | None:
         await self.probe()
         direct = self.state.tables["source_observation_history"].get(reference)
+        if (
+            direct is None
+            and (scope := reference_scope(reference))
+            and scope[0] in self.evidence_watermarks
+        ):
+            maximum, cutoff = self.evidence_watermarks[scope[0]]
+            if scope[1] <= maximum:
+                raise EvidenceOutsideRetention(reference, cutoff)
         if direct is not None or reference.startswith("v2:"):
             return copy.deepcopy(direct)
         for table in ("source_observation_history", "source_observation_current"):

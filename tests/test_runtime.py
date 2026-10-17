@@ -137,7 +137,7 @@ def test_registry_rejects(config, mutation):
         validate(config, type_registry())
 
 
-def test_no_domain_contract_types():
+def test_builtin_fixtures_remain_identifiable():
     types = type_registry().types
     assert {name for name, _ in types} == {
         "test.echo",

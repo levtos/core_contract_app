@@ -215,6 +215,15 @@ wheels = [
 ]
 
 [[package]]
+name = "awesomeversion"
+version = "25.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/3a/c97ef69b8209aa9d7209b143345fe49c1e20126f62a775038ab6dcd78fd5/awesomeversion-25.8.0.tar.gz", hash = "sha256:e6cd08c90292a11f30b8de401863dcde7bc66a671d8173f9066ebd15d9310453", size = 70873, upload-time = "2025-08-03T08:54:07.854Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/b3/c6be343010721bfdd3058b708eb4868fa1a207534a3b6c80de74d35fb568/awesomeversion-25.8.0-py3-none-any.whl", hash = "sha256:1c314683abfcc3e26c62af9e609b585bbcbf2ec19568df2f60ff1034fb1dae28", size = 15919, upload-time = "2025-08-03T08:54:06.265Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -225,7 +234,7 @@ wheels = [
 
 [[package]]
 name = "core-contracts-platform"
-version = "1.0.0a7.post1"
+version = "1.0.0a8"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -238,6 +247,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "asyncpg-stubs" },
+    { name = "awesomeversion" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-aiohttp" },
@@ -259,6 +269,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "asyncpg-stubs", specifier = ">=0.31" },
+    { name = "awesomeversion", specifier = "==25.8.0" },
     { name = "mypy", specifier = ">=1.19" },
     { name = "pytest", specifier = ">=9" },
     { name = "pytest-aiohttp", specifier = ">=1.1" },

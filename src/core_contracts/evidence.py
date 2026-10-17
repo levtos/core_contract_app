@@ -27,7 +27,7 @@ class Freshness(Model):
 class Observation(Model):
     source_id: str
     binding_id: str
-    adapter: Literal["ha_state", "ha_attribute", "mqtt", "scheduler", "command"]
+    adapter: Literal["ha_state", "ha_attribute", "mqtt", "scheduler", "connectivity", "command"]
     source_origin: str = "local"
     value_raw: Any = None
     value_normalized: Any = None

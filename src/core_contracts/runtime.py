@@ -12,9 +12,13 @@ from uuid import uuid4
 
 from pydantic import Field, ValidationError, field_validator
 
-from .clock import Clock
-from .declarative import GuardEvaluationError
+from .calendar_inputs import project
+from .clock import Alarm, Clock
+from .declarative import GuardEvaluationError, all_rules
+from .declarative_models import FormulaRule
+from .engines import FORMULA_SCHEMAS
 from .evidence import Observation, assess, is_new, is_older
+from .lifecycle import EDITORIAL, transition_allowed
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
 from .producer import Context, Producer
@@ -74,10 +78,21 @@ class SnapshotBatch:
 
 class Runtime:
     def __init__(
-        self, store: Store, clock: Clock, types: TypeRegistry, *, queue_size: int = 256
+        self,
+        store: Store,
+        clock: Clock,
+        types: TypeRegistry,
+        *,
+        queue_size: int = 256,
+        require_history_retention: bool = False,
     ) -> None:
         self.store, self.clock, self.types = store, clock, types
+        self.require_history_retention = require_history_retention
         self.state = State()
+        self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
+        self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
+        self.reuse_unaffected = True
+        self.evaluation_stats = {"evaluated": 0, "reused": 0}
         self.queue: asyncio.Queue[Work] = asyncio.Queue(queue_size)
         self.task: asyncio.Task[None] | None = None
         self.confirmed = False
@@ -89,6 +104,9 @@ class Runtime:
         self.bridge_subscriptions = 0
         self.dependency_connections: dict[str, bool] = {}
         self.ha = "not_needed"
+        self.ha_changed_at = self.clock.now_utc()
+        self.next_retention = self.clock.now_utc()
+        self.retention_receipt: dict[str, Any] | None = None
         self.mqtt = "disabled"
         self.latest: dict[str, Observation] = {}
         self.overflow = False
@@ -97,6 +115,7 @@ class Runtime:
         self.overflow_bindings: set[str] = set()
         self.overflow_serial = 0
         self.next_evaluation: datetime | None = None
+        self.evaluation_alarm: Alarm | None = None
         self.last_clock = clock.now_utc()
         self.resubscribe = asyncio.Event()
         self.revision_changed = asyncio.Event()
@@ -114,7 +133,30 @@ class Runtime:
 
     @property
     def config(self) -> RegistryConfig | None:
-        return self._config(self.state)
+        revision = self.state.tables["registry_revision"].get(str(self.state.active_revision), {})
+        key = (self.state.active_revision, str(revision.get("checksum", "")))
+        if self._config_cache is None or self._config_cache[:2] != key:
+            self._config_cache = (*key, self._config(self.state))
+        return self._config_cache[2]
+
+    def _evaluation_plan(
+        self, state: State, config: RegistryConfig
+    ) -> tuple[dict[str, str], TypeRegistry, list[Contract]]:
+        revision = state.tables["registry_revision"].get(str(state.active_revision), {})
+        key = (
+            state.active_revision,
+            revision.get("checksum"),
+            tuple((key, id(value)) for key, value in self.types.types.items()),
+        )
+        if key not in self._plans:
+            self._plans[key] = (
+                fingerprints(config, self.types),
+                registry_types(config, self.types),
+                topological(config),
+            )
+            if len(self._plans) > 4:
+                self._plans.pop(next(iter(self._plans)))
+        return self._plans[key]
 
     @staticmethod
     def _config(state: State) -> RegistryConfig | None:
@@ -131,7 +173,36 @@ class Runtime:
             "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
             "reasons": self.readiness_reasons,
+            "ha_disconnected_since": self.ha_changed_at.isoformat()
+            if self.bridge == "unavailable"
+            else None,
+            "ha_unbounded_values": self._unbounded_ha_values(),
         }
+
+    def _unbounded_ha_values(self) -> int:
+        config = self.config
+        if config is None or self.bridge != "unavailable":
+            return 0
+        bindings = {b.source_id: b for b in config.bindings if b.adapter.kind.startswith("ha_")}
+        return sum(
+            1
+            for source in config.sources
+            if source.source_id in bindings
+            and source.freshness.mode == "event_stateful"
+            and assess(
+                Observation.model_validate(raw)
+                if (
+                    raw := self.state.tables["source_observation_current"].get(
+                        bindings[source.source_id].binding_id
+                    )
+                )
+                else None,
+                source.freshness,
+                self.clock.now_utc(),
+                source.source_id,
+            ).status
+            == "valid"
+        )
 
     @property
     def readiness_reasons(self) -> list[str]:
@@ -142,6 +213,10 @@ class Runtime:
             reasons.append("persistence_unavailable")
         if self.state.active_revision == 0:
             reasons.append("no_active_registry")
+        elif (
+            self.require_history_retention and self.config and self.config.history_retention is None
+        ):
+            reasons.append("history_retention_required")
         if self.requires_ha_snapshot and not self.first_snapshot:
             reasons.append("first_bridge_snapshot_pending")
         return reasons
@@ -161,19 +236,96 @@ class Runtime:
         from .validation import RegistryValidationError, ValidationIssue
 
         issues = []
-        for index, definition in enumerate(config.definitions):
-            previous = await self.store.definition(definition.type_id, definition.type_version)
-            if previous and checksum(
-                {k: v for k, v in previous.items() if k not in {"display_name", "description"}}
-            ) != checksum(
-                definition.model_dump(mode="json", exclude={"display_name", "description"})
+        for kind, objects, identity_key, version_key, getter in (
+            ("definitions", config.definitions, "type_id", "type_version", self.store.definition),
+            ("catalogs", config.catalogs, "catalog_id", "version", self.store.catalog),
+        ):
+            for index, item in enumerate(objects):
+                document = item.model_dump(mode="json")
+                identity = document[identity_key]
+                previous = await getter(identity, document[version_key])
+                if previous and checksum(
+                    {k: v for k, v in previous.items() if k not in EDITORIAL}
+                ) != checksum({k: v for k, v in document.items() if k not in EDITORIAL}):
+                    issues.append(
+                        ValidationIssue(
+                            code="immutable_definition_version",
+                            path=f"/{kind}/{index}/{version_key}",
+                            object_id=identity,
+                            message="immutable definition version"
+                            if kind == "definitions"
+                            else "immutable catalog version",
+                        )
+                    )
+                if previous and not transition_allowed(
+                    previous.get("lifecycle", "active"),
+                    document.get("lifecycle", "active"),
+                    document.get("reactivation_note"),
+                    previous.get("reactivation_note"),
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="lifecycle_transition",
+                            path=f"/{kind}/{index}/lifecycle",
+                            object_id=identity,
+                            message="explicit lifecycle transition or new reactivation note required",
+                        )
+                    )
+        old = {c.contract_id: c for c in self.config.contracts} if self.config else {}
+        retired = {
+            (d.type_id, d.type_version) for d in config.definitions if d.lifecycle == "retired"
+        }
+        for index, contract in enumerate(config.contracts):
+            prior = old.get(contract.contract_id)
+            definition = next(
+                (
+                    d
+                    for d in config.definitions
+                    if (d.type_id, d.type_version) == (contract.type_id, contract.type_version)
+                ),
+                None,
+            )
+            formula_retired = definition is not None and any(
+                isinstance(rule, FormulaRule)
+                and FORMULA_SCHEMAS[rule.name, rule.version].lifecycle == "retired"
+                for rule in all_rules(definition)
+            )
+            if (
+                contract.enabled
+                and ((contract.type_id, contract.type_version) in retired or formula_retired)
+                and (
+                    prior is None
+                    or not prior.enabled
+                    or (prior.type_id, prior.type_version)
+                    != (contract.type_id, contract.type_version)
+                )
             ):
                 issues.append(
                     ValidationIssue(
-                        code="immutable_definition_version",
-                        path=f"/definitions/{index}/type_version",
-                        object_id=definition.type_id,
-                        message="immutable definition version",
+                        code="version_retired",
+                        path=f"/contracts/{index}/type_version",
+                        object_id=contract.contract_id,
+                        message="retired version cannot be newly bound",
+                    )
+                )
+        old_bindings = {b.binding_id: b for b in self.config.bindings} if self.config else {}
+        retired_catalogs = {c.catalog_id for c in config.catalogs if c.lifecycle == "retired"}
+        for index, binding in enumerate(config.bindings):
+            if (
+                binding.transform
+                and binding.transform.catalog_id in retired_catalogs
+                and (
+                    binding.binding_id not in old_bindings
+                    or old_bindings[binding.binding_id].source_id != binding.source_id
+                    or old_bindings[binding.binding_id].transform != binding.transform
+                )
+            ):
+                issues.append(
+                    ValidationIssue(
+                        code="version_retired",
+                        path=f"/bindings/{index}/transform",
+                        object_id=binding.binding_id,
+                        message="retired catalog cannot be newly bound",
                     )
                 )
         if issues:
@@ -252,6 +404,9 @@ class Runtime:
                                 object_id=source.source_id,
                                 message=f"{field}: {old_text!r} aus Version {previous_revision} → {new_text!r}. Übernommene Quellen behalten Typ und Einheit; ihre Werteliste darf nur ergänzt werden.",
                                 parameters={
+                                    "source_name": source.display_name
+                                    or old.display_name
+                                    or source.source_id,
                                     "field": field,
                                     "oldValue": old_text,
                                     "newValue": new_text,
@@ -272,12 +427,7 @@ class Runtime:
 
     @property
     def ready(self) -> bool:
-        return (
-            not self.configuration_error
-            and self.persistence
-            and self.state.active_revision > 0
-            and (not self.requires_ha_snapshot or self.first_snapshot)
-        )
+        return not self.readiness_reasons
 
     @property
     def requires_ha_snapshot(self) -> bool:
@@ -286,7 +436,9 @@ class Runtime:
             return False
         needed = required_sources(config)
         return any(
-            b.source_id in needed and b.adapter.kind.startswith("ha_") for b in config.bindings
+            b.source_id in needed
+            and (b.adapter.kind.startswith("ha_") or b.adapter.kind == "connectivity")
+            for b in config.bindings
         )
 
     async def start(self) -> None:
@@ -324,7 +476,11 @@ class Runtime:
             for context in self._temporal_contexts(node):
                 if "temporal" in context:
                     context["restore_pending"] = copy.deepcopy(context["temporal"])
-        config = self._config(state)
+        config = (
+            self.config
+            if state.active_revision == self.state.active_revision
+            else self._config(state)
+        )
         if config:
             self._evaluate(state, config, origin="restore", initial_latches={})
         else:
@@ -460,31 +616,24 @@ class Runtime:
             return None
         if operation == "bridge_state":
             previous_bridge = self.bridge
+            previous_state = (self.bridge, self.ha)
             self.bridge, self.ha = payload
+            if previous_state != payload:
+                self.ha_changed_at = self.clock.now_utc()
             self.dependency_connections["ha"] = self.bridge == "connected"
             self._broadcast(self.service_state())
-            if (
-                self.bridge == "unavailable"
-                and previous_bridge != self.bridge
-                and self.persistence
-                and self.config
-            ):
+            if previous_state != payload and self.persistence and self.config:
                 staged = self.state.clone()
                 bindings = {
                     b.binding_id for b in self.config.bindings if b.adapter.kind.startswith("ha_")
                 }
-                self._gap(staged, "ha_disconnect")
-                self._invalidate(staged, self.config, bindings)
-                for binding in self.config.bindings:
-                    if binding.adapter.kind.startswith("ha_"):
-                        current_observation = staged.tables["source_observation_current"].get(
-                            binding.binding_id
-                        )
-                        if current_observation:
-                            current_observation["availability"] = "unavailable"
+                if self.bridge == "unavailable" and previous_bridge != "unavailable":
+                    self._gap(staged, "ha_disconnect")
+                    self._invalidate(staged, self.config, bindings)
                 self._evaluate(staged, self.config, origin="revision")
                 try:
                     await self._commit(staged, publication=True)
+                    self._broadcast(self.service_state())
                 except Exception as error:
                     LOGGER.warning(
                         "transport_status_uncommitted", extra={"error_type": type(error).__name__}
@@ -538,6 +687,15 @@ class Runtime:
         # conflict, duplicate event or failed command cannot discard the buffer.
         if self.overflow:
             await self._drain_overflow()
+        if operation in {"retention_preview", "retention_run"}:
+            if self.config is None or self.config.history_retention is None:
+                raise ValueError("history_retention_not_configured")
+            return await self.store.maintain_history(
+                self.state,
+                self.clock.now_utc(),
+                self.config.history_retention,
+                dry_run=operation == "retention_preview",
+            )
         if operation == "tick":
             try:
                 await self.store.probe()
@@ -545,6 +703,18 @@ class Runtime:
                 self._unavailable()
                 raise
             now = self.clock.now_utc()
+            if (
+                self.config
+                and (policy := self.config.history_retention)
+                and now >= self.next_retention
+            ):
+                self.retention_receipt = await self.store.maintain_history(self.state, now, policy)
+                self.next_retention = now + timedelta(
+                    seconds=60
+                    if self.retention_receipt["selected"] == policy.batch_size
+                    else policy.interval_s
+                )
+                self._plan_evaluation()
             clock_went_back = now < self.last_clock
             self.last_clock = now
             if not clock_went_back and (self.next_evaluation is None or now < self.next_evaluation):
@@ -935,6 +1105,8 @@ class Runtime:
             source = sources[ref]
             dependency = dependencies[source.dependency_id]
             available = self.dependency_connections.get(dependency.kind, True)
+            if dependency.kind == "ha" and dependency.monitor == "internal":
+                available = True  # Transport loss is not sensor evidence.
             if dependency.monitor == "source":
                 monitor = source_value(dependency.source_id or "", visited | {ref})
                 available = (
@@ -973,12 +1145,22 @@ class Runtime:
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
+        calendar_changed = self._calendar_observations(state, config, origin)
         now, seq = self.clock.now_utc(), state.publication_seq + 1
         self.pending_latches = copy.deepcopy(
             self.latches if initial_latches is None else initial_latches
         )
-        fps = fingerprints(config, self.types)
-        types = registry_types(config, self.types)
+        fps, types, order = self._evaluation_plan(state, config)
+        self.evaluation_stats = {"evaluated": 0, "reused": 0}
+        can_reuse = (
+            self.reuse_unaffected
+            and origin == "input"
+            and trigger_source is not None
+            and machine_override is None
+            and state.active_revision == self.state.active_revision
+            and now >= self.last_clock
+            and (self.next_evaluation is None or self.next_evaluation > now)
+        )
         self.pending_refresh = set()
         previous_config = self.config
         if previous_config:
@@ -993,10 +1175,12 @@ class Runtime:
                 ):
                     self._dispose(old, old_node, state)
                     old_node.pop("trace", None)
-        affected = affected_sources(config, {trigger_source}) if trigger_source else set()
+        affected = affected_sources(
+            config, ({trigger_source} if trigger_source else set()) | calendar_changed
+        )
         previous_contracts = state.tables["contract_state_current"]
         state.tables["contract_state_current"] = {}
-        for contract in topological(config):
+        for contract in order:
             key = contract.contract_id
             lifecycle = state.tables["contract_lifecycle"].get(key)
             if not contract.enabled:
@@ -1011,7 +1195,24 @@ class Runtime:
             )
             if triggered:
                 affected.add(key)
+            if (
+                can_reuse
+                and not triggered
+                and key in previous_contracts
+                and state.tables["node_state"].get(key, {}).get("fingerprint") == fps[key]
+            ):
+                state.tables["contract_state_current"][key] = previous_contracts[key]
+                self.evaluation_stats["reused"] += 1
+                continue
+            self.evaluation_stats["evaluated"] += 1
             contract_origin = "revision" if origin == "input" and not triggered else origin
+            if origin == "tick" and triggered:
+                contract_origin = "input"
+            if origin == "tick" and any(
+                datetime.fromisoformat(at) <= now
+                for at in state.tables["node_state"].get(key, {}).get("clock_due", [])
+            ):
+                contract_origin = "input"
             node = state.tables["node_state"].get(key)
             case = start_case(
                 ever_active=bool(lifecycle and lifecycle.get("ever_active")),
@@ -1338,12 +1539,64 @@ class Runtime:
                 }
             )
 
+    def _calendar_observations(self, state: State, config: RegistryConfig, origin: str) -> set[str]:
+        changed: set[str] = set()
+        now = self.clock.now_utc()
+        for binding in config.bindings:
+            calendar = binding.adapter.calendar
+            if calendar is None and binding.adapter.kind != "connectivity":
+                continue
+            if calendar is not None:
+                value, _ = project(calendar, now)
+            else:
+                value = (
+                    "ready"
+                    if self.bridge == "connected" and self.ha == "connected"
+                    else "starting"
+                    if self.ha in {"starting", "stopping"}
+                    else "unavailable"
+                    if self.bridge == "unavailable"
+                    else None
+                )
+            old = state.tables["source_observation_current"].get(binding.binding_id)
+            if old and old.get("value_raw") == value and old.get("observation_kind") != "restore":
+                continue
+            observation = Observation(
+                source_id=binding.source_id,
+                binding_id=binding.binding_id,
+                adapter="scheduler" if calendar is not None else "connectivity",
+                value_raw=value,
+                device_time=now,
+                received_at=now,
+                observation_kind="snapshot" if origin in {"restore", "revision"} else "live_change",
+                epoch_id=state.epoch_id,
+                ingest_seq=int(old["ingest_seq"]) + 1 if old else 0,
+                reference_version=2,
+                registry_revision=state.active_revision,
+                availability="available" if value is not None else "unknown",
+            )
+            state.tables["source_observation_current"][binding.binding_id] = (
+                observation.storage_document()
+            )
+            state.tables["source_observation_history"][observation.reference] = (
+                observation.storage_document()
+            )
+            changed.add(binding.source_id)
+        return changed
+
     def _plan_evaluation(self) -> None:
         now = self.clock.now_utc()
         due: list[datetime] = []
         config = self.config
         if config:
-            types = registry_types(config, self.types)
+            if config.history_retention:
+                due.append(self.next_retention)
+            due.extend(
+                project(binding.adapter.calendar, now)[1]
+                for binding in config.bindings
+                if binding.adapter.calendar is not None
+            )
+            _, types, _ = self._evaluation_plan(self.state, config)
             bindings = {b.source_id: b.binding_id for b in config.bindings}
             observations = self.state.tables["source_observation_current"]
             for source in config.sources:
@@ -1379,6 +1632,17 @@ class Runtime:
                     if at:
                         due.append(at)
         self.next_evaluation = min((at for at in due if at > now), default=None)
+        if self.evaluation_alarm:
+            self.evaluation_alarm.cancel()
+        if (
+            self.next_evaluation
+            and config
+            and (
+                any(b.adapter.calendar for b in config.bindings)
+                or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
+            )
+        ):
+            self.evaluation_alarm = self.clock.call_at_utc(self.next_evaluation, self.tick)
 
     def snapshot(self, contracts: list[str] | None = None) -> dict[str, Any]:
         items = self.state.tables["contract_state_current"]

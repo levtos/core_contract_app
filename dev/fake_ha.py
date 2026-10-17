@@ -37,7 +37,7 @@ class FakeHA:
                     ]
                 if kind.startswith("config/") and kind.endswith("_registry/list"):
                     result = self.registries.get(kind, [])
-                if kind == "core_contracts_bridge/info":
+                if kind == "bifrost/info":
                     if self.missing:
                         await socket.send_json(
                             {
@@ -57,7 +57,7 @@ class FakeHA:
                 await socket.send_json(
                     {"id": data["id"], "type": "result", "success": True, "result": result}
                 )
-                if kind == "core_contracts_bridge/subscribe":
+                if kind == "bifrost/subscribe":
                     await socket.send_json(
                         {
                             "id": data["id"],

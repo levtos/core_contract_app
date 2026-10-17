@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from .declarative import DefinitionValidationErrors, RuleValidationError, all_rules, compatible
 from .declarative_models import DeclarativeDefinition
+from .instance_parameters import validate_slots
 from .model import Model, canonical
 from .registry import (
     Binding,
@@ -312,17 +313,27 @@ def validate_document(
     addresses: set[tuple[str | None, ...]] = set()
     for index, binding in enumerate(config.bindings):
         path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
-        if adapter.kind == "scheduler":
-            add(
-                "adapter_unsupported",
-                path + "/adapter/kind",
-                "scheduler source adapter not implemented",
-                key,
-            )
+        if adapter.kind == "scheduler" and (
+            declared_source_clock := sources.get(binding.source_id)
+        ):
+            dep = dependencies.get(declared_source_clock.dependency_id)
+            if dep is None or dep.kind != "clock":
+                add(
+                    "scheduler_dependency",
+                    path + "/source_id",
+                    "scheduler requires clock dependency",
+                    key,
+                )
         address = (
             (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
             if adapter.kind.startswith("ha_")
-            else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
+            else (
+                adapter.kind,
+                canonical(adapter.calendar.model_dump())
+                if adapter.calendar
+                else adapter.mqtt_topic,
+                adapter.mqtt_value_path,
+            )
         )
         if address in addresses:
             add("duplicate_adapter", path + "/adapter", "duplicate adapter evidence path", key)
@@ -428,6 +439,8 @@ def validate_document(
             evaluation_cost += 2 * len(all_rules(declared_definition))
         try:
             declaration.parameters.model_validate(contract.parameters)
+            if declared_definition:
+                validate_slots(declared_definition, contract.parameters)
         except ValidationError as error:
             for finding in error.errors(include_input=False, include_url=False):
                 add(
@@ -436,6 +449,8 @@ def validate_document(
                     "config_incomplete: type or parameters",
                     key,
                 )
+        except ValueError, KeyError:
+            add("parameter.invalid_slot", path + "/parameters", "invalid parameter duration", key)
         if declaration.schema.grace_capable:
             duration = contract.parameters.get(declaration.schema.grace_parameter or "")
             if (

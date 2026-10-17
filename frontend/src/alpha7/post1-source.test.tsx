@@ -18,7 +18,9 @@ it('hides unused nullable freshness fields and shows required fields only in the
 });
 
 it('explains a source lock with field, old and new value and the historical version', () => {
-  const text = validationLabel({ code: 'immutable_source_type', path: '/sources/0/value_schema/unit', object_id: 'source.test', message: 'technical', parameters: { field: 'value_schema/unit', oldValue: '°C', newValue: '°F', revision: '3' } });
+  const text = validationLabel({ code: 'immutable_source_type', path: '/sources/0/value_schema/unit', object_id: 'source.test', message: 'technical', parameters: { source_name: 'Zimmerthermometer', field: 'value_schema/unit', oldValue: '°C', newValue: '°F', revision: '3' } });
+  expect(text).toContain('Quelle „Zimmerthermometer“');
+  expect(text).not.toContain('source.test');
   expect(text).toContain('Einheit war in Version 3 „°C“');
   expect(text).toContain('jetzt „°F“');
 });

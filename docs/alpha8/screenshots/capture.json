@@ -1,0 +1,13 @@
+{
+  "browser": "Firefox",
+  "viewport": {
+    "width": 1568,
+    "height": 710
+  },
+  "source": "dev/workbench_demo.py --alpha8",
+  "externalSystems": false,
+  "parameterEdited": 20,
+  "activeParameterUnchanged": 19,
+  "pageErrors": [],
+  "capturedAt": "2026-10-17T11:06:01.402Z"
+}

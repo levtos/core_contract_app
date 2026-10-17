@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
+from .lifecycle import Lifecycle
 from .model import Model
 from .schema import FieldSchema, Schema
 
@@ -37,6 +38,42 @@ class TypedInput(DeclarativeModel):
 class InputRule(Model):
     op: Literal["input"]
     name: Identifier
+
+
+class ParameterRule(Model):
+    op: Literal["parameter"]
+    name: Identifier
+
+
+Duration = Annotated[float, Field(gt=0, le=31_536_000)] | ParameterRule
+
+
+class ParameterDefinition(DeclarativeModel):
+    field_schema: FieldSchema = Field(alias="schema")
+    minimum: float | None = None
+    maximum: float | None = None
+    label: str = ""
+    description: str = ""
+
+    @model_validator(mode="after")
+    def coherent(self) -> Self:
+        if self.field_schema.type == "object":
+            raise ValueError("scalar_parameter_required")
+        if self.field_schema.type == "enum" and not self.field_schema.value_catalog:
+            raise ValueError("enum_catalog_required")
+        if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
+            raise ValueError("parameter_bounds")
+        if self.field_schema.type != "number" and (
+            self.minimum is not None or self.maximum is not None
+        ):
+            raise ValueError("numeric_parameter_bounds_required")
+        return self
+
+
+class ParameterRelation(Model):
+    left: Identifier
+    comparison: Literal["lt", "le", "eq", "ne", "ge", "gt"]
+    right: Identifier
 
 
 class ReferenceRule(Model):
@@ -97,17 +134,92 @@ class FirstMatchRule(Model):
     cases: tuple[Case, ...] = Field(min_length=1, max_length=MAX_INPUTS)
 
 
-class BucketRule(Model):
+class BucketInitial(DeclarativeModel):
+    class_value: Any = Field(default=None, alias="class", exclude_if=lambda value: value is None)
+    unknown: bool = False
+
+    @model_validator(mode="after")
+    def one_choice(self) -> Self:
+        if ("class_value" in self.model_fields_set) == self.unknown:
+            raise ValueError("bucket_initial_choice")
+        return self
+
+
+class HysteresisBoundary(Model):
+    lower: Rule
+    upper: Rule
+
+
+class BucketBoundary(Model):
+    at: Rule
+    hysteresis: HysteresisBoundary | None = None
+
+
+class BucketRule(DeclarativeModel):
     op: Literal["bucket"]
     id: Identifier
     arg: Rule
-    initial: bool
-    lower: float
-    upper: float
+    initial: bool | BucketInitial
+    lower: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    upper: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    classes: tuple[Any, ...] = Field(default=(), max_length=64, exclude_if=lambda value: not value)
+    boundaries: tuple[BucketBoundary, ...] = Field(
+        default=(), max_length=63, exclude_if=lambda value: not value
+    )
+    field_schema: FieldSchema | None = Field(
+        default=None, alias="schema", exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def bounds(self) -> Self:
-        if self.lower > self.upper:
+        if self.classes:
+            if (
+                len(self.classes) < 2
+                or len(self.boundaries) != len(self.classes) - 1
+                or self.field_schema is None
+            ):
+                raise ValueError("bucket_classes_and_boundaries_required")
+            if (
+                self.lower is not None
+                or self.upper is not None
+                or not isinstance(self.initial, BucketInitial)
+            ):
+                raise ValueError("bucket_mode_mismatch")
+            if (
+                self.field_schema.type == "object"
+                or any(not self.field_schema.accepts(v) for v in self.classes)
+                or any(a == b for i, a in enumerate(self.classes) for b in self.classes[i + 1 :])
+            ):
+                raise ValueError("bucket_class_type_mismatch")
+            if not self.initial.unknown and self.initial.class_value not in self.classes:
+                raise ValueError("bucket_initial_class")
+            literal_bands = []
+            for boundary in self.boundaries:
+                nodes = (
+                    [boundary.at, boundary.hysteresis.lower, boundary.hysteresis.upper]
+                    if boundary.hysteresis
+                    else [boundary.at] * 3
+                )
+                if all(
+                    isinstance(node, LiteralRule) and type(node.value) in {int, float}
+                    for node in nodes
+                ):
+                    literal_bands.append(
+                        tuple(node.value for node in nodes if isinstance(node, LiteralRule))
+                    )
+            if len(literal_bands) == len(self.boundaries) and (
+                any(not lower <= at <= upper for at, lower, upper in literal_bands)
+                or any(a[2] >= b[1] for a, b in zip(literal_bands, literal_bands[1:]))
+            ):
+                raise ValueError("invalid_bucket_boundaries")
+        elif (
+            not isinstance(self.initial, bool)
+            or self.lower is None
+            or self.upper is None
+            or self.lower > self.upper
+            or self.boundaries
+            or self.field_schema
+        ):
             raise ValueError("invalid_hysteresis_bounds")
         return self
 
@@ -116,7 +228,7 @@ class FormulaRule(Model):
     op: Literal["formula"]
     name: str
     version: int = Field(ge=1)
-    args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
+    args: tuple[Rule, ...] | dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_INPUTS)
 
 
 class FusionRule(Model):
@@ -130,7 +242,7 @@ class TemporalRule(Model):
     id: Identifier
     operation: Literal["stable_for", "dwell", "grace", "edge", "delta", "age"]
     args: tuple[Rule, ...] = Field(min_length=1, max_length=2)
-    duration_s: float = Field(gt=0, le=31_536_000)
+    duration_s: Duration
     accepts_held: bool = False
 
     @model_validator(mode="after")
@@ -149,8 +261,38 @@ class NotApplicableRule(Model):
     arg: Rule
 
 
+class TimeReachedRule(Model):
+    op: Literal["time_reached"]
+    at: Rule
+
+
+class ConfigurationHintRule(Model):
+    op: Literal["configuration_hint"]
+    arg: Rule
+    when: Rule
+    code: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    message: str = Field(default="", max_length=256)
+
+
+class TextRule(Model):
+    op: Literal["lower", "strip", "normalize_key", "matches", "contains", "compound_key"]
+    args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
+    delimiters: str = Field(default="_- ", max_length=16)
+    separator: str = Field(default=" ", max_length=8)
+
+    @model_validator(mode="after")
+    def arity(self) -> Self:
+        count = len(self.args)
+        if (self.op in {"lower", "strip", "normalize_key"} and count != 1) or (
+            self.op in {"matches", "contains"} and count != 2
+        ):
+            raise ValueError("text_argument_count")
+        return self
+
+
 Rule = Annotated[
     InputRule
+    | ParameterRule
     | ReferenceRule
     | LiteralRule
     | BooleanRule
@@ -162,7 +304,10 @@ Rule = Annotated[
     | FusionRule
     | TemporalRule
     | MachineRule
-    | NotApplicableRule,
+    | NotApplicableRule
+    | TimeReachedRule
+    | TextRule
+    | ConfigurationHintRule,
     Field(discriminator="op"),
 ]
 
@@ -195,7 +340,7 @@ class MachineDefinition(Model):
     initial: Identifier
     transitions: tuple[TransitionDefinition, ...] = Field(max_length=128)
     commands: dict[Identifier, CommandDefinition] = Field(default_factory=dict, max_length=32)
-    deadline_s: float | None = Field(default=None, gt=0, le=31_536_000)
+    deadline_s: Duration | None = None
     sessions: bool = False
     reinitialize_when: Rule
     # Omit the additive false default so released definition fingerprints stay stable.
@@ -232,17 +377,27 @@ class MachineDefinition(Model):
 
 
 class DeclarativeDefinition(DeclarativeModel):
-    type_id: str = Field(pattern=r"^test\.[a-zA-Z0-9_.-]+$")
+    type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
-    language_version: Literal[1] = 1
+    language_version: Literal[1, 2] = 1
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
+    lifecycle: Lifecycle = Field(default="active", exclude_if=lambda value: value == "active")
+    reactivation_note: str | None = Field(
+        default=None, max_length=256, exclude_if=lambda value: value is None
+    )
     refresh_inputs: tuple[Identifier, ...] = Field(default=(), max_length=MAX_INPUTS)
     output_schema: Schema = Field(alias="schema")
     rules: dict[Identifier, Rule] = Field(default_factory=dict, max_length=MAX_NODES)
     outputs: dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_FIELDS)
     machine: MachineDefinition | None = None
+    parameter_schema: dict[Identifier, ParameterDefinition] = Field(
+        default_factory=dict, max_length=MAX_INPUTS, exclude_if=lambda value: not value
+    )
+    parameter_relations: tuple[ParameterRelation, ...] = Field(
+        default=(), max_length=MAX_INPUTS, exclude_if=lambda value: not value
+    )
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
@@ -252,10 +407,29 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("unknown_refresh_input")
         if self.outputs.keys() != self.output_schema.fields.keys():
             raise ValueError("output_schema_mismatch")
-        if not self.output_schema.fixture:
-            raise ValueError("phase_one_requires_fixture")
         if self.output_schema.grace_capable:
             raise ValueError("declarative_grace_uses_rule_duration")
+        if self.parameter_schema and self.language_version != 2:
+            raise ValueError("language_version_2_required")
+        for name in self.parameter_schema:
+            if name.startswith("model_") or hasattr(Model, name):
+                raise ValueError("reserved_parameter_name")
+        for relation in self.parameter_relations:
+            if (
+                relation.left not in self.parameter_schema
+                or relation.right not in self.parameter_schema
+            ):
+                raise ValueError("unknown_parameter_relation")
+            left = self.parameter_schema[relation.left].field_schema
+            right = self.parameter_schema[relation.right].field_schema
+            if left.type != right.type or left.unit != right.unit:
+                raise ValueError("parameter_relation_type_mismatch")
+            if relation.comparison not in {"eq", "ne"} and left.type not in {
+                "number",
+                "text",
+                "timestamp",
+            }:
+                raise ValueError("unordered_parameter_relation")
         return self
 
 
@@ -266,12 +440,17 @@ for _model in (
     Case,
     FirstMatchRule,
     BucketRule,
+    BucketBoundary,
+    HysteresisBoundary,
     FormulaRule,
     FusionRule,
     TemporalRule,
     TransitionDefinition,
     MachineDefinition,
     NotApplicableRule,
+    TimeReachedRule,
+    TextRule,
+    ConfigurationHintRule,
     DeclarativeDefinition,
 ):
     _model.model_rebuild()

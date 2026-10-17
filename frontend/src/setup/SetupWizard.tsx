@@ -277,10 +277,10 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
               <ol className="list-decimal space-y-1.5 pl-6 text-sm text-muted">
                 <li>{uiText("setup.SetupWizard.in_hacs_d237bf")}<code>{uiText("setup.SetupWizard.levtos_core_contract_app_991b3f")}</code> {uiText("setup.SetupWizard.als_benutzerdefinierte_integration_hinzufugen_un_a896fe")}</li>
                 <li>{uiText("setup.SetupWizard.ha_core_neustart_selbst_nach_prufung_des_wartung_195f96")}</li>
-                <li>{uiText("setup.SetupWizard.in_ha_core_contracts_bridge_hinzufugen_domain_34a2b1")}<code>{uiText("setup.SetupWizard.core_contracts_bridge_694370")}</code>{uiText("setup.SetupWizard.legacy_integration_nicht_auswahlen_3a1ea1")}</li>
+                <li>{uiText("setup.SetupWizard.in_ha_bifrost_hinzufugen_domain_34a2b1")}<code>{uiText("setup.SetupWizard.bifrost_694370")}</code>{uiText("setup.SetupWizard.legacy_integration_nicht_auswahlen_3a1ea1")}</li>
               </ol>
               <div>
-                <a className="text-sm text-accent underline-offset-2 hover:underline" href="https://my.home-assistant.io/redirect/config_flow_start?domain=core_contracts_bridge" target="_blank" rel="noreferrer">
+                <a className="text-sm text-accent underline-offset-2 hover:underline" href="https://my.home-assistant.io/redirect/config_flow_start?domain=bifrost" target="_blank" rel="noreferrer">
                   {uiText("setup.SetupWizard.bridge_konfiguration_in_ha_offnen_473fc7")}</a>
               </div>
             </>
@@ -293,7 +293,7 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
                 disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')}
                 onClick={() =>
                   action(async () => {
-                    if (window.confirm(uiText("setup.SetupWizard.genau_einen_core_contracts_bridge_eintrag_in_ha__95dd29"))) {
+                    if (window.confirm(uiText("setup.SetupWizard.genau_einen_bifrost_eintrag_in_ha__95dd29"))) {
                       await setupRequest('bridge_configure', { confirm: true }, csrf);
                       await refresh();
                     }
