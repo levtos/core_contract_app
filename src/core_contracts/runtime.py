@@ -1470,7 +1470,14 @@ class Runtime:
         self.next_evaluation = min((at for at in due if at > now), default=None)
         if self.evaluation_alarm:
             self.evaluation_alarm.cancel()
-        if self.next_evaluation and config and (any(b.adapter.calendar for b in config.bindings) or any(node.get("clock_due") for node in self.state.tables["node_state"].values())):
+        if (
+            self.next_evaluation
+            and config
+            and (
+                any(b.adapter.calendar for b in config.bindings)
+                or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
+            )
+        ):
             self.evaluation_alarm = self.clock.call_at_utc(self.next_evaluation, self.tick)
 
     def snapshot(self, contracts: list[str] | None = None) -> dict[str, Any]:

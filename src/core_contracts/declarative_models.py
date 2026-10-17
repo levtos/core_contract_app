@@ -265,6 +265,22 @@ class TimeReachedRule(Model):
     at: Rule
 
 
+class TextRule(Model):
+    op: Literal["lower", "strip", "normalize_key", "matches", "contains", "compound_key"]
+    args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
+    delimiters: str = Field(default="_- ", max_length=16)
+    separator: str = Field(default=" ", max_length=8)
+
+    @model_validator(mode="after")
+    def arity(self) -> Self:
+        count = len(self.args)
+        if (self.op in {"lower", "strip", "normalize_key"} and count != 1) or (
+            self.op in {"matches", "contains"} and count != 2
+        ):
+            raise ValueError("text_argument_count")
+        return self
+
+
 Rule = Annotated[
     InputRule
     | ParameterRule
@@ -280,7 +296,8 @@ Rule = Annotated[
     | TemporalRule
     | MachineRule
     | NotApplicableRule
-    | TimeReachedRule,
+    | TimeReachedRule
+    | TextRule,
     Field(discriminator="op"),
 ]
 
@@ -418,6 +435,7 @@ for _model in (
     MachineDefinition,
     NotApplicableRule,
     TimeReachedRule,
+    TextRule,
     DeclarativeDefinition,
 ):
     _model.model_rebuild()

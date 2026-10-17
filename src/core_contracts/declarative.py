@@ -22,6 +22,7 @@ from .quality import FieldValue, ReasonCode, derive, unknown
 from .resolver import Bucket, boolean, compare, first_match
 from .schema import ContractType, FieldSchema, InputDeclaration
 from .statemachine import Definition, Guard, Machine, Transition
+from .text_rules import evaluate_text
 
 
 class EmptyParameters(Model):
@@ -79,7 +80,9 @@ def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
             for index, case in enumerate(rule.cases)
             for name, child in (("when", case.when), ("then", case.then))
         ]
-    if isinstance(rule, (dm.BooleanRule, dm.FormulaRule, dm.FusionRule, dm.TemporalRule)):
+    if isinstance(
+        rule, (dm.BooleanRule, dm.FormulaRule, dm.FusionRule, dm.TemporalRule, dm.TextRule)
+    ):
         return [(f"args/{index}", child) for index, child in enumerate(rule.args)]
     return []
 
@@ -242,6 +245,12 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.LiteralRule):
             return rule.field_schema
         args = [infer(child, guard=guard, depth=depth + 1) for child in children(rule)]
+        if isinstance(rule, dm.TextRule):
+            if definition.language_version != 2:
+                raise ValueError("language_version_2_required")
+            for arg in args:
+                require(arg, scalar("text"))
+            return scalar("bool" if rule.op in {"contains", "matches"} else "text")
         if isinstance(rule, dm.TimeReachedRule):
             if definition.language_version != 2:
                 raise ValueError("language_version_2_required")
@@ -520,6 +529,8 @@ class Evaluation:
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.TextRule):
+            return evaluate_text(rule, args, now)
         if isinstance(rule, dm.TimeReachedRule):
             if not args[0].usable(now):
                 return derive(None, args, now)
