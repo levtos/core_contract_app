@@ -12,7 +12,8 @@ from uuid import uuid4
 
 from pydantic import Field, ValidationError, field_validator
 
-from .clock import Clock
+from .calendar_inputs import project
+from .clock import Alarm, Clock
 from .declarative import GuardEvaluationError
 from .evidence import Observation, assess, is_new, is_older
 from .model import Model, canonical, checksum, utc
@@ -97,6 +98,7 @@ class Runtime:
         self.overflow_bindings: set[str] = set()
         self.overflow_serial = 0
         self.next_evaluation: datetime | None = None
+        self.evaluation_alarm: Alarm | None = None
         self.last_clock = clock.now_utc()
         self.resubscribe = asyncio.Event()
         self.revision_changed = asyncio.Event()
@@ -973,6 +975,7 @@ class Runtime:
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
+        calendar_changed = self._calendar_observations(state, config, origin)
         now, seq = self.clock.now_utc(), state.publication_seq + 1
         self.pending_latches = copy.deepcopy(
             self.latches if initial_latches is None else initial_latches
@@ -993,7 +996,9 @@ class Runtime:
                 ):
                     self._dispose(old, old_node, state)
                     old_node.pop("trace", None)
-        affected = affected_sources(config, {trigger_source}) if trigger_source else set()
+        affected = affected_sources(
+            config, ({trigger_source} if trigger_source else set()) | calendar_changed
+        )
         previous_contracts = state.tables["contract_state_current"]
         state.tables["contract_state_current"] = {}
         for contract in topological(config):
@@ -1012,6 +1017,13 @@ class Runtime:
             if triggered:
                 affected.add(key)
             contract_origin = "revision" if origin == "input" and not triggered else origin
+            if origin == "tick" and triggered:
+                contract_origin = "input"
+            if origin == "tick" and any(
+                datetime.fromisoformat(at) <= now
+                for at in state.tables["node_state"].get(key, {}).get("clock_due", [])
+            ):
+                contract_origin = "input"
             node = state.tables["node_state"].get(key)
             case = start_case(
                 ever_active=bool(lifecycle and lifecycle.get("ever_active")),
@@ -1338,11 +1350,49 @@ class Runtime:
                 }
             )
 
+    def _calendar_observations(self, state: State, config: RegistryConfig, origin: str) -> set[str]:
+        changed: set[str] = set()
+        now = self.clock.now_utc()
+        for binding in config.bindings:
+            calendar = binding.adapter.calendar
+            if calendar is None:
+                continue
+            value, _ = project(calendar, now)
+            old = state.tables["source_observation_current"].get(binding.binding_id)
+            if old and old.get("value_raw") == value and old.get("observation_kind") != "restore":
+                continue
+            observation = Observation(
+                source_id=binding.source_id,
+                binding_id=binding.binding_id,
+                adapter="scheduler",
+                value_raw=value,
+                device_time=now,
+                received_at=now,
+                observation_kind="snapshot" if origin in {"restore", "revision"} else "live_change",
+                epoch_id=state.epoch_id,
+                ingest_seq=int(old["ingest_seq"]) + 1 if old else 0,
+                reference_version=2,
+                registry_revision=state.active_revision,
+            )
+            state.tables["source_observation_current"][binding.binding_id] = (
+                observation.storage_document()
+            )
+            state.tables["source_observation_history"][observation.reference] = (
+                observation.storage_document()
+            )
+            changed.add(binding.source_id)
+        return changed
+
     def _plan_evaluation(self) -> None:
         now = self.clock.now_utc()
         due: list[datetime] = []
         config = self.config
         if config:
+            due.extend(
+                project(binding.adapter.calendar, now)[1]
+                for binding in config.bindings
+                if binding.adapter.calendar is not None
+            )
             types = registry_types(config, self.types)
             bindings = {b.source_id: b.binding_id for b in config.bindings}
             observations = self.state.tables["source_observation_current"]
@@ -1379,6 +1429,10 @@ class Runtime:
                     if at:
                         due.append(at)
         self.next_evaluation = min((at for at in due if at > now), default=None)
+        if self.evaluation_alarm:
+            self.evaluation_alarm.cancel()
+        if self.next_evaluation:
+            self.evaluation_alarm = self.clock.call_at_utc(self.next_evaluation, self.tick)
 
     def snapshot(self, contracts: list[str] | None = None) -> dict[str, Any]:
         items = self.state.tables["contract_state_current"]

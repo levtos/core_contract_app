@@ -313,17 +313,27 @@ def validate_document(
     addresses: set[tuple[str | None, ...]] = set()
     for index, binding in enumerate(config.bindings):
         path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
-        if adapter.kind == "scheduler":
-            add(
-                "adapter_unsupported",
-                path + "/adapter/kind",
-                "scheduler source adapter not implemented",
-                key,
-            )
+        if adapter.kind == "scheduler" and (
+            declared_source_clock := sources.get(binding.source_id)
+        ):
+            dep = dependencies.get(declared_source_clock.dependency_id)
+            if dep is None or dep.kind != "clock":
+                add(
+                    "scheduler_dependency",
+                    path + "/source_id",
+                    "scheduler requires clock dependency",
+                    key,
+                )
         address = (
             (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
             if adapter.kind.startswith("ha_")
-            else (adapter.kind, adapter.mqtt_topic, adapter.mqtt_value_path)
+            else (
+                adapter.kind,
+                canonical(adapter.calendar.model_dump())
+                if adapter.calendar
+                else adapter.mqtt_topic,
+                adapter.mqtt_value_path,
+            )
         )
         if address in addresses:
             add("duplicate_adapter", path + "/adapter", "duplicate adapter evidence path", key)

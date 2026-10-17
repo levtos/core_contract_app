@@ -54,6 +54,8 @@ def map_key(value: Any) -> str:
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
+    if isinstance(rule, dm.TimeReachedRule):
+        return [("at", rule.at)]
     if isinstance(rule, dm.CompareRule):
         return [("left", rule.left), ("right", rule.right)]
     if isinstance(rule, (dm.MapRule, dm.BucketRule, dm.NotApplicableRule)):
@@ -227,6 +229,11 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.LiteralRule):
             return rule.field_schema
         args = [infer(child, guard=guard, depth=depth + 1) for child in children(rule)]
+        if isinstance(rule, dm.TimeReachedRule):
+            if definition.language_version != 2:
+                raise ValueError("language_version_2_required")
+            require(args[0], FieldSchema(type="timestamp", required=True, physical_state=False))
+            return scalar("bool")
         if isinstance(rule, dm.BooleanRule):
             for arg in args:
                 require(arg, scalar("bool"))
@@ -491,6 +498,13 @@ class Evaluation:
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.TimeReachedRule):
+            if not args[0].usable(now):
+                return derive(None, args, now)
+            target = datetime.fromisoformat(args[0].value)
+            if self.context and target > now:
+                self.context.node.setdefault("clock_due", []).append(target.isoformat())
+            return derive(now >= target, args, now)
         if isinstance(rule, dm.BooleanRule):
             return boolean(rule.op, args, now)
         if isinstance(rule, dm.NotApplicableRule):
@@ -697,6 +711,8 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
     temporal_rules = [r for r in all_rules(definition) if isinstance(r, dm.TemporalRule)]
 
     def evaluate(ctx: Context) -> dict[str, FieldValue]:
+        if any(isinstance(r, dm.TimeReachedRule) for r in all_rules(definition)):
+            ctx.node["clock_due"] = []
         for name in definition.refresh_inputs:
             requested = ctx.node.setdefault("refresh", {})
             if ctx.input(name).usable(ctx.now):
@@ -737,6 +753,7 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
             for rule in temporal_rules
         ]
         due.append(next_machine_due(parameters, node, now))
+        due.extend(datetime.fromisoformat(at) for at in node.get("clock_due", []))
         return min((at for at in due if at is not None and at > now), default=None)
 
     return ContractType(

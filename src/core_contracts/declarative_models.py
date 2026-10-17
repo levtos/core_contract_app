@@ -185,6 +185,11 @@ class NotApplicableRule(Model):
     arg: Rule
 
 
+class TimeReachedRule(Model):
+    op: Literal["time_reached"]
+    at: Rule
+
+
 Rule = Annotated[
     InputRule
     | ParameterRule
@@ -199,7 +204,8 @@ Rule = Annotated[
     | FusionRule
     | TemporalRule
     | MachineRule
-    | NotApplicableRule,
+    | NotApplicableRule
+    | TimeReachedRule,
     Field(discriminator="op"),
 ]
 
@@ -334,6 +340,7 @@ for _model in (
     TransitionDefinition,
     MachineDefinition,
     NotApplicableRule,
+    TimeReachedRule,
     DeclarativeDefinition,
 ):
     _model.model_rebuild()

@@ -17,7 +17,7 @@ from .schema import ContractType, FieldSchema, TypeRegistry
 
 class Dependency(Model):
     dependency_id: str
-    kind: Literal["ha", "mqtt", "other"]
+    kind: Literal["ha", "mqtt", "other", "clock"]
     monitor: Literal["internal", "source"]
     source_id: str | None = None
 
