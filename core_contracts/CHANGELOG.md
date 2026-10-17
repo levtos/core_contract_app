@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0a7.post1 — UX-Live-Test-Korrekturen (vorbereitet, 2026-10-17)
+
+- Gemeinsamer Vertragszustand, konkrete Typkonflikte, Rundung und verständliche Fehleranzeige.
+- Quellenführung/Aktualität, Ja/Nein-Verlauf, Eingang mit Wertalter und deutsche Texte korrigiert.
+- [Umfang, Nachweise und Versionsreihenfolge](https://github.com/levtos/core_contract_app/blob/main/docs/releases/1.0.0a7.post1.md).
+  Veröffentlichung und Installation erst nach Bennis neuem Go; kein DB-Reset.
+
 ## 1.0.0a7 — Terra nach Aufgaben bedienen (vorbereitet, 2026-10-17)
 
 - Module mit eigenen Unterseiten, geführte Geräteanlage, einfache Entwürfe und verständliche Vertragswerte.

@@ -179,3 +179,5 @@ Barrierefreiheitsabnahme bleiben eigenständige Nachweise. Merge, Tag, Release,
 Image-Publish und Installation erfordern Bennis ausdrückliches neues Go.
 
 Alpha-7-Nachprüfung: [Korrekturen K.01–K.06 mit 18 neuen Browserbildern](alpha7/KORREKTUREN.md).
+
+Alpha-7-Korrektur `1.0.0a7.post1`: [Befunde B1–B11 und acht gezielte Firefox-Bilder](alpha7-post1/KORREKTUR.md).
