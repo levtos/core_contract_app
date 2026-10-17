@@ -77,3 +77,24 @@ def test_parameter_values_affect_fingerprint_display_name_does_not(config):
     assert fingerprints(validate(doc, type_registry()), type_registry()) == first
     doc["contracts"][0]["parameters"]["near"] = 20
     assert fingerprints(validate(doc, type_registry()), type_registry()) != first
+
+
+@pytest.mark.parametrize(
+    "comparison,near,far",
+    [
+        ("lt", "2026-01-01T12:00:00+02:00", "2026-01-01T11:00:00Z"),
+        ("eq", "2026-01-01T12:00:00+02:00", "2026-01-01T10:00:00Z"),
+    ],
+)
+def test_timestamp_relations_compare_instants_instead_of_offset_strings(
+    config, comparison, near, far
+):
+    doc = parameterized(config)
+    definition = doc["definitions"][0]
+    definition["parameter_schema"] = {
+        name: {"schema": schema("timestamp")} for name in ("near", "far")
+    }
+    definition["parameter_relations"][0]["comparison"] = comparison
+    definition["schema"]["fields"]["value"] = schema("timestamp")
+    doc["contracts"][0]["parameters"] = {"near": near, "far": far}
+    validate(doc, type_registry())

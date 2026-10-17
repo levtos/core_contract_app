@@ -1,6 +1,7 @@
 """Closed instance configuration, shared by activation, evaluation and scheduling."""
 
 import operator
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model, model_validator
@@ -27,13 +28,16 @@ def parameter_model(definition: dm.DeclarativeDefinition) -> type[BaseModel]:
                 if not definition.parameter_schema[key].field_schema.accepts(value):
                     raise ValueError("parameter_type_mismatch")
             for relation in definition.parameter_relations:
+                if relation.left not in values or relation.right not in values:
+                    raise ValueError("parameter_relation_failed")
+                left, right = values[relation.left], values[relation.right]
                 if (
-                    relation.left not in values
-                    or relation.right not in values
-                    or not COMPARISONS[relation.comparison](
-                        values[relation.left], values[relation.right]
-                    )
+                    definition.parameter_schema[relation.left].field_schema.type == "timestamp"
+                    and left is not None
+                    and right is not None
                 ):
+                    left, right = datetime.fromisoformat(left), datetime.fromisoformat(right)
+                if not COMPARISONS[relation.comparison](left, right):
                     raise ValueError("parameter_relation_failed")
             return self
 
