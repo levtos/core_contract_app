@@ -78,6 +78,7 @@ async def database_probe():
                 """INSERT INTO source_observation_history(key,payload)
                    SELECT 'v2:scale:1:ha_state:'||n||':binding.a',
                           $1::jsonb || jsonb_build_object('ingest_seq',n,
+                            'source_id',CASE WHEN n%100=0 THEN 'source.a' ELSE 'source.b' END,
                             'received_at',to_char('2025-12-01T00:00:00Z'::timestamptz+n*interval '0.5 second','YYYY-MM-DD"T"HH24:MI:SS.USOF'))
                    FROM generate_series($2::int,$3::int) n""",
                 json.dumps(template),
@@ -105,9 +106,7 @@ async def database_probe():
                     "SELECT h.key,h.payload FROM cc_observation_index i JOIN source_observation_history h ON h.key=i.reference WHERE i.source_id=$1 AND i.received_at>=$2::timestamptz ORDER BY i.received_at DESC,i.reference DESC LIMIT 201",
                     (
                         "source.a",
-                        datetime.fromisoformat(
-                            template["received_at"].replace("2026-01-01", "2025-12-01")
-                        ),
+                        datetime.fromisoformat("2025-12-01T00:00:00+00:00"),
                     ),
                 ),
             ):
@@ -121,6 +120,8 @@ async def database_probe():
                     await writer.fetchval("EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + query, *args)
                 )[0]
                 assert "Index" in str(plans[label]["Plan"]), plans[label]
+                if label == "source_time":
+                    assert "cc_observation_source_time" in str(plans[label]["Plan"])
                 assert times[label] < 250, (label, times[label])
             page = await store.observation_history(HistoryQuery(source_id="source.a", limit=200))
             assert len(page["items"]) == 200 and page["next_cursor"]

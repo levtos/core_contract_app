@@ -76,3 +76,25 @@ async def test_production_readiness_requires_explicit_retention_policy(runtime, 
     await activate(runtime, config)
     assert "history_retention_required" not in runtime.readiness_reasons
     assert runtime.ready
+
+
+async def test_retention_api_separates_preview_admin_mutation_and_expired_evidence(
+    runtime, config, aiohttp_client, tmp_path
+):
+    from .test_workbench_api import api_client
+
+    references = await prepared(runtime, config)
+    api, client, headers = await api_client(runtime, aiohttp_client, tmp_path)
+    consumer = {"Authorization": "Bearer " + api.tokens.values["consumer"]}
+    response = await client.post("/api/v1/history/retention/run", headers=consumer)
+    assert response.status == 403
+    response = await client.post("/api/v1/history/retention/preview", headers=headers)
+    assert response.status == 200 and (await response.json())["dry_run"]
+    assert await runtime.store.evidence(references[0])
+    assert (await client.post("/api/v1/history/retention/run", headers=headers)).status == 200
+    response = await client.get("/api/v1/evidence/reference/" + references[0], headers=headers)
+    assert response.status == 410
+    assert (await response.json())["error"] == "evidence_outside_retention"
+    assert (
+        await client.get("/api/v1/evidence/reference/" + references[-1], headers=headers)
+    ).status == 200

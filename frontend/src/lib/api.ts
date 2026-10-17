@@ -116,6 +116,7 @@ const MESSAGES: Record<string, string> = {
   contract_disabled: uiText("lib.api.der_contract_ist_deaktiviert_225806"),
   revision_not_found: uiText("lib.api.diese_revision_existiert_nicht_011869"),
   evidence_not_found: uiText("lib.api.zu_dieser_referenz_liegt_keine_aufgezeichnete_ev_a4cab9"),
+  evidence_outside_retention: uiText('alpha8.retention.evidenceGone'),
   invalid_request: uiText("lib.api.die_anfrage_ist_ungultig_85729c"),
   network_error: uiText("lib.api.der_dienst_ist_nicht_erreichbar_793240"),
   rate_limited: uiText("lib.api.zu_viele_anfragen_weitere_anfragen_warten_diese__545695"),

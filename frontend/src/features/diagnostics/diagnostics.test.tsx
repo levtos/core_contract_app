@@ -135,6 +135,13 @@ describe('history uses opaque cursors and bound filters', () => {
 });
 
 describe('evidence references are opaque and may legitimately be missing', () => {
+  it('explains expired coverage as retention information without reconstructing evidence', async () => {
+    const api = installFakeApi();
+    api.routes.push({ match: /^evidence\/reference\//, respond: () => reply(410, { error: 'evidence_outside_retention' }) });
+    wrap(<EvidenceTab initialReference="v2:e:7:ha:12:binding.a" />);
+    expect(await screen.findByText('Außerhalb der Aufbewahrungsfrist')).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
   it('reports an explicit 404 without reconstructing anything', async () => {
     const api = installFakeApi();
     api.routes.push({ match: /^evidence\/reference\//, respond: (path) => reply(404, { error: 'evidence_not_found', reference: decodeURIComponent(path.split('/').pop()!) }) });
