@@ -10,6 +10,20 @@ import { caps } from '../../../test/harness';
 const registry = () => clone(example) as unknown as JsonObject;
 
 describe('import / export round trip', () => {
+  it('renames input references in named formulas, clock rules and dynamic hysteresis bands', () => {
+    const input = { op: 'input', name: 'a' };
+    const definition: JsonObject = { outputs: {
+      formula: { op: 'formula', name: 'mixed', version: 1, args: { temperature: input } },
+      clock: { op: 'time_reached', at: input },
+      bucket: { op: 'bucket', id: 'classes', arg: input, classes: ['a', 'b'], initial: { unknown: true }, boundaries: [{ at: input, hysteresis: { lower: input, upper: input } }] },
+    } };
+    const renamed = renameReferences(definition, 'input', 'a', 'renamed');
+    expect(referencedNames(renamed, 'input').has('a')).toBe(false);
+    expect(referencedNames(renamed, 'input').get('renamed')).toBe(6);
+    expect(JSON.stringify(renamed)).toContain('"name":"renamed"');
+    expect(JSON.stringify(renamed)).not.toContain('"name":"a"');
+    expect(getAt(renamed, '/outputs/bucket/classes')).toEqual(['a', 'b']);
+  });
   it('a valid imported registry survives import → edit → export without losing supported data', () => {
     const imported = parseRegistryJson(JSON.stringify(registry()));
     expect(imported.ok).toBe(true);

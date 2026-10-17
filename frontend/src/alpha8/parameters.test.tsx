@@ -15,7 +15,7 @@ it('edits typed instance parameters without changing the immutable template', as
   const initial = { contract_id: 'example', type_id: definition.type_id, type_version: 1, inputs: [], enabled: true, parameters: { near: 10 } };
   wrap(<Stateful initial={initial} onValue={value => { result = value; }}>{(value, set) => <ContractEditor value={value} onChange={set} pointer="/contracts/0" types={types} refs={[]} />}</Stateful>);
   expect(screen.getByText('Deine Änderung gilt erst, wenn du den Entwurf übernimmst.')).toBeVisible();
-  const input = screen.getByLabelText('Naher Abstand *');
+  const input = screen.getByLabelText('Naher Abstand (m) *');
   await userEvent.clear(input);
   await userEvent.type(input, '25');
   expect(asObject(asObject(result).parameters).near).toBe(25);

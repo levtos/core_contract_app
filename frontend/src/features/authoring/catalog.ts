@@ -80,7 +80,7 @@ export function declarativeParameterSchema(definition: JsonObject): JsonObject {
     if (schema.required === true) required.push(name);
     properties[name] = {
       type: schema.type === 'bool' ? 'boolean' : schema.type === 'number' ? 'number' : 'string',
-      title: str(declaration.label) || name,
+      title: schema.unit ? uiText('alpha8.parameters.unitHint', { description: str(declaration.label) || name, unit: str(schema.unit) }) : str(declaration.label) || name,
       ...(schema.unit ? { description: uiText('alpha8.parameters.unitHint', { description: str(declaration.description), unit: str(schema.unit) }) } : declaration.description ? { description: declaration.description } : {}),
       ...(Array.isArray(schema.value_catalog) && schema.value_catalog.length ? { enum: schema.value_catalog } : {}),
       ...(schema.type === 'timestamp' ? { format: 'date-time' } : {}),
