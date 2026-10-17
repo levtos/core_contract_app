@@ -160,6 +160,22 @@ it('orders equal-time publications by server sequence instead of reversing valid
   expect(points.map(point => point.field?.status)).toEqual(['unknown', 'valid']);
 });
 
+it('continues a currently confirmed boolean through now without inventing stored samples', () => {
+  const yes = { ...field, value: true };
+  render(<MiniHistory name="value" current={yes} now={Date.parse('2026-10-16T10:02:00Z')} points={[{ at, field: yes }]} />);
+  expect(screen.getByRole('img').querySelector('polyline')).toHaveAttribute('points', '110,32 980,32 980,32');
+  expect(screen.getAllByRole('row')).toHaveLength(2); // header + one real publication
+});
+
+it('does not draw a confirmed tail across a recorded gap or an unknown publication', () => {
+  const yes = { ...field, value: true };
+  const points = historyPoints([{ id: 'p', contract_id: 'zimmer', published_at: at, fields: { value: yes } }], 'zimmer', 'value', undefined, [{ id: 'gap', at: '2026-10-16T10:01:00Z' }]);
+  const view = render(<MiniHistory name="value" current={yes} now={Date.parse('2026-10-16T10:02:00Z')} points={points} />);
+  expect(screen.getByRole('img').querySelectorAll('circle')).toHaveLength(1);
+  view.rerender(<MiniHistory name="value" current={yes} now={Date.parse('2026-10-16T10:02:00Z')} points={[{ at, field: yes }, { at: '2026-10-16T10:01:00Z', field: { ...yes, value: null, status: 'unknown' } }]} />);
+  expect(screen.getByRole('img').querySelectorAll('circle')).toHaveLength(1);
+});
+
 it('names the affected input and the age of its measured value without treating receipt as measurement', async () => {
   const api = fake();
   const measured = new Date(Date.now() - 300_000).toISOString();

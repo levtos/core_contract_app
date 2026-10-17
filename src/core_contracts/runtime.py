@@ -393,6 +393,9 @@ class Runtime:
                                 object_id=source.source_id,
                                 message=f"{field}: {old_text!r} aus Version {previous_revision} → {new_text!r}. Übernommene Quellen behalten Typ und Einheit; ihre Werteliste darf nur ergänzt werden.",
                                 parameters={
+                                    "source_name": source.display_name
+                                    or old.display_name
+                                    or source.source_id,
                                     "field": field,
                                     "oldValue": old_text,
                                     "newValue": new_text,

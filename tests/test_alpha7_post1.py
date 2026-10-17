@@ -110,6 +110,7 @@ async def test_optional_delta_flaps_only_when_heartbeat_input_expires_and_recove
 
 
 async def test_historical_source_conflict_names_field_values_and_origin_revision(runtime, config):
+    config["sources"][0]["display_name"] = "Fenster im Wohnzimmer"
     await activate(runtime, config)
     await activate(runtime, {**config, "sources": [], "bindings": [], "contracts": []})
     changed = copy.deepcopy(config)
@@ -124,6 +125,7 @@ async def test_historical_source_conflict_names_field_values_and_origin_revision
     issue = next(issue for issue in error.value.issues if issue.path.endswith("/unit"))
     assert issue.code == "immutable_source_type"
     assert issue.parameters == {
+        "source_name": "Fenster im Wohnzimmer",
         "field": "value_schema/unit",
         "oldValue": None,
         "newValue": "°C",
