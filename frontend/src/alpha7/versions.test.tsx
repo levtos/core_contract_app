@@ -31,6 +31,22 @@ it('shows one global save button on the open draft page', async () => {
   expect(screen.getAllByText('Keine Fehler')).toHaveLength(1); // only the global check chip
 });
 
+it('keeps the draft identifier, semantic checksum and deadline details under Erweitert', async () => {
+  const user = userEvent.setup();
+  const id = '12345678-1234-4567-8123-123456789abc';
+  installFakeApi({ drafts: [makeDraft(id, sampleConfig(), { display_name: 'Neue Geräte' })] }); app(`#/changes/drafts/${id}`);
+  await screen.findByRole('heading', { name: 'Neue Geräte', level: 1 }, { timeout: 5000 });
+  await user.click(screen.getByRole('button', { name: 'Prüfen' }));
+  expect(await screen.findByText('Der Entwurf ist vollständig und fehlerfrei.')).toBeVisible();
+  expect(screen.queryByText(id)).not.toBeInTheDocument();
+  expect(screen.queryByText('Semantik-Prüfsumme-Version')).not.toBeInTheDocument();
+  expect(screen.queryByText('Fristen bleiben erhalten')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Erweitert' }));
+  expect(screen.getByText(id)).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Erweitert: technische Änderungen' }));
+  expect(screen.getByText('Fristen bleiben erhalten')).toBeVisible();
+});
+
 it('shows time, recorded actor and note; exposes rollback only on an older version', async () => {
   installFakeApi({ revisions: [revision(1), { ...revision(2), actor: { kind: 'ingress', role: 'admin' }, note: 'Wohnzimmer ergänzt' }] }); app('#/changes/versions');
   await screen.findByText('Wohnzimmer ergänzt', {}, { timeout: 5000 });

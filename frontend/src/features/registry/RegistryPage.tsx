@@ -67,7 +67,7 @@ function DraftsTab() {
                     <Link className="truncate hover:text-fg" to={`/changes/drafts/${encodeURIComponent(draft.draft_id)}`}>{draftLabel(draft)}</Link>
                     {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">{doc.dirty ? uiText("features.registry.RegistryPage.geoffnet_ungespeichert_62ba6c") : uiText("features.registry.RegistryPage.geoffnet_ec5e95")}</Badge>}
                   </p>
-                  <p className="mono truncate text-[11px] text-faint">{draft.draft_id}</p>
+                  <Collapsible title={uiText('alpha7.draft.advanced')}><p className="mono break-all text-xs text-muted">{draft.draft_id}</p></Collapsible>
                   <p className="text-xs text-muted">{uiText("features.registry.RegistryPage.v_4c9448")}{draft.draft_version} {uiText("features.registry.RegistryPage.basis_revision_690542")}{draft.base_revision ?? '–'} {uiText("features.registry.RegistryPage.erstellt_555e13")}{formatTime(draft.created_at)} {uiText("features.registry.RegistryPage.geandert_4147a3")}{formatTime(draft.updated_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">

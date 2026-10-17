@@ -95,8 +95,8 @@ describe('catalog editor', () => {
   it('edits keys and values of every JSON type without JSON text', async () => {
     let current: JsonObject = { catalog_id: 'catalog.neu', kind: 'map', version: 1, entries: { an: true } };
     wrap(<Stateful initial={current} onValue={(v) => (current = v)}>{(v, set) => <CatalogEditor value={v} onChange={set} pointer="/catalogs/0" />}</Stateful>);
-    await user.clear(screen.getByLabelText('Katalog-ID'));
-    await user.type(screen.getByLabelText('Katalog-ID'), 'catalog.modus');
+    await user.clear(screen.getByLabelText('Wertelisten-ID'));
+    await user.type(screen.getByLabelText('Wertelisten-ID'), 'catalog.modus');
     await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'string');
     await user.clear(screen.getByLabelText('Wert für an'));
     await user.type(screen.getByLabelText('Wert für an'), 'ein');

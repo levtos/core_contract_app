@@ -138,6 +138,7 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 | K.01 | Ein aktueller Serververgleich zählt hinzugefügte, geänderte und entfernte Objekte; sonst „…“ | erledigt; identische Stände ergeben 0, keine Browser-Pfaddifferenz | corrections.test.tsx; geführter Vertrag und identischer Stand im Engine-E2E | neue Bilder unter K.06 folgen |
 | K.02 | Schlanke Leiste, ein Speicherzustand, ein Prüfergebnis je Stelle; Übernahme ausschließlich in der Leiste | erledigt; Speichern im ⋯-Menü, Übernahmekarte nur Checkliste | versions.test.tsx; draftMode.test.tsx; bestehende Speichern-/Übernahme-Flows | neue Bilder unter K.06 folgen |
 | K.03 | Doppelten Menüpunkt Vertrag entfernen, alte Route weiterleiten und Detail der Liste zuordnen | erledigt; Meine Verträge bleibt bei Details markiert | navigation.test.tsx (Umleitung mit Parametern und Seitenleistenauswahl) | neue Bilder unter K.06 folgen |
+| K.04 | Alltagssprache für Entwurf, Übernahme und Versionen; Wertelisten; technische Details nur unter Erweitert | erledigt; Kennung, Semantik-Prüfsumme und Fristdetails verborgen, Übernahme statt Einschalten | versions.test.tsx; lifecycle.test.tsx; i18n-Scan | neue Bilder unter K.06 folgen |
 
 ### Vorheriger Gesamtnachweis
 

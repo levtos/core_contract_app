@@ -138,7 +138,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
       onOpenChange={onOpenChange}
       size="lg"
       title={uiText("features.registry.ActivationDialogs.registry_aktivieren_8c0eff")}
-      description={uiText("features.registry.ActivationDialogs.gespeicherter_draft_v0_v_v1_wird_als_neue_revisi_1cd2fe", { v0: (draft.display_name || draft.draft_id), v1: (draft.draft_version) })}
+      description={uiText("features.registry.ActivationDialogs.gespeicherter_draft_v0_v_v1_wird_als_neue_revisi_1cd2fe", { v0: (draft.display_name || uiText('alpha7.draft.unnamed')), v1: (draft.draft_version) })}
       footer={
         result ? (
           <Button variant="primary" onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.schlie_en_b808f6")}</Button>

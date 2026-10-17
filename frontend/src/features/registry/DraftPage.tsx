@@ -109,7 +109,7 @@ export default function DraftPage() {
             <div className="flex flex-col gap-3 p-4">
               {(validation.state === 'idle' || validation.state === 'checking') && <Notice tone="info" title={uiText('alpha7.draft.checking')} />}
               {validation.state === 'failed' && <Notice tone="warn" title={uiText("features.registry.DraftPage.prufung_nicht_moglich_9c9bd1")}>{validation.error}</Notice>}
-              {validation.state === 'done' && !validation.stale && validation.issues.length === 0 && <Notice tone="ok" title={uiText("features.registry.DraftPage.keine_fehler_gefunden_0d9c76")}>{uiText("features.registry.DraftPage.der_stand_ist_strukturell_und_semantisch_gultig_a85b70")}{validation.stale ? uiText("features.registry.DraftPage.prufung_vor_der_letzten_anderung_5a34c1") : ''}.</Notice>}
+              {validation.state === 'done' && !validation.stale && validation.issues.length === 0 && <Notice tone="ok" title={uiText("features.registry.DraftPage.keine_fehler_gefunden_0d9c76")}>{uiText("features.registry.DraftPage.der_stand_ist_strukturell_und_semantisch_gultig_a85b70")}</Notice>}
               {validation.stale && validation.state !== 'checking' && <Notice tone="info" title={uiText('alpha7.draft.changed')} />}
               {validation.state === 'done' && !validation.stale && validation.issues.length > 0 && (
                 <>
@@ -125,7 +125,7 @@ export default function DraftPage() {
               {validation.state === 'done' && !validation.stale && validation.result?.diff && validation.result.valid ? <DiffView diff={validation.result.diff} against={uiText("features.registry.DraftPage.die_aktive_revision_ccaa57")} /> : <p className="text-sm text-muted">{validation.issues.length ? uiText("features.registry.DraftPage.erst_nach_korrektur_der_fehler_verfugbar_bd3e1e") : uiText("features.registry.DraftPage.wird_nach_der_validierung_angezeigt_0f660e")}</p>}
             </div>
           </Panel>
-          </LayoutPanel><LayoutPanel id="json" title={uiText("features.registry.DraftPage.json_experte_7a839f")} span={2}><Collapsible title={uiText("features.registry.DraftPage.json_expertenmodus_8ca416")}><JsonExpert /></Collapsible></LayoutPanel>
+          </LayoutPanel><LayoutPanel id="json" title={uiText("features.registry.DraftPage.json_experte_7a839f")} span={2}><Collapsible title={uiText('alpha7.draft.advanced')}><KeyValue items={[{ label: uiText('alpha7.draft.identifier'), value: draft.draft_id }, { label: uiText("features.registry.DraftPage.fingerprint_version_e46d72"), value: String(config.fingerprint_version ?? 1) }]} /><JsonExpert /></Collapsible></LayoutPanel>
           <LayoutPanel id="name" title={uiText("features.registry.DraftPage.draft_name_026ddb")} span={1}>
           <Panel>
             <PanelHeader title={uiText("features.registry.DraftPage.name_dcd1d5")} />
@@ -150,7 +150,6 @@ export default function DraftPage() {
                 </li>
               ))}
             </ul>
-            <div className="border-t border-line p-4"><KeyValue items={[{ label: uiText("features.registry.DraftPage.fingerprint_version_e46d72"), value: String(config.fingerprint_version ?? 1) }]} /></div>
           </Panel>
           </LayoutPanel>
       </PanelLayout>

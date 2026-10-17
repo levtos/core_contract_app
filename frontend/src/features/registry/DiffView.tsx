@@ -49,12 +49,11 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
     <div className="flex flex-col gap-4">
       <p aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{uiText(changedObjectCount(diff) === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changedObjectCount(diff) })}</p>
       <p className="text-xs text-muted">
-        {uiText("features.registry.DiffView.statische_analyse_929ff1")}{against ? uiText("features.registry.DiffView.gegen_v0_0e5182", { v0: (against) }) : ''}{uiText("features.registry.DiffView.es_werden_weder_entwurfe_ausgewertet_noch_werte__5b260d")}</p>
+        {uiText('alpha7.diff.explanation')} {against && uiText('alpha7.diff.comparison', { against })}</p>
       {nothing && <Notice tone="info" title={uiText("features.registry.DiffView.keine_anderung_gegenuber_der_aktiven_revision_b4a476")} />}
       {diff.fingerprint_version.before === null && !nothing && <p className="text-sm text-muted">{uiText('alpha7.versions.firstStart')}</p>}
       {migrating && (
-        <Notice tone="warn" title={uiText("features.registry.DiffView.fingerprint_version_wechselt_b60a4b")}>
-          {uiText("features.registry.DiffView.von_704f87")}{String(diff.fingerprint_version.before)} {uiText("features.registry.DiffView.auf_9d82d9")}{diff.fingerprint_version.after}{uiText("features.registry.DiffView.betroffene_kontexte_werden_neu_initialisiert_kon_b49c90")}</Notice>
+        <Notice tone="warn" title={uiText('alpha7.diff.reinitialize')}>{uiText('alpha7.diff.reinitializeHelp')}</Notice>
       )}
       <dl className="divide-y divide-line rounded-[var(--radius-md)] border border-line px-3">
         <Row label={uiText("features.registry.DiffView.contracts_hinzugefugt_aa1b10")}><Chips items={diff.added} link /></Row>
@@ -63,7 +62,6 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
         <Row label={uiText("features.registry.DiffView.direkt_betroffen_832e51")}><Chips items={diff.directly_affected_contracts} link /></Row>
         <Row label={uiText("features.registry.DiffView.transitiv_betroffen_ef01a8")}><Chips items={diff.transitively_affected_contracts} link /></Row>
         {restarted.length > 0 && <Row label={uiText("features.registry.DiffView.mogliche_neuinitialisierung_2361a0")}><Chips items={restarted} tone="warn" link /></Row>}
-        <Row label={uiText("features.registry.DiffView.fristen_bleiben_erhalten_bcbfe1")}>{diff.restore.retains_absolute_deadlines_if_compatible ? uiText("features.registry.DiffView.ja_bei_kompatiblem_fingerprint_219c13") : uiText("features.registry.DiffView.nein_4d03db")}</Row>
         <Row label={uiText("features.registry.DiffView.snapshot_6ad27b")}>{diff.snapshot.revision_changes ? uiText(diff.snapshot.affected_contracts.length === 1 ? 'alpha7.versions.affectedOne' : 'alpha7.versions.affected', { n: diff.snapshot.affected_contracts.length }) : uiText("features.registry.DiffView.unverandert_85e10f")}</Row>
       </dl>
       {groups.map(([name, group]) => (
@@ -87,6 +85,8 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
       ))}
       <Collapsible title={uiText('alpha7.versions.technicalDiff')}>
         <dl>
+          <Row label={uiText('features.registry.DraftPage.fingerprint_version_e46d72')}>{diff.fingerprint_version.before ?? '–'} → {diff.fingerprint_version.after}</Row>
+          <Row label={uiText('features.registry.DiffView.fristen_bleiben_erhalten_bcbfe1')}>{diff.restore.retains_absolute_deadlines_if_compatible ? uiText('features.registry.DiffView.ja_bei_kompatiblem_fingerprint_219c13') : uiText('features.registry.DiffView.nein_4d03db')}</Row>
           <Row label={uiText("features.registry.DiffView.geanderte_fingerprints_eb5466")}><Chips items={diff.fingerprint_changes} /></Row>
           <Row label={uiText("features.registry.DiffView.identitatswechsel_quellen_9211e3")}><Chips items={diff.source_identity_changes} /></Row>
           <Row label={uiText("features.registry.DiffView.identitatswechsel_bindings_3f8a12")}><Chips items={diff.binding_identity_changes} /></Row>

@@ -69,8 +69,8 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
 
     // Edit through the UI: a catalog with object / list / null values.
     await f.go('#/sources?tab=catalogs');
-    await user.click(await screen.findByRole('button', { name: 'Katalog hinzufügen' }));
-    await f.type(screen.getByLabelText('Katalog-ID'), 'catalog.struktur');
+    await user.click(await screen.findByRole('button', { name: 'Werteliste hinzufügen' }));
+    await f.type(screen.getByLabelText('Wertelisten-ID'), 'catalog.struktur');
     await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'object');
     await user.click(screen.getByRole('button', { name: 'Wert für an: Eigenschaft hinzufügen' }));
     await f.type(screen.getByLabelText('Wert für an: Schlüssel 1'), 'liste');

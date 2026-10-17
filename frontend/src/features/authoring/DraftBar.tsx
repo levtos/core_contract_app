@@ -17,7 +17,7 @@ import type { Draft } from '@/lib/types';
 import { CreateDraftDialog } from './CreateDraftDialog';
 import { useWorkingDocument } from './WorkingDocument';
 
-export const draftLabel = (draft: Pick<Draft, 'draft_id' | 'display_name'>): string => draft.display_name || draft.draft_id;
+export const draftLabel = (draft: Pick<Draft, 'draft_id' | 'display_name'>): string => draft.display_name || uiText('alpha7.draft.unnamed');
 
 /** Choose (or create) the working draft. Opening another draft with unsaved edits asks first. */
 export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
