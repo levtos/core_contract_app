@@ -2,6 +2,8 @@
 
 ## 1.0.0a7 — Terra nach Aufgaben bedienen (vorbereitet, 2026-10-17)
 
+- UX-Nachprüfung K.01–K.06: Server-Änderungszähler, schlanke Entwurfsleiste, Vertragsnavigation, Alltagssprache, deutsche Zeitwerte, Minutenhilfe und Statusdarstellung korrigiert; 18 neue Chrome-/Firefox-Nachweise.
+
 - Zweistufige Module und eigene Unterseiten, alte Links mit Weiterleitung; Bereitschaft
   mit Zähler und Lösungslinks; eine Übersicht mit Schnellaktionen, Vertragsproblemen und Ereignissen.
 - Live ansehen / Bearbeiten, automatischer Entwurf am aktuellen Ort, sichtbares Prüfen und

@@ -177,3 +177,5 @@ Anschließend folgen Claudes UX-Nachtest und Bennis Live-Abnahme. Echte
 HA-Ingress-/Supervisor-Einbettung, reale Discovery-Größe und vollständige
 Barrierefreiheitsabnahme bleiben eigenständige Nachweise. Merge, Tag, Release,
 Image-Publish und Installation erfordern Bennis ausdrückliches neues Go.
+
+Alpha-7-Nachprüfung: [Korrekturen K.01–K.06 mit 18 neuen Browserbildern](alpha7/KORREKTUREN.md).

@@ -1,5 +1,7 @@
 # Browser- und Bildnachweis Alpha 7
 
+Aktueller Korrekturstand nach UX-Nachprüfung: [18 neue Bilder K.01–K.06](KORREKTUREN.md#browserprüfung). Die folgende Galerie dokumentiert den ursprünglichen Alpha-7-Stand; für die betroffenen Seiten gelten die neueren Bilder.
+
 162 unveränderte Original-PNGs, jeweils **1920×1080**, Darstellungsfaktor 1,
 de-DE, Europe/Berlin, dunkle Darstellung. Alle Bilder wurden auf Layout, Lesbarkeit,
 Überlagerungen und deutsche Beschriftungen geprüft; Dialoge und Graph zusätzlich in Originalgröße.

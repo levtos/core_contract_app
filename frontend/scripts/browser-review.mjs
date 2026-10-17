@@ -13,6 +13,7 @@ const argument = (name, fallback) => { const index = args.indexOf(name); return 
 const baseline = argument('--baseline', null);
 const phaseChoice = argument('--phase', 'both');
 const browserChoice = argument('--browser', 'both');
+const corrections = phaseChoice === 'corrections';
 const out = path.join(root, 'docs/workbench/alpha7/screenshots');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const children = new Set();
@@ -85,7 +86,7 @@ async function capture(page, phase, browser, name, comparison) {
   const image = await page.screenshot({ path: target, fullPage: false, animations: 'disabled' });
   const dimensions = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth }));
   if (dimensions.width !== 1920 || dimensions.height !== 1080 || dimensions.documentWidth > 1920) throw new Error(`Invalid viewport or document overflow on ${name}: ${JSON.stringify(dimensions)}`);
-  if (phase === 'after') {
+  if (phase !== 'before') {
     for (const menu of await page.getByLabel('Weitere Seitenaktionen', { exact: true }).all()) {
       const overlaps = await menu.evaluate(element => {
         const rect = element.getBoundingClientRect();
@@ -233,6 +234,59 @@ async function extraAfter(page, server, browser) {
   manifest.checks.push({ browser, check: 'P9 real version opt-in and confirmed administrative restart; P10 note shown', result: 'passed' });
 }
 
+/** K.06: re-photograph the correction scope without replacing historical proof. */
+async function correctionPages(page, server, browser) {
+  const photo = (name, reason) => capture(page, 'corrections', browser, name, reason);
+  await visit(page, server.url, '/changes/drafts');
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).last().click();
+  await expect(page).toHaveURL(/drafts\//);
+  const draftRoute = new URL(page.url()).hash.slice(1);
+  await page.getByRole('button', { name: 'Prüfen', exact: true }).click();
+  await expect(page.getByLabel('Anzahl der Änderungen')).toHaveText(['0 Änderungen', '0 Änderungen']);
+  await expect(page.locator('header').first()).toContainText('Entwurf ohne Namen');
+  await photo('draft-details', 'K.01/K.02/K.04: identischer Stand, beide Zähler 0, ein Prüfkasten und Übernahme nur in der Leiste');
+  await visit(page, server.url, '/');
+  await expect(page.getByRole('button', { name: 'Änderungen übernehmen', exact: true })).toBeVisible();
+  const actions = ['Neuer Vertrag', 'Vertrag importieren', 'Änderungen übernehmen'];
+  const heights = await Promise.all(actions.map(name => page.getByRole('button', { name, exact: true }).evaluate(element => element.getBoundingClientRect().height)));
+  if (new Set(heights).size !== 1) throw new Error(`Unequal quick-action heights: ${heights}`);
+  await photo('overview', 'K.05: Statuszahlen und gleich große Schnellaktionen bei offenem Entwurf');
+  await visit(page, server.url, '/contracts/list/all');
+  await photo('contracts-list', 'K.03/K.05: Meine Verträge, Zustandsfilter und deutsche Zeitwerte');
+  await visit(page, server.url, '/contracts/view/fixture.flow');
+  await expect(page.getByRole('link', { name: 'Meine Verträge', exact: true })).toHaveAttribute('aria-current', 'page');
+  await photo('contract-detail', 'K.03/K.05: Detail markiert Meine Verträge; Zeitwerte und Herkunft');
+  const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+  await nav.getByRole('button', { name: 'Quellen', exact: true }).click();
+  await expect(nav.getByRole('link', { name: 'Vertrag', exact: true })).toHaveCount(0);
+  await photo('sidebar', 'K.03/K.04: kein doppelter Vertrag-Menüpunkt; Wertelisten im Quellenmodul');
+  await visit(page, server.url, '/changes/versions');
+  await photo('versions', 'K.04/K.05: Versionssprache und deutsche Datumsangaben');
+  await visit(page, server.url, '/contracts/list/all');
+  await page.getByRole('button', { name: 'Neuer Vertrag', exact: true }).click();
+  const wizard = page.getByRole('dialog', { name: 'Neuer Vertrag', exact: true });
+  await wizard.getByRole('radio', { name: 'Bad Temperatur', exact: true }).click();
+  await expect(wizard.getByText('= 15 Minuten', { exact: true })).toBeVisible();
+  await photo('device-guide', 'K.05: Frist 900 Sekunden mit Hilfe = 15 Minuten');
+  await wizard.getByRole('button', { name: 'Vertrag anlegen', exact: true }).click();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Konfiguration übernehmen', exact: true });
+  const consent = confirmation.getByRole('checkbox', { name: /Auswirkungen geprüft/ });
+  await consent.check(); await expect(consent).toBeChecked();
+  await expect(confirmation.getByRole('button', { name: 'Jetzt übernehmen', exact: true })).toBeInViewport();
+  await expect(page.getByLabel('Anzahl der Änderungen')).not.toContainText(['…', '…']);
+  const comparison = await confirmation.getByLabel('Anzahl der Änderungen').textContent();
+  await expect(page.locator('header').getByLabel('Anzahl der Änderungen')).toHaveText(comparison);
+  await photo('takeover-confirmation', 'K.01/K.04: gleiche Serverzahl in Leiste/Übernahme; verständlicher Bestätigungsdialog');
+  await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await visit(page, server.url, draftRoute);
+  await page.getByRole('button', { name: 'Prüfen', exact: true }).click();
+  await expect(page.getByLabel('Anzahl der Änderungen')).toHaveText([comparison, comparison]);
+  await photo('draft-changed', 'K.01: geführter neuer Vertrag, identische Objektzahl in Leiste und Was sich ändert');
+  manifest.checks.push({ browser, check: 'K.01 zero comparison and guided contract use identical server object counts', result: 'passed', guidedCount: comparison });
+  manifest.checks.push({ browser, check: 'K.02-K.05: sidebar selection, no chooser, minute help, equally sized actions, confirmation visible', result: 'passed', actionHeights: heights });
+}
+
 await mkdir(out, { recursive: true });
 const heartbeat = setInterval(() => console.log(`Browser review alive: ${manifest.screenshots.length} screenshots captured`), 20_000);
 try {
@@ -240,7 +294,7 @@ try {
     const browser = name === 'chrome' ? await chromium.launch({ channel: 'chrome', headless: true }) : await firefox.launch({ headless: true });
     manifest.browsers.push({ name, version: browser.version(), engine: name === 'chrome' ? 'Google Chrome (installed channel)' : 'Mozilla Firefox (Playwright build)', headless: true });
     try {
-      for (const phase of ['before', 'after'].filter(phase => phaseChoice === 'both' || phase === phaseChoice)) {
+      for (const phase of ['before', 'after'].filter(phase => corrections ? phase === 'after' : phaseChoice === 'both' || phase === phaseChoice)) {
         if (phase === 'before' && !baseline) throw new Error('--baseline checkout required for real before-images');
         const server = await start(phase === 'before' ? path.resolve(baseline) : root, phase === 'before' ? 8196 : 8198);
         const context = await browser.newContext({ viewport: manifest.viewport, deviceScaleFactor: 1, locale: manifest.locale, timezoneId: manifest.timezone, colorScheme: 'dark', reducedMotion: 'reduce' });
@@ -250,13 +304,16 @@ try {
         page.on('console', message => { if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url})`); });
         page.on('response', response => { if (response.status() >= 400 && !(phase === 'before' && new URL(response.url()).pathname === '/favicon.ico')) errors.push(`HTTP ${response.status()} ${response.url()}`); });
         try {
-          if (phase === 'after') await guidedContract(page, server, name);
-          await taskPages(page, server, phase, name);
-          if (phase === 'after') await extraAfter(page, server, name);
+          if (corrections) await correctionPages(page, server, name);
+          else {
+            if (phase === 'after') await guidedContract(page, server, name);
+            await taskPages(page, server, phase, name);
+            if (phase === 'after') await extraAfter(page, server, name);
+          }
           const unexpected = phase === 'before' ? errors.filter(error => !error.includes('/favicon.ico')) : errors;
           if (unexpected.length) throw new Error(`Browser console errors: ${unexpected.join('; ')}`);
           if (errors.length) manifest.checks.push({ browser: name, phase, check: 'Historical Alpha-6 favicon 404', result: 'recorded pre-existing baseline defect' });
-          manifest.checks.push({ browser: name, phase, check: 'All task pages render without JavaScript errors or document overflow', result: 'passed' });
+          manifest.checks.push({ browser: name, phase, check: `${corrections ? 'All correction pages' : 'All task pages'} render without JavaScript errors or document overflow`, result: 'passed' });
         } catch (error) {
           manifest.errors.push({ browser: name, phase, message: String(error), route: new URL(page.url()).hash });
           await page.screenshot({ path: path.join(out, `failure-${name}-${phase}.png`), animations: 'disabled' });

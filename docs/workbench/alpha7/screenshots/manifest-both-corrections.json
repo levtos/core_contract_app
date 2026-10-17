@@ -1,0 +1,292 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "deviceScaleFactor": 1,
+  "locale": "de-DE",
+  "timezone": "Europe/Berlin",
+  "syntheticOnly": true,
+  "startedAt": "2026-10-17T06:48:14.650Z",
+  "sourceHead": "4677ce6c67205d76f4b2ff12a4dfa981f0bd41b9",
+  "browsers": [
+    {
+      "name": "chrome",
+      "version": "155.0.8059.80",
+      "engine": "Google Chrome (installed channel)",
+      "headless": true
+    },
+    {
+      "name": "firefox",
+      "version": "157.0",
+      "engine": "Mozilla Firefox (Playwright build)",
+      "headless": true
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "corrections/chrome/draft-details.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "draft-details",
+      "route": "#/changes/drafts/ff3b3fc5-0c34-4a0a-ab87-32039640c3e2",
+      "comparison": "K.01/K.02/K.04: identischer Stand, beide Zähler 0, ein Prüfkasten und Übernahme nur in der Leiste",
+      "sha256": "1e617b87daf520d9f45db5194b076f60193e623b45f814394f43215b76ce105f",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/overview.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "overview",
+      "route": "#/",
+      "comparison": "K.05: Statuszahlen und gleich große Schnellaktionen bei offenem Entwurf",
+      "sha256": "553546796df4d8663f812d75cc65ec4ccbc9b0e217eae40d4837e8c4bc02b5b7",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/contracts-list.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "contracts-list",
+      "route": "#/contracts/list/all",
+      "comparison": "K.03/K.05: Meine Verträge, Zustandsfilter und deutsche Zeitwerte",
+      "sha256": "fd7d42d9db214b0dde982744427a41ed542a1dba43a003a7f068bfa8476c34fd",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/contract-detail.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "contract-detail",
+      "route": "#/contracts/view/fixture.flow",
+      "comparison": "K.03/K.05: Detail markiert Meine Verträge; Zeitwerte und Herkunft",
+      "sha256": "f32ae2128ca4985ed4d203c5ed752b6a681dfbdaa547d2e6946b28178d28ad1b",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/sidebar.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "sidebar",
+      "route": "#/contracts/view/fixture.flow",
+      "comparison": "K.03/K.04: kein doppelter Vertrag-Menüpunkt; Wertelisten im Quellenmodul",
+      "sha256": "4cb45287f1084238986f2449e39f07d3301837a7b09adf4888f18cc9af134ed4",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/versions.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "versions",
+      "route": "#/changes/versions",
+      "comparison": "K.04/K.05: Versionssprache und deutsche Datumsangaben",
+      "sha256": "7cad7e0af05291bc31c254b99e67366965d91b60e554276f77ddde421b201cc2",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/device-guide.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "device-guide",
+      "route": "#/contracts/list/all",
+      "comparison": "K.05: Frist 900 Sekunden mit Hilfe = 15 Minuten",
+      "sha256": "46a20340921ce31f065e8103fc801e7c7de16cfba6943382a67d12c27b02e6f7",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/takeover-confirmation.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "takeover-confirmation",
+      "route": "#/contracts/view/bad_temperatur",
+      "comparison": "K.01/K.04: gleiche Serverzahl in Leiste/Übernahme; verständlicher Bestätigungsdialog",
+      "sha256": "4374ba62f4628a56543868b9d4f083d940bf5ee2eb36f83c046729130291e239",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/chrome/draft-changed.png",
+      "phase": "corrections",
+      "browser": "chrome",
+      "task": "draft-changed",
+      "route": "#/changes/drafts/ff3b3fc5-0c34-4a0a-ab87-32039640c3e2",
+      "comparison": "K.01: geführter neuer Vertrag, identische Objektzahl in Leiste und Was sich ändert",
+      "sha256": "c5caeb1487deb62df726492cd5254a56ffc0c00ff9cef06a38114eb1bcb25d73",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/draft-details.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "draft-details",
+      "route": "#/changes/drafts/0b9364a9-4aed-46cf-9b71-302310966cb3",
+      "comparison": "K.01/K.02/K.04: identischer Stand, beide Zähler 0, ein Prüfkasten und Übernahme nur in der Leiste",
+      "sha256": "1a0e01c691120b399a9fa4546d24f8771959df37760145a5f63d36b6d77b5e68",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/overview.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "overview",
+      "route": "#/",
+      "comparison": "K.05: Statuszahlen und gleich große Schnellaktionen bei offenem Entwurf",
+      "sha256": "34f26f7d6b9158e95f8eec43b387ff9e8dac5fe6fa3ef19ac64f1b3be1d4bd48",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/contracts-list.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "contracts-list",
+      "route": "#/contracts/list/all",
+      "comparison": "K.03/K.05: Meine Verträge, Zustandsfilter und deutsche Zeitwerte",
+      "sha256": "d798ecef68a329c7643a31853631be0d189c1d10fcf98e3dcc57d47cc64ccfb3",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/contract-detail.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "contract-detail",
+      "route": "#/contracts/view/fixture.flow",
+      "comparison": "K.03/K.05: Detail markiert Meine Verträge; Zeitwerte und Herkunft",
+      "sha256": "61e6107e4fe97ca0430dd858f894457f36cb2e0425ede7292de45b5735c5a72a",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/sidebar.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "sidebar",
+      "route": "#/contracts/view/fixture.flow",
+      "comparison": "K.03/K.04: kein doppelter Vertrag-Menüpunkt; Wertelisten im Quellenmodul",
+      "sha256": "7347bcdb61970093a194989af19be49fd725844334fd2bf75741972ea7a8805c",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/versions.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "versions",
+      "route": "#/changes/versions",
+      "comparison": "K.04/K.05: Versionssprache und deutsche Datumsangaben",
+      "sha256": "a51c165fb3c3125b684d2f01dc43fc901318ae6f6d15df8c64b167efa1c31850",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/device-guide.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "device-guide",
+      "route": "#/contracts/list/all",
+      "comparison": "K.05: Frist 900 Sekunden mit Hilfe = 15 Minuten",
+      "sha256": "8e2038a04b77546522887d2f77e6d438b3947ed5fabb19dc0be6632b8eceb333",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/takeover-confirmation.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "takeover-confirmation",
+      "route": "#/contracts/view/bad_temperatur",
+      "comparison": "K.01/K.04: gleiche Serverzahl in Leiste/Übernahme; verständlicher Bestätigungsdialog",
+      "sha256": "4ca07a944418fa7c46a368d1272577d06e2acfcefc61d4e1854648f230deabd0",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    },
+    {
+      "file": "corrections/firefox/draft-changed.png",
+      "phase": "corrections",
+      "browser": "firefox",
+      "task": "draft-changed",
+      "route": "#/changes/drafts/0b9364a9-4aed-46cf-9b71-302310966cb3",
+      "comparison": "K.01: geführter neuer Vertrag, identische Objektzahl in Leiste und Was sich ändert",
+      "sha256": "b79af536198eaa2c882b0a8bde2997df0bae0bcd55ccc808eeadc0a310313e72",
+      "width": 1920,
+      "height": 1080,
+      "documentWidth": 1920
+    }
+  ],
+  "checks": [
+    {
+      "browser": "chrome",
+      "check": "K.01 zero comparison and guided contract use identical server object counts",
+      "result": "passed",
+      "guidedCount": "4 Änderungen"
+    },
+    {
+      "browser": "chrome",
+      "check": "K.02-K.05: sidebar selection, no chooser, minute help, equally sized actions, confirmation visible",
+      "result": "passed",
+      "actionHeights": [
+        36,
+        36,
+        36
+      ]
+    },
+    {
+      "browser": "chrome",
+      "phase": "after",
+      "check": "All correction pages render without JavaScript errors or document overflow",
+      "result": "passed"
+    },
+    {
+      "browser": "firefox",
+      "check": "K.01 zero comparison and guided contract use identical server object counts",
+      "result": "passed",
+      "guidedCount": "4 Änderungen"
+    },
+    {
+      "browser": "firefox",
+      "check": "K.02-K.05: sidebar selection, no chooser, minute help, equally sized actions, confirmation visible",
+      "result": "passed",
+      "actionHeights": [
+        36,
+        36,
+        36
+      ]
+    },
+    {
+      "browser": "firefox",
+      "phase": "after",
+      "check": "All correction pages render without JavaScript errors or document overflow",
+      "result": "passed"
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-10-17T06:48:35.673Z"
+}

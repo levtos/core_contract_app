@@ -86,7 +86,7 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 | P13.02 | Workbench-README und CHANGELOG neue Struktur | erledigt | Routenabgleich navigation.test.tsx | entfällt: Dokument-/Test-/CI-Nachweis |
 | P13.03 | Release-Notiz 1.0.0a7 | erledigt | docs/releases/1.0.0a7.md | entfällt: Dokument-/Test-/CI-Nachweis |
 | P13.04 | Versionen App/Python/Frontend 1.0.0a7 vorbereiten | erledigt; App/Python 1.0.0a7, Frontend 1.0.0-alpha.7; keine Veröffentlichung | test_image_distribution.py; Build; verify:dist | [Chrome/Firefox](BROWSER.md#settings-installation) |
-| T.01 | Vitest/RTL je Paket und bestehende Regressionen | erledigt; 264 Frontendtests plus acht Sprachscanner-Tests, 489 Backendtests lokal; 21 umgebungsgebundene Backendtests lokal übersprungen, zusätzliche Umgebungsprüfungen in der CI | npm test; pytest; test:i18n-lint | entfällt: Dokument-/Test-/CI-Nachweis |
+| T.01 | Vitest/RTL je Paket und bestehende Regressionen | erledigt; 274 Frontendtests plus acht Sprachscanner-Tests, 489 Backendtests lokal; 21 umgebungsgebundene Backendtests lokal übersprungen, zusätzliche Umgebungsprüfungen in der CI | npm test; pytest; test:i18n-lint | entfällt: Dokument-/Test-/CI-Nachweis |
 | T.02 | Engine-E2E mit originaler UX12-Datei über Geräteführung ohne manuelle Transformation | erledigt; fünf echte Engine-E2E mit isolierter MemoryStore-App; Originaldatei ohne manuelle Transformation | src/e2e.test.tsx: fünf Fälle | [Chrome/Firefox](BROWSER.md#device-guide) |
 | T.03 | i18n-Scan 0, en.json unverändert | erledigt; 0 harte Oberflächentexte; en.json hat gegenüber der verbindlichen Basis 4687c35 keinen Diff | scan:i18n; git diff 4687c35 -- en.json | entfällt: Dokument-/Test-/CI-Nachweis |
 | T.04 | Firefox und Chrome 1920×1080, jede Seite/Unterseite vorher/nachher, PR-Anhang | erledigt; 162 Originalbilder und echte Interaktionen in Chrome/Firefox 1920×1080; isolierte Browser ohne sichtbares Fenster; keine Prüfung eines persönlichen Profils | browser-review.mjs; Manifest mit SHA-256 | [Chrome/Firefox](BROWSER.md#overview) |
@@ -129,21 +129,20 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 | Claude-UX-Nachtest und Bennis Live-Abnahme | nicht durchgeführt: nachgelagerte Gates des Auftrags | PR #20; Issue #19 |
 | Merge, Tag, Release, Image-Publish, Installation, DB-Reset/K7 | nicht durchgeführt: ausdrückliches Go fehlt; K7 benötigt separates Go nach Installation | Freigabegrenze |
 
-## Verifikation und Freigabegrenze
-
 ## Korrekturen nach UX-Nachprüfung
 
 | Punkt | Anforderung | Status / Grund | Test | Screenshot |
 |---|---|---|---|---|
-| K.01 | Ein aktueller Serververgleich zählt hinzugefügte, geänderte und entfernte Objekte; sonst „…“ | erledigt; identische Stände ergeben 0, keine Browser-Pfaddifferenz | corrections.test.tsx; geführter Vertrag und identischer Stand im Engine-E2E | neue Bilder unter K.06 folgen |
-| K.02 | Schlanke Leiste, ein Speicherzustand, ein Prüfergebnis je Stelle; Übernahme ausschließlich in der Leiste | erledigt; Speichern im ⋯-Menü, Übernahmekarte nur Checkliste | versions.test.tsx; draftMode.test.tsx; bestehende Speichern-/Übernahme-Flows | neue Bilder unter K.06 folgen |
-| K.03 | Doppelten Menüpunkt Vertrag entfernen, alte Route weiterleiten und Detail der Liste zuordnen | erledigt; Meine Verträge bleibt bei Details markiert | navigation.test.tsx (Umleitung mit Parametern und Seitenleistenauswahl) | neue Bilder unter K.06 folgen |
-| K.04 | Alltagssprache für Entwurf, Übernahme und Versionen; Wertelisten; technische Details nur unter Erweitert | erledigt; Kennung, Semantik-Prüfsumme und Fristdetails verborgen, Übernahme statt Einschalten | versions.test.tsx; lifecycle.test.tsx; i18n-Scan | neue Bilder unter K.06 folgen |
-| K.05 | Zustandsfilter, deutsche Zeitwerte, verständliche Frist, Statusfarben, eindeutige HA-Kennung und gleiche Schnellaktionsgröße | erledigt; Filter nutzt Chip-Texte, Frist erklärt Minuten, ISO-Zeitwerte nur im Datenformat | contracts.test.tsx; devices.test.tsx; overview.test.tsx; format.test.ts | neue Bilder unter K.06 folgen |
+| K.01 | Ein aktueller Serververgleich zählt hinzugefügte, geänderte und entfernte Objekte; sonst „…“ | erledigt; identische Stände ergeben 0, keine Browser-Pfaddifferenz | corrections.test.tsx; geführter Vertrag und identischer Stand im Engine-E2E | [Chrome/Firefox](KORREKTUREN.md#browserprüfung) |
+| K.02 | Schlanke Leiste, ein Speicherzustand, ein Prüfergebnis je Stelle; Übernahme ausschließlich in der Leiste | erledigt; Speichern im ⋯-Menü, Übernahmekarte nur Checkliste | versions.test.tsx; draftMode.test.tsx; bestehende Speichern-/Übernahme-Flows | [Chrome/Firefox](KORREKTUREN.md#browserprüfung) |
+| K.03 | Doppelten Menüpunkt Vertrag entfernen, alte Route weiterleiten und Detail der Liste zuordnen | erledigt; Meine Verträge bleibt bei Details markiert | navigation.test.tsx (Umleitung mit Parametern und Seitenleistenauswahl) | [Chrome/Firefox](KORREKTUREN.md#browserprüfung) |
+| K.04 | Alltagssprache für Entwurf, Übernahme und Versionen; Wertelisten; technische Details nur unter Erweitert | erledigt; Kennung, Semantik-Prüfsumme und Fristdetails verborgen, Übernahme statt Einschalten | versions.test.tsx; lifecycle.test.tsx; i18n-Scan | [Chrome/Firefox](KORREKTUREN.md#browserprüfung) |
+| K.05 | Zustandsfilter, deutsche Zeitwerte, verständliche Frist, Statusfarben, eindeutige HA-Kennung und gleiche Schnellaktionsgröße | erledigt; Filter nutzt Chip-Texte, Frist erklärt Minuten, ISO-Zeitwerte nur im Datenformat | contracts.test.tsx; devices.test.tsx; overview.test.tsx; format.test.ts | [Chrome/Firefox](KORREKTUREN.md#browserprüfung) |
+| K.06 | Neue Bilder aller betroffenen Seiten, Sprachscan 0 und sämtliche Tests/CI auf neuem Head | erledigt; 18 Originalbilder in Chrome und Firefox bei 1920×1080, exakte CI siehe PR | 274 Frontendtests; 8 Scanner-Tests; 5 Engine-E2E; vollständige PR-CI | [18 neue Originale](KORREKTUREN.md#browserprüfung) |
 
-### Vorheriger Gesamtnachweis
+## Verifikation und Freigabegrenze
 
-Frontend: 264 Tests, acht Scanner-Regressionen, TypeScript, Build/dist und Sprachscan grün.
+Frontend: 274 Tests, acht Scanner-Regressionen, TypeScript, Build/dist und Sprachscan grün.
 Backend: 489 Tests lokal grün, 21 umgebungsgebundene Prüfungen lokal übersprungen; vollständige CI
 mit PostgreSQL, MQTT, HA-Kernel sowie beiden Image-Architekturen ist auf dem finalen PR-Head verlinkt.
 Fünf Engine-E2E laufen separat gegen die echte lokale App; der zugehörige Kindprozess wird auch bei Fehlern beendet.
