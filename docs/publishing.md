@@ -1,34 +1,37 @@
 # GHCR-Veröffentlichung und Supervisor-Packaging
 
-Gültig für die vorhandene Platform Alpha 1; [Issue #5](https://github.com/levtos/core_contract_app/issues/5).
+Alpha 8 vorbereitet; Veröffentlichung erst nach Bennis Teil-B-Go und Repo-Umbenennung. [Issue #5](https://github.com/levtos/mimir/issues/5).
 Ein erfolgreicher Image-Build allein belegt keine Installierbarkeit. Die
-Konfiguration `core_contracts/config.yaml` verlangt diese öffentlichen Images:
+Konfiguration `mimir/config.yaml` verlangt diese öffentlichen Images:
 
 | Supervisor-Architektur | Docker-Plattform | Image |
 |---|---|---|
-| amd64 | linux/amd64 | ghcr.io/levtos/amd64-core-contracts:1.0.0a6 |
-| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-core-contracts:1.0.0a6 |
+| amd64 | linux/amd64 | ghcr.io/levtos/amd64-mimir:1.0.0a8 |
+| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-mimir:1.0.0a8 |
 
-`{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-core-contracts` wäre
+`{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-mimir` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
 Supervisor-Konfiguration; die Python-Paketversion muss dazu passen.
 
 ## Explizit veröffentlichen
 
-Die Versionsangaben oben beschreiben den vorbereiteten Alpha-6-Stand, keine bereits
-erfolgte Veröffentlichung. [Alpha-6-Nachweise und Freigabeschritte](releases/1.0.0a6.md)
+Die Versionsangaben oben beschreiben den vorbereiteten Alpha-8-Stand, keine bereits
+erfolgte Veröffentlichung. [Alpha-8-Nachweise und Freigabeschritte](releases/1.0.0a8.md)
 trennen Vorbereitung, GHCR-Publikation und Live-Abnahme. Frühere Stände:
 [Alpha 4](releases/1.0.0a4.md), [Alpha 3](releases/1.0.0a3.md).
 
-1. Packaging-PR prüfen und mit vollständig grüner CI nach main mergen.
+1. Vor jedem Tag: uv run python dev/verify_postrelease.py ausführen. Gepinntes
+   AwesomeVersion prüft alle Tags und deren gespeicherte Supervisor-Slugs gemäß
+   [ADR 0009](adr/0009-prerelease-version-gate.md). Erst grünes Gate erlaubt den Tag.
+   Packaging-PR prüfen und mit vollständig grüner CI nach main mergen.
 2. Die volle main-SHA ermitteln und den Workflow **Publish Supervisor images**
    (`.github/workflows/publish-images.yml`) ausdrücklich auf main starten.
    Das Pflichtfeld `expected_sha` muss exakt dem ausgewählten Commit entsprechen.
    Beispiel mit ersetztem SHA-Platzhalter:
 
    ```sh
-   gh api repos/levtos/core_contract_app/commits/main --jq .sha
-   gh workflow run publish-images.yml --repo levtos/core_contract_app --ref main -f expected_sha=REPLACE_WITH_FULL_MAIN_SHA
+   gh api repos/levtos/mimir/commits/main --jq .sha
+   gh workflow run publish-images.yml --repo levtos/mimir --ref main -f expected_sha=REPLACE_WITH_FULL_MAIN_SHA
    ```
 
 3. Der Workflow führt die **vollständige bestehende CI** als wiederverwendbaren
@@ -53,12 +56,12 @@ anonymen Pull-Jobs fehlschlagen.
 
 Ein Package-Admin prüft für **beide** Pakete in GitHub:
 
-1. Organisation **levtos → Packages → amd64-core-contracts** beziehungsweise
-   **aarch64-core-contracts → Package settings**.
+1. Organisation **levtos → Packages → amd64-mimir** beziehungsweise
+   **aarch64-mimir → Package settings**.
 2. Unter **Danger Zone → Change visibility → Public** die Sichtbarkeit ändern.
    GitHub erlaubt danach keinen Wechsel zurück auf privat.
 3. Falls der Push bereits an Berechtigungen scheitert: unter **Manage Actions
-   access** das Repository `levtos/core_contract_app` mit Write-Zugriff freigeben.
+   access** das Repository `levtos/mimir` mit Write-Zugriff freigeben.
    Die Workflow-Images tragen bereits das passende Source-Label; bei neu
    erzeugten Paketen wird der Workflow automatisch mit dem Repository verbunden.
 4. Nach einer Sichtbarkeitskorrektur **nur die fehlgeschlagenen Jobs desselben
@@ -66,7 +69,7 @@ Ein Package-Admin prüft für **beide** Pakete in GitHub:
    unverändert:
 
    ```sh
-   gh run rerun RUN_ID --failed --repo levtos/core_contract_app
+   gh run rerun RUN_ID --failed --repo levtos/mimir
    ```
 
 Die Sichtbarkeit wird nicht durch einen undokumentierten API-Aufruf geändert.
@@ -90,7 +93,7 @@ Quellen:
   Entrypoint, installierte Python-Paketversion, Ports und Liveness-Healthcheck.
 
 Der Docker-Build-Kontext ist der **Repository-Root**, das Dockerfile
-`core_contracts/Dockerfile`. Er umfasst Backend/Lockfile, Frontend, Migrationen
+`mimir/Dockerfile`. Er umfasst Backend/Lockfile, Frontend, Migrationen
 und rootfs. Der Supervisor zieht bei gesetztem `image:` das fertige Image;
 er baut diesen Repository-Checkout nicht lokal. Dockerfile-Buildargumente sind
 `BUILD_VERSION`, `BUILD_ARCH` und `SOURCE_REVISION`. Die ersten beiden Namen

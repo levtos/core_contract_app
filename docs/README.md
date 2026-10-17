@@ -4,6 +4,11 @@
 
 | Dokument | Zweck |
 |---|---|
+| [alpha8/README.md](alpha8/README.md) | Mimir Alpha 8: freigegebener Umfang, ADRs und Review-Gates |
+| [alpha8/ABNAHME.md](alpha8/ABNAHME.md) | Block-Commits, Tests, CI und Firefox-Nachweise |
+| [alpha8/platform.md](alpha8/platform.md) | Datenformate und Verhalten der Alpha-8-Plattform |
+| [alpha8/retention-scaling.md](alpha8/retention-scaling.md) | Aufbewahrung, Verdichtung, Kapazitätsbudget und Restkosten |
+| [naming.md](naming.md) | Mimir, Bifröst und getrennte Producer-/Policy-Rollen |
 | [alpha4/workbench-api.md](alpha4/workbench-api.md) | Alpha-4-Implementierung: deklarative Definitionen und Manual-first-APIs, noch keine Releasefreigabe |
 | [workbench/README.md](workbench/README.md) | Terra Alpha 7: Module, Aufgabenrouten, Editoren, Diagnose und Nachweise |
 | [workbench/alpha7/ABNAHME.md](workbench/alpha7/ABNAHME.md) | Vollständige P1–P13-/A.11-/Top-15-Matrix mit Tests und Bildnachweisen |

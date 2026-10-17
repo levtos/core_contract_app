@@ -4,11 +4,17 @@
 **Ersetzt:** `Core_Contracts_Alpha1_Build_Specification.md` (SUPERSEDED: vermischte Phase 1 und Phase 2)
 **Zielrepository:** `Levtos/core_contract_app`
 
-**Entscheidung 17.10.2026 (Alpha 8, noch nicht implementiert):** Benni präzisiert
+**Freigegebene Fortschreibung 17.10.2026 (Alpha 8):** Benni präzisiert
 die HA-Ausfall-Semantik gemäß Akte P4-65 §7/§13; siehe
 [ADR 0005](../adr/0005-ha-outage-connectivity.md). Die frühere pauschale
-HA-Invalidierung in §13 ist damit als Soll ersetzt. Weitere Alpha-8-Designs
-stehen im [Review-Paket](../alpha8/README.md) und warten auf Claude-Review.
+HA-Invalidierung in §13 ist damit ersetzt. A1 wurde mit Auflagen freigegeben,
+A2 ist implementiert und endet vor Teil B für Review.
+[Alpha-8-Plattformformate](../alpha8/platform.md) schreiben außerdem die früheren
+test.*-/Fixture-/Scope-Sperren, Instanzparameter, Uhr/Kalender, n-Klassen,
+Textregeln, Lebenszyklus/Formeleingänge und Vollständigkeit fort. Für
+[Messwert-Aufbewahrung und Skalierung](../alpha8/retention-scaling.md) gilt
+ein explizites Produktionsgate. Alle übrigen Phase-1-Regeln bleiben historische
+Basis; die neuen Freigaben sind kein Domain-/Consumer-/Live-Auftrag.
 
 **Verbindliche Ergänzung 11.10.2026:** [ADR 0002](../adr/0002-phase1a-producer-and-ownership.md)
 setzt E1–E4 und die generischen Phase-1A-Korrekturen um. Nachweismatrix:

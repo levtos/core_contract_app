@@ -1,5 +1,11 @@
 # First-Run-Wizard (Issue #8)
 
+Alpha 8: Mimir ist eine Neuinstallation mit eigenem Slug, leerem `/data`, eigener
+DB/Rolle und eigener Bifröst-Integration. Für die konkrete Anlage gilt zuerst das
+[vorbereitete Mimir-Runbook](operations/mimir-new-database.md); Durchführung erst
+nach Teil-B-Go. Terra und alte Bridge bleiben erhalten. Die folgenden Schritte
+beschreiben den weiterhin unterstützten Einrichtungsmechanismus.
+
 Der Wizard gehört zu `1.0.0a2`. Die bestehenden Images `1.0.0a1` enthalten ihn
 nicht und bleiben unverändert. Veröffentlichung nur über den geprüften
 [Publikationsworkflow](publishing.md); [Alpha-2-Upgrade und Einschränkungen](releases/1.0.0a2.md).
@@ -87,13 +93,13 @@ Mount, keinen Docker-Socket und läuft als UID/GID 10001. HA REST/WS bietet kein
 Installations-Endpunkt für Custom-Integration-Dateien. Kein Umgehen durch Root,
 manager-Rechte, Hostzugriff oder Schreiben in Supervisor-Dateien.
 
-Der Wizard prüft `core_contracts_bridge/info` und bei fehlendem Command HA's
+Der Wizard prüft `bifrost/info` und bei fehlendem Command HA's
 `/api/config/config_entries/flow_handlers`. Aktive kompatible Bridge,
 entdeckter Config-Flow und noch nicht entdeckte Integration werden unterschieden.
 Nicht gescannte Dateien sind über diese API nicht sichtbar: daher ausdrücklich
 „fehlt oder Neustart ausstehend“, keine erfundene Dateisystemdiagnose.
 
-Bereitstellung über HACS: `Levtos/core_contract_app` als benutzerdefinierte
+Bereitstellung über HACS: nach der Repository-Umbenennung `Levtos/mimir` als benutzerdefinierte
 Integration hinzufügen, Bridge herunterladen, nach informiertem Wartungsfenster
 HA Core neu starten. Sobald der Config-Flow erkannt wird, kann der Wizard nach
 ausdrücklicher Bestätigung den einzelnen leeren Bridge-Eintrag über die offizielle

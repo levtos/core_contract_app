@@ -1,7 +1,8 @@
-# Betrieb: Platform Alpha 1
+# Betrieb: Mimir
 
-Diese App implementiert nur `test.*`-Fixtures. Sie ersetzt keine bestehende
-Integration. Für jede Installation: eigene App, eigene logische PostgreSQL-DB,
+Alpha 8 erlaubt eigene Vorlagen und Verträge ohne Test-Namensraum. Die Beispiele
+bleiben synthetisch. Mimir wird als neue App mit Slug `mimir` installiert; Terra
+und die alte Bridge bleiben erhalten. Für jede Installation: eigene logische PostgreSQL-DB,
 eigene DB-Rolle und eigene Tokens. Keine Verbindung zur Legacy-DB herstellen.
 Die folgenden Installationsschritte sind eine Betriebsvorlage, keine Freigabe:
 Pre-Install-Remediation und unabhängiger Delta-Review müssen bewertet sein;
@@ -23,11 +24,11 @@ Aufforderung, die bestehenden produktiven Optionen zu ändern.
    (Migrationen benötigen auch CREATE/ALTER und Index-Erstellung). Die Rolle
    muss die unten genannten Session-Settings beim Verbindungsaufbau setzen dürfen.
    Zugangsdaten außerhalb des Repository verwahren.
-2. Bridge-Integration aus `custom_components/core_contracts_bridge` über HACS
+2. Bifröst aus `custom_components/bifrost` über HACS
    oder manuell installieren und einmal in HA hinzufügen. Keine Entities oder
    Services entstehen. Keine Registry-Konfiguration gehört in die Bridge.
 3. Für die Installation aus dem GitHub-App-Repository müssen beide in
-   `core_contracts/config.yaml` referenzierten GHCR-Images öffentlich
+   `mimir/config.yaml` referenzierten GHCR-Images öffentlich
    verfügbar sein. Den aktuellen [Veröffentlichungs- und anonymen Pull-Nachweis](publishing.md)
    prüfen; eine grüne Build-CI allein genügt nicht. Für einen separaten lokalen
    Supervisor-Build `uv run python dev/stage_app.py <neues-ziel>` ausführen.
@@ -77,14 +78,19 @@ und das Budget je IP/Admin-Rolle, keinen Bearer-Auth-Limiter.
 
 `/health/live` prüft Event-Loop-Heartbeat und Processor-Task; nur diese Route
 steuert Watchdog/HEALTHCHECK. `/health/ready` meldet DB-/Registry-/Snapshot-Gates.
-Späterer HA-Verlust erscheint als Komponente und Source-Problem. Ein DB- oder
+Späterer HA-Verlust erscheint als Connectivity-Komponente. Evidence behält ihre
+normale Aktualitätsregel: zustandsbehaftete Werte ohne Ablauf bleiben gültig,
+TTL/Heartbeat laufen regulär ab. Sicherheitsrelevante Öffnungen und Heizfreigaben
+brauchen deshalb Heartbeat oder Liveness, siehe [ADR 0005](adr/0005-ha-outage-connectivity.md).
+Ein DB- oder
 Lock-Verlust friert die Fortschreibung ein; keine Publication oder Command-Acks.
 Der letzte sichtbare Envelope bleibt unverändert, `publication_confirmed=false`.
 Ingest hält pro Binding nur die letzte Observation. Recovery prüft Identität und
 Lock neu, startet eine neue Epoche und protokolliert den Gap. Consumer resynchronisieren.
 Readiness verlangt nach DB-Recovery einen neuen HA-Snapshot. Neue Connection-Gaps
-werden nur beim Zustandswechsel geschrieben und invalidieren die abhängigen
-Quellen/Contracts. Ein verlorenes Zwischenereignis darf keinen alten stable_for-
+werden nur beim Zustandswechsel geschrieben. Sie unterbrechen zeitliche
+Kontinuitätsannahmen, entwerten HA-Messwerte aber nicht pauschal.
+Ein verlorenes Zwischenereignis darf keinen alten stable_for-
 Anker erhalten; Grace wird aus alter Evidence nicht neu gestartet.
 
 DB-, HA- und MQTT-Verbindungsfehler verwenden einen Backoff bis 30 s. Der Client

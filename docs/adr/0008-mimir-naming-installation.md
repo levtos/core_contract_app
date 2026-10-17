@@ -75,4 +75,4 @@ Ingress werden erst nach Bennis Teil-B-Go belegt. Keine Abschaltung alter Apps.
 
 Betroffene Akte: APP-01/Installationsisolation, Profil-Delta-Audit; Build-Spezifikation
 §11, §13–§15, §23–§25; Manifest/Packaging/CI/Setup/UI/Betriebsdoku.
-Die Versionsvergleichsfrage bleibt ausdrücklich in [ADR 0009](0009-prerelease-version-gate.md).
+Die beschlossene Slug-Linienregel steht in [ADR 0009](0009-prerelease-version-gate.md).

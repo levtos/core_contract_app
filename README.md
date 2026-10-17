@@ -1,18 +1,24 @@
-# Core Contracts App
+# Mimir — Core Contracts
 
 Core Contracts als **Supervisor-verwaltete Home-Assistant-App**: kanonische fachliche Wahrheiten mit
 Status, Quality, Freshness, Evidence und Reasons. Dazu kommen Registry mit stabilen IDs, PostgreSQL-Persistenz,
-Thin HA I/O Bridge und `CoreContractsClient`.
+HA-Bridge Bifröst und `CoreContractsClient`.
 
-**Stand:** Phase-1-Implementierung auf dem Review-Branch. Ausschließlich synthetische
-`test.*`-Fixtures; Acceptance Gate und reale Supervisor-/HA-Abnahme bleiben offen.
+**Stand:** Alpha 8 im Review auf `agent/codex-alpha8-mimir`. Mimir erhält den
+neuen Supervisor-Slug `mimir` und eine eigene Datenbank. Vorlagen dürfen freie
+Kennungen verwenden; die frühere Beschränkung auf `test.*` und Fixtures ist gelöst.
+Die mitgelieferten Beispiele bleiben synthetisch. Release, Installation und reale
+Supervisor-/HA-Abnahme benötigen Bennis Teil-B-Go.
 
 | Phase | Inhalt |
 |---|---|
-| **Phase 1 — Platform Foundation (Alpha 1)** | generische Plattform; nur synthetische `test.*`-Contracts |
-| **Phase 2 — Domain Contracts + Consumer Migration** | reale Contracts einzeln je Domäne, erst nach dem Acceptance Gate von Phase 1 |
+| **Alpha 8 — Mimir** | Zeit/Kalender, Instanzparameter, n-Klassen, Textregeln, Kataloge, Vollständigkeit, Aufbewahrung |
+| **Weitere Domänen und Consumer-Migration** | gesonderte Aufträge; vorhandene Terra-/Legacy-Installationen bleiben erhalten |
 
 ## Dokumentation
+
+- [Alpha-8-Auftrag und Entscheidungen](docs/alpha8/README.md), [Abnahme](docs/alpha8/ABNAHME.md)
+- [Namenskonzept](docs/naming.md), [neue Mimir-Datenbank: vorbereitetes Runbook](docs/operations/mimir-new-database.md)
 
 - [First-Run-Wizard, DB-Provisionierung und offene Bridge-Grenze](docs/first-run.md)
 - [Betrieb, Installation und Backup/Restore](docs/operations.md)
