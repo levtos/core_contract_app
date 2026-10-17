@@ -27,9 +27,9 @@ it('opens without a red identity error, adds the prefix automatically and create
   await user.click(await screen.findByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect([...api.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
   expect([...api.drafts.values()][0]!.config.definitions).toEqual([expect.objectContaining({
-    type_id: 'test.fenster_offen', display_name: 'Fenster offen',
+    type_id: 'vertrag.fenster_offen', display_name: 'Fenster offen',
     inputs: [{ name: 'a', schema: { type: 'bool', required: true, physical_state: false } }],
-    schema: { fields: { value: { type: 'bool', required: true, physical_state: false } }, available_projection: ['value'] },
+    schema: { fields: { value: { type: 'bool', required: true, physical_state: false } }, available_projection: ['value'], fixture: false },
     outputs: { value: { op: 'input', name: 'a' } },
   })]);
 }, 15_000);
