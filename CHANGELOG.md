@@ -1,6 +1,27 @@
 # Changelog
 
-## 1.0.0a6 — Korrekturen nach UX12 (vorbereitet, 2026-10-15)
+## 1.0.0a7 — Terra nach Aufgaben bedienen (vorbereitet, 2026-10-17)
+
+- UX-Nachprüfung K.01–K.06: Server-Änderungszähler, schlanke Entwurfsleiste, Vertragsnavigation, Alltagssprache, deutsche Zeitwerte, Minutenhilfe und Statusdarstellung korrigiert; 18 neue Chrome-/Firefox-Nachweise.
+
+- Zweistufige Module und eigene Unterseiten, alte Links mit Weiterleitung; Bereitschaft
+  mit Zähler und Lösungslinks; eine Übersicht mit Schnellaktionen, Vertragsproblemen und Ereignissen.
+- Live ansehen / Bearbeiten, automatischer Entwurf am aktuellen Ort, sichtbares Prüfen und
+  Übernehmen; Name freiwillig; ein Speichern. Versionen mit Zeit, aufgezeichnetem Akteur und Notiz.
+- Vertragsliste mit Wert, Einheit und einem Zustandschip; Details mit Warum, Herkunft,
+  Verlauf und Ablaufbefehlen. Import auf eigener Seite mit Prüfung vor Übernahme.
+- Geräteführung aus Home Assistant samt Abhängigkeit, Quelle, Verknüpfung und ausdrücklicher
+  Typumwandlung; veränderbare Aktualitätsvorlagen; einfache typkonsistente neue Vorlagen.
+- Geprüfter Quellenumzug unter neuer Kennung; alte Quelle und Geschichte bleiben erhalten.
+- Angenommene ADR 0004: administrativer Ablauf-Neustart nur bei Freigabe, mit Bestätigung,
+  Auswirkungen, Grund, Audit, Versions-/Zustandsprüfung und manueller Kennzeichnung bis zum Datennachweis.
+- Lesbare Zusammenhänge, Nachweis-Quellenauswahl und Tabellen; gedämpfte Farben,
+  graues Unbekannt, geprüfte AA-Kontraste und deutsche Texte aus `de.json`.
+- [Umfang, Upgrade und Grenzen](docs/releases/1.0.0a7.md),
+  [vollständige Abnahmematrix](docs/workbench/alpha7/ABNAHME.md).
+  Merge, Tag, Release, Image-Publish und Installation bleiben bis zu Bennis neuem Go gesperrt.
+
+## 1.0.0a6 — Korrekturen nach UX12 (2026-10-16)
 
 - HA-/Bridge-Status entspricht dem Bedarf der aktiven Konfiguration, auch nach Zurücksetzen.
 - Typ und Einheit von Quellen bleiben ab der ersten Übernahme unveränderlich; Wertelisten
@@ -16,8 +37,8 @@
 - Oberfläche vollständig über `de.json`/`t()`, vorbereitete leere `en.json`, deutsche
   Code-Tabellen, Terra/Einstellungen; AST-Sprachscan und JSX-Lint in CI. Keine neue Navigation.
 - [Alpha-6-Umfang und Nachweise](docs/releases/1.0.0a6.md). K7 wird ausschließlich als
-  Runbook vorgelegt. Merge, Tag, Release, Veröffentlichung, Installation und DB-Reset
-  sind nicht ausgeführt und benötigen Bennis ausdrückliches Go.
+  Runbook vorgelegt. Merge, Tag, Pre-release und beide Images wurden nach Bennis Go
+  veröffentlicht und anonym geprüft; Installation, DB-Reset und Live-Abnahme bleiben getrennte Gates.
 
 ## 1.0.0a5 — Terra Workbench (2026-10-14)
 

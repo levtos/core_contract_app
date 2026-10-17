@@ -2,30 +2,37 @@ import { screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { expect } from 'vitest';
 import { gui } from './gui';
+import { legacyTarget } from '../src/lib/navigation';
 
 /** Application-level user flows, shared by the in-memory and the real-engine tests. */
 export function flow(user: UserEvent) {
   const steps = gui(user);
 
   const go = async (hash: string) => {
+    const [path = '/', query] = hash.slice(1).split('?');
+    const target = '#' + legacyTarget(path, query ? '?' + query : '');
     window.location.hash = hash;
-    await waitFor(() => expect(window.location.hash).toBe(hash));
+    await waitFor(() => expect(window.location.hash).toBe(target));
   };
 
   const createDraft = async (name: string, origin: 'Leere Konfiguration' | 'Einlesen (JSON)', json?: string) => {
     await user.click((await screen.findAllByRole('button', { name: /Neuer Entwurf|Ersten Entwurf anlegen/ }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: "Neuer Entwurf" });
-    await user.type(within(dialog).getByLabelText("Name (freiwillig)"), name);
+    await steps.type(within(dialog).getByLabelText("Name (freiwillig)"), name);
     await user.click(within(dialog).getByRole('radio', { name: origin }));
     if (json) {
       await user.click(within(dialog).getByLabelText('oder JSON einfügen'));
       await user.paste(json);
     }
     await user.click(within(dialog).getByRole('button', { name: "Entwurf anlegen" }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: "Neuer Entwurf" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: "Neuer Entwurf" })?.textContent ?? null).toBeNull(), { timeout: 65_000 });
   };
 
-  const saveButton = () => screen.getAllByRole('button', { name: /Speichern/ })[0]!;
+  const saveButton = async () => {
+    const menu = screen.getByLabelText('Weitere Entwurfsaktionen');
+    if (!menu.closest('details')?.open) await user.click(menu);
+    return screen.getByRole('button', { name: 'Speichern' });
+  };
 
   /** Builds the complete Alpha-4 example registry in the open (empty) draft, by operating controls only. */
   const buildExampleRegistry = async () => {
@@ -33,13 +40,15 @@ export function flow(user: UserEvent) {
     await go('#/sources?tab=dependencies');
     await user.click(await screen.findByRole('button', { name: "Abhängigkeit hinzufügen" }));
     await steps.type(screen.getByLabelText("Abhängigkeit-ID"), 'dep.test');
-    await user.click(screen.getByRole('tab', { name: "Quellen" }));
+    await go('#/sources/devices');
     for (const [id, key] of [['source.a', 'physical.a'], ['source.b', 'physical.b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Quelle hinzufügen" }));
+      const advanced = screen.getAllByRole('button', { name: 'Erweitert' })[0]!;
+      if (advanced.getAttribute('aria-expanded') !== 'true') await user.click(advanced);
       await steps.type(screen.getByLabelText("Quelle-ID"), id);
       await steps.type(screen.getByLabelText('Physischer Schlüssel'), key);
     }
-    await user.click(screen.getByRole('tab', { name: "Verknüpfungen" }));
+    await go('#/sources/bindings');
     for (const [id, source, entity] of [['binding.a', 'source.a', 'sensor.example_1'], ['binding.b', 'source.b', 'input_boolean.cc_alpha_test_b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Verknüpfung hinzufügen" }));
       await steps.type(screen.getByLabelText("Verknüpfung-ID"), id);
@@ -59,6 +68,7 @@ export function flow(user: UserEvent) {
       await go('#/definitions');
       await user.click(await screen.findByRole('button', { name: /Neue Vorlage/ }));
       const dialog = await screen.findByRole('dialog', { name: "Neue Vorlage" });
+      await user.click(within(dialog).getByRole('button', { name: 'Erweitert' }));
       await steps.type(within(dialog).getByLabelText('Typ-ID'), typeId);
       await user.click(within(dialog).getByRole('button', { name: 'Anlegen' }));
       await screen.findByRole('tab', { name: 'Allgemein' });
@@ -76,7 +86,8 @@ export function flow(user: UserEvent) {
     ];
     for (const [id, type, refs] of contracts) {
       await go('#/contracts');
-      await user.click(await screen.findByRole('button', { name: /Neue Instanz/ }));
+      await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
+      await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
       const dialog = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
       await steps.type(within(dialog).getByLabelText("Vertrag-ID"), id);
       await user.selectOptions(within(dialog).getByLabelText('Typ & Version'), type);
@@ -90,7 +101,7 @@ export function flow(user: UserEvent) {
   /** Activation through the real dialog, after the debounced server validation has accepted the draft. */
   const activateOpenDraft = async (draftId: string) => {
     await go(`#/registry/drafts/${draftId}`);
-    const button = await screen.findByRole('button', { name: /Übernehmen/ });
+    const button = await screen.findByRole('button', { name: 'Übernehmen' });
     await waitFor(() => expect(button).toBeEnabled(), { timeout: 65_000 });
     await user.click(button);
     const dialog = await screen.findByRole('dialog', { name: "Konfiguration übernehmen" });

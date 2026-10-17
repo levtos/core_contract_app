@@ -17,6 +17,7 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { isObject, setAt } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { ContractsTabs } from './ContractsPage';
+import { describeError } from '@/lib/api';
 
 export default function DefinitionDetailPage() {
   const { typeId = '', version = '' } = useParams();
@@ -28,6 +29,7 @@ export default function DefinitionDetailPage() {
   const [versioning, setVersioning] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [migrate, setMigrate] = useState<Set<string>>(new Set());
+  const [versionError, setVersionError] = useState('');
 
   const definitions = asArray(src.config?.definitions).filter(isObject);
   const index = definitions.findIndex((d) => str(d.type_id) === typeId && String(d.type_version) === version);
@@ -37,7 +39,7 @@ export default function DefinitionDetailPage() {
     return (
       <>
         <Back />
-        <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152")}</Empty>
+        <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{versionError || (src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152"))}</Empty>
       </>
     );
   }
@@ -48,6 +50,15 @@ export default function DefinitionDetailPage() {
   const pointer = `/definitions/${index}`;
   const users = contractsUsingDefinition(src.config, typeId, Number(version));
   const nextVersion = nextVersionOf(definition, definitions);
+  const beginVersion = async () => {
+    setVersionError('');
+    try {
+      const config = await doc.ensureDraft();
+      if (!asArray(config.definitions).filter(isObject).some(item => str(item.type_id) === typeId && String(item.type_version) === version)) throw new Error(uiText('alpha7.draft.templateMissing'));
+      setMigrate(new Set(contractsUsingDefinition(config, typeId, Number(version))));
+      setVersioning(true);
+    } catch (error) { setVersionError(describeError(error)); }
+  };
 
   const createVersion = () => {
     doc.edit((c) => {
@@ -61,7 +72,7 @@ export default function DefinitionDetailPage() {
       );
     });
     setVersioning(false);
-    navigate(`/definitions/${encodeURIComponent(typeId)}/${String(nextVersion.type_version)}`);
+    navigate(`/templates/details/${encodeURIComponent(typeId)}/${String(nextVersion.type_version)}`);
   };
 
   return (
@@ -73,30 +84,29 @@ export default function DefinitionDetailPage() {
         actions={
           <>
             <Badge>{uiText("features.contracts.DefinitionDetailPage.v_4c9448")}{version}</Badge>
-            {lockedSince !== null ? <LockBadge /> : <Badge tone="warn">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
-            {src.editable && (
-              <>
-                <Button size="sm" onClick={() => { setMigrate(new Set(users)); setVersioning(true); }}><GitBranchPlus size={14} /> {uiText("features.contracts.DefinitionDetailPage.neue_version_e81cfe")}</Button>
-                <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.DefinitionDetailPage.entfernen_382837")}</Button>
-              </>
-            )}
+            {lockedSince !== null ? <LockBadge /> : <Badge tone="info">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
+            <Button size="sm" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void beginVersion()}><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>
+            {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} />{uiText('features.contracts.DefinitionDetailPage.entfernen_382837')}</Button>}
           </>
         }
       />
+      {versionError && <p role="alert" className="mb-3 text-sm text-bad">{versionError}</p>}
+      {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionDetailPage.definition_9813fa")} />
-      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><fieldset disabled={!src.editable} className="min-w-0">
+      <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><div className="min-w-0">
         <DefinitionEditor
           value={definition}
           pointer={pointer}
           caps={caps.data}
           initialTab={params.get('tab') ?? undefined}
           locked={locked}
+          readOnly={!src.editable}
           lockReason={lockedSince !== null ? uiText("features.contracts.DefinitionDetailPage.diese_version_war_in_revision_v0_aktiv_7f3ad4", { v0: (lockedSince) }) : src.editable ? undefined : uiText("features.contracts.DefinitionDetailPage.schreibgeschutzte_ansicht_der_aktiven_registry_10e355")}
           onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}
         />
-      </fieldset>
+      </div>
       </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">
-        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-accent hover:underline">{id}</Link>)}
+        {uiText("features.contracts.DefinitionDetailPage.verwendet_von_f83bfe")}{users.length === 0 ? uiText("features.contracts.DefinitionDetailPage.keiner_instanz_86ff43") : users.map((id) => <Link key={id} to={`/contracts/view/${encodeURIComponent(id)}`} className="mr-2 font-mono text-xs text-fg hover:underline">{id}</Link>)}
       </section>
       </LayoutPanel></PanelLayout>
 
@@ -128,7 +138,7 @@ export default function DefinitionDetailPage() {
         onConfirm={() => {
           doc.edit((c) => setAt(c, pointer, undefined));
           setRemoving(false);
-          navigate('/definitions');
+          navigate("/templates/own");
         }}
       />
     </>
@@ -138,7 +148,7 @@ export default function DefinitionDetailPage() {
 function Back() {
   return (
     <>
-      <Link to="/definitions" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
+      <Link to="/templates/own" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-fg">
         <ArrowLeft size={13} /> {uiText("features.contracts.DefinitionDetailPage.alle_definitionen_bd3333")}</Link>
       <ContractsTabs />
     </>

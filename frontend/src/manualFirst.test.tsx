@@ -51,7 +51,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await screen.findAllByText('GUI-Aufbau');
     await f.buildExampleRegistry();
 
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     await waitFor(() => expect([...api.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
     expect(savedConfig()).toEqual(registry); // exact, including the object value, the machine and the nested rules
 
@@ -69,8 +69,8 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
 
     // Edit through the UI: a catalog with object / list / null values.
     await f.go('#/sources?tab=catalogs');
-    await user.click(await screen.findByRole('button', { name: 'Katalog hinzufügen' }));
-    await f.type(screen.getByLabelText('Katalog-ID'), 'catalog.struktur');
+    await user.click(await screen.findByRole('button', { name: 'Werteliste hinzufügen' }));
+    await f.type(screen.getByLabelText('Wertelisten-ID'), 'catalog.struktur');
     await user.selectOptions(screen.getByLabelText('Wert für an: Typ'), 'object');
     await user.click(screen.getByRole('button', { name: 'Wert für an: Eigenschaft hinzufügen' }));
     await f.type(screen.getByLabelText('Wert für an: Schlüssel 1'), 'liste');
@@ -85,7 +85,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await user.tab();
     await user.selectOptions(screen.getByLabelText('Wert für aus: Typ'), 'null');
 
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     const expected = { ...enriched, catalogs: [{ catalog_id: 'catalog.struktur', kind: 'map', version: 1, entries: { an: { liste: ['eins', null] }, aus: null } }] };
     await waitFor(() => expect(api.drafts.get(imported.draft_id)!.draft_version).toBeGreaterThan(1));
     expect(savedConfig(imported.draft_id)).toEqual(expected);

@@ -2,8 +2,8 @@ import { t as uiText } from '@/i18n';
 import type { Tone } from '@/components/ui/badge';
 import type { Connection } from './live';
 import type { FieldStatus, FieldValue, ServiceState } from './types';
-import { formatDuration, formatNumber } from './format';
-import { codeLabel } from '@/i18n/codes';
+import { formatDuration, formatNumber, formatTime } from './format';
+import { codeLabel, fieldLabel } from '@/i18n/codes';
 
 /**
  * Honest status vocabulary. "unknown" is a status, never `false`/`off`, and
@@ -14,8 +14,8 @@ import { codeLabel } from '@/i18n/codes';
 export const FIELD_STATUS: Record<FieldStatus, { label: string; tone: Tone; hint: string }> = {
   valid: { label: uiText("lib.status.gultig_87b71a"), tone: 'ok', hint: uiText("lib.status.wert_ist_aktuell_und_belegt_40eba5") },
   held: { label: uiText("lib.status.gehalten_9ce589"), tone: 'info', hint: uiText("lib.status.letzter_gultiger_wert_wird_bis_zum_ende_der_grac_763ba7") },
-  unknown: { label: uiText("lib.status.unbekannt_a418e6"), tone: 'warn', hint: uiText("lib.status.kein_verwendbarer_wert_das_ist_weder_aus_noch_fa_23fda0") },
-  unresolved: { label: uiText("lib.status.ungelost_1a4c83"), tone: 'warn', hint: uiText("lib.status.der_wert_konnte_nicht_eindeutig_bestimmt_werden_508be4") },
+  unknown: { label: uiText("lib.status.unbekannt_a418e6"), tone: 'neutral', hint: uiText("lib.status.kein_verwendbarer_wert_das_ist_weder_aus_noch_fa_23fda0") },
+  unresolved: { label: uiText("lib.status.ungelost_1a4c83"), tone: 'neutral', hint: uiText("lib.status.der_wert_konnte_nicht_eindeutig_bestimmt_werden_508be4") },
   not_applicable: { label: uiText("lib.status.nicht_anwendbar_d9b971"), tone: 'neutral', hint: uiText("lib.status.positiv_festgestellt_trifft_in_dieser_lage_nicht_96ea6e") },
 };
 
@@ -33,7 +33,18 @@ export function displayValue(field: FieldValue, unit?: string): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? uiText("lib.status.ja_cde9e5") : uiText("lib.status.nein_90ebc1");
   if (typeof value === 'number') return unit === 's' ? formatDuration(value) : `${formatNumber(value)}${unit ? ` ${unit}` : ''}`;
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return structuredValue(value);
+}
+
+/** User-defined nested values retain their keys, with German scalar presentation. */
+function structuredValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return uiText(value ? 'lib.status.ja_cde9e5' : 'lib.status.nein_90ebc1');
+  if (typeof value === 'number') return formatNumber(value);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return formatTime(value);
+  if (Array.isArray(value)) return value.map(structuredValue).join(' · ');
+  if (typeof value === 'object') return Object.entries(value).map(([key, item]) => `${fieldLabel(key)}: ${structuredValue(item)}`).join('; ');
+  return String(value);
 }
 
 export type ConditionKind =

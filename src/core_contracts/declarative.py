@@ -420,6 +420,7 @@ class Evaluation:
                     collect(reinitialize_rule)
                     ctx.node["machine_recovery"] = {
                         "status": condition.status,
+                        "quality": condition.quality,
                         "condition_met": allowed,
                         "evidence": list(condition.evidence[:64]) if allowed else [],
                         "inputs": [
@@ -578,6 +579,18 @@ def compile_machine(
     def argument_guard(expected: dict[str, Any]) -> Callable[[dict[str, Any]], bool]:
         return lambda args: all(args.get(name) == value for name, value in expected.items())
 
+    def data_confirmation(rule: dm.Rule) -> Guard:
+        def confirmed(inputs: dict[str, FieldValue], now: datetime) -> bool:
+            value = (evaluation or Evaluation(definition, inputs, now)).evaluate(rule)
+            return (
+                value.status == "valid"
+                and value.quality == "healthy"
+                and value.value is True
+                and bool(value.evidence)
+            )
+
+        return confirmed
+
     return Machine(
         Definition(
             states=machine.states,
@@ -585,6 +598,7 @@ def compile_machine(
             commands=tuple(machine.commands),
             deadline_seconds=machine.deadline_s,
             sessions=machine.sessions,
+            allow_manual_restart=machine.allow_manual_restart,
             transitions=tuple(
                 Transition(
                     source=t.source,
@@ -595,6 +609,7 @@ def compile_machine(
                     new_episode=t.new_episode,
                     ends_episode=t.ends_episode,
                     argument_guard=argument_guard(t.argument_equals) if t.argument_equals else None,
+                    data_confirmation=data_confirmation(t.guard),
                 )
                 for t in machine.transitions
             ),

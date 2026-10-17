@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
 
+from pydantic import Field
+
 from .model import Model
 from .quality import FieldValue, ReasonCode, unknown
 from .temporal import Deadline
@@ -23,6 +25,7 @@ class Transition:
     new_episode: bool = False
     ends_episode: bool = False
     argument_guard: Callable[[dict[str, Any]], bool] | None = None
+    data_confirmation: Guard | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +36,7 @@ class Definition:
     commands: tuple[str, ...]
     deadline_seconds: float | None = None
     sessions: bool = False
+    allow_manual_restart: bool = False
 
     def __post_init__(self) -> None:
         if self.initial not in self.states or len(set(self.states)) != len(self.states):
@@ -58,6 +62,8 @@ class MachineState(Model):
     origin: Literal["automatic", "manual", "restore"]
     fingerprint: str
     deadline: Deadline | None = None
+    manual_restart: bool = Field(default=False, exclude_if=lambda value: not value)
+    manual_restart_at: datetime | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Machine:
@@ -136,6 +142,13 @@ class Machine:
                     "evidence": tuple(e for i in inputs.values() for e in i.evidence),
                     "registry_revision": revision,
                     "origin": "manual" if manual else "automatic",
+                    "manual_restart": state.manual_restart
+                    and not (
+                        not manual
+                        and event == "input"
+                        and rule.data_confirmation is not None
+                        and rule.data_confirmation(inputs, now) is True
+                    ),
                     "deadline": deadline,
                 }
             ), "accepted"

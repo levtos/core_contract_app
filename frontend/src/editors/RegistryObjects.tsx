@@ -13,6 +13,8 @@ import { asArray, asObject, newFieldSchema, str, type FieldSchema } from '@/feat
 import { enumAt, requiredWhen, type JsonSchema } from '@/lib/capabilities';
 import { join, type Json, type JsonObject } from '@/lib/json';
 import { useHaEntities } from '@/lib/queries';
+import { sourceCast } from '@/lib/sourceCast';
+import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { ValueEditor } from './ValueEditor';
@@ -95,12 +97,13 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
   const fp = join(pointer, 'freshness');
   return (
     <div className="flex flex-col gap-5">
+      <Fld label={uiText('alpha7.device.name')} pointer={join(pointer, 'display_name')}>
+        {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value })} />}
+      </Fld>
+      <Collapsible title={uiText('alpha7.device.advanced')}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Fld label={uiText("editors.RegistryObjects.source_id_a3a484")} pointer={join(pointer, 'source_id')} hint={uiText("editors.RegistryObjects.beginnt_mit_source_ea3ff7")}>
           {(p) => <Input {...p} value={str(value.source_id)} onChange={(e) => set({ source_id: e.target.value })} />}
-        </Fld>
-        <Fld label={uiText("editors.RegistryObjects.anzeigename_3ab2ea")} pointer={join(pointer, 'display_name')}>
-          {(p) => <Input {...p} value={str(value.display_name)} onChange={(e) => set({ display_name: e.target.value })} />}
         </Fld>
         <Fld label={uiText("editors.RegistryObjects.typ_1b0241")} pointer={join(pointer, 'source_type')}>
           {(p) => (
@@ -137,9 +140,14 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
           {(p) => <Select {...p} value={str(value.source_type)} onChange={(e) => set({ source_type: e.target.value })}>{enumAt(schema, 'Source', 'source_type', ['state', 'attribute', 'event', 'numeric', 'text', 'boolean']).map((k) => <option key={k} value={k}>{codeLabel(k)}</option>)}</Select>}
         </Fld>
       </Collapsible>
+      </Collapsible>
 
       <section className="flex flex-col gap-3">
         <SectionTitle>{uiText("editors.RegistryObjects.frische_freshness_be29ab")}</SectionTitle>
+        <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
+          {props => <Select {...props} value="" onChange={event => { if (!event.target.value) return; const next = { ...freshness, ...freshnessPreset(event.target.value as DevicePreset) }; if (next.mode === 'event_stateful') delete next.interval_s; delete next.liveness_source; onChange({ ...value, freshness: next }); }}><option value="">{uiText('alpha7.device.keepSettings')}</option>{DEVICE_PRESETS.map(preset => <option key={preset} value={preset}>{uiText(`alpha7.device.preset.${preset}`)}</option>)}</Select>}
+        </Fld>
+        <p className="text-xs text-muted">{uiText(`alpha7.freshness.${mode}Help`)}</p>
         <IssuesAt pointer={fp} />
         <div className="grid gap-3 sm:grid-cols-4">
           <Fld label={uiText("editors.RegistryObjects.modus_45517c")} pointer={join(fp, 'mode')} className="sm:col-span-2">
@@ -157,7 +165,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
           </Fld>
           <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
           {(required.includes('interval_s') || freshness.interval_s !== undefined) && (
-            <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: (required.includes('interval_s') ? ' *' : '') })} pointer={join(fp, 'interval_s')} min={0} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
+            <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: (required.includes('interval_s') ? ' *' : '') })} pointer={join(fp, 'interval_s')} min={1} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
           )}
         </div>
         {(required.includes('liveness_source') || freshness.liveness_source !== undefined) && (
@@ -176,11 +184,11 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <Extras def="Freshness" value={freshness} pointer={fp} onChange={(next) => onChange({ ...value, freshness: next })} />
       </section>
 
-      <section className="flex flex-col gap-2">
+      <Collapsible title={uiText('alpha7.device.schemaDetails')}>
         <Switch checked={hasSchema} onCheckedChange={(on) => set({ value_schema: on ? newFieldSchema(value.source_type === 'boolean' ? 'bool' : value.source_type === 'text' ? 'text' : 'number') : undefined })} label={uiText("editors.RegistryObjects.eigenes_wertschema_deklarieren_value_schema_82fd15")} />
         <p className="text-xs text-muted">{uiText("editors.RegistryObjects.quellen_der_typen_boolean_numeric_text_haben_ihr_e970bc")}</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
-      </section>
+      </Collapsible>
       <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
@@ -188,10 +196,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
 
 /* ─────────────────────────────── Binding ────────────────────────────── */
 
-export function sourceCast(source: JsonObject | undefined): JsonObject | undefined {
-  const type = str(asObject(source?.value_schema).type) || ({ numeric: 'number', boolean: 'bool', text: "text" } as Record<string, string>)[str(source?.source_type)];
-  return type === 'number' || type === 'bool' || type === 'text' ? { kind: 'type_cast', target: type } : undefined;
-}
+export { sourceCast } from '@/lib/sourceCast';
 
 export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [], catalogIds, schema, onPickEntity }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; sourceIds: string[]; sources?: JsonObject[]; catalogIds: string[]; schema?: JsonSchema; onPickEntity: (apply: (entityId: string, attributes: string[]) => void) => void }) {
   const set = patcher(value, onChange);
@@ -391,7 +396,7 @@ export function EntityPicker({ open, onOpenChange, onPick }: { open: boolean; on
         </ul>
         {!needle && query.hasNextPage && (
           <div>
-            <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+            <Button variant="outline" disabled={query.isFetchingNextPage} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void query.fetchNextPage()}>
               {uiText("editors.RegistryObjects.weitere_laden_f77bb3")}</Button>
           </div>
         )}
@@ -464,7 +469,7 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
 
 /* ────────────────────────── Contract instance ───────────────────────── */
 
-export function ContractEditor({ value, onChange, pointer, types, refs }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[] }) {
+export function ContractEditor({ value, onChange, pointer, types, refs, onAddDevice }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[]; onAddDevice?: (input: string) => void }) {
   const set = patcher(value, onChange);
   const key = typeKey(str(value.type_id), Number(value.type_version));
   const entry = types.find((t) => t.key === key);
@@ -527,7 +532,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
                 <Badge tone={input.required ? 'accent' : 'neutral'}>{input.required ? uiText("editors.RegistryObjects.pflicht_6a047f") : uiText("editors.RegistryObjects.optional_ec91fd")}</Badge>
                 {input.schema && <Badge className="ml-1">{codeLabel(input.schema.type)}{input.schema.unit ? uiText("editors.RegistryObjects.v0_8b43bb", { v0: (String(input.schema.unit)) }) : ''}</Badge>}
               </div>
-              <Fld label={uiText("editors.RegistryObjects.referenz_e13113")} pointer={join(ip, 'ref')}>
+              <div className="space-y-2"><Fld label={uiText("editors.RegistryObjects.referenz_e13113")} pointer={join(ip, 'ref')}>
                 {(p) => (
                   <Select {...p} value={ref} onChange={(e) => setRef(input.name, e.target.value)}>
                     <option value="">{input.required ? uiText("editors.RegistryObjects.wahlen_602246") : uiText("editors.RegistryObjects.nicht_gebunden_4105e9")}</option>
@@ -544,7 +549,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs }: { valu
                     </optgroup>
                   </Select>
                 )}
-              </Fld>
+              </Fld>{onAddDevice && <Button size="sm" onClick={() => onAddDevice(input.name)}>{uiText('alpha7.device.missingSource')}</Button>}</div>
             </div>
           );
         })}

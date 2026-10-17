@@ -25,7 +25,7 @@ export const HANDLED = {
   TemporalRule: ['op', 'id', 'operation', 'args', 'duration_s', 'accepts_held'],
   MachineRule: ['op'],
   NotApplicableRule: ['op', 'arg'],
-  MachineDefinition: ['id', 'states', 'initial', 'transitions', 'commands', 'deadline_s', 'sessions', 'reinitialize_when'],
+  MachineDefinition: ['id', 'states', 'initial', 'transitions', 'commands', 'deadline_s', 'sessions', 'reinitialize_when', 'allow_manual_restart'],
   TransitionDefinition: ['source', 'target', 'event', 'guard', 'reason', 'new_episode', 'ends_episode', 'argument_equals'],
   CommandDefinition: ['arguments'],
   DeclarativeDefinition: ['type_id', 'type_version', 'language_version', 'display_name', 'description', 'inputs', 'refresh_inputs', 'schema', 'rules', 'outputs', 'machine'],

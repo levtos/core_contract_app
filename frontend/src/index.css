@@ -8,23 +8,23 @@
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 
-  --color-canvas: #0a1013;
-  --color-panel: #0f181c;
-  --color-raised: #142127;
-  --color-sunken: #0b1317;
-  --color-line: #1f3037;
-  --color-line-strong: #2d444d;
-  --color-fg: #e4eef1;
-  --color-muted: #8ba2aa;
-  --color-faint: #5d757d;
-  --color-accent: #2dd4bf;
-  --color-accent-strong: #14b8a6;
-  --color-accent-deep: #0f4f4a;
-  --color-accent-fg: #03201d;
-  --color-ok: #4ade80;
-  --color-warn: #fbbf24;
-  --color-bad: #f87171;
-  --color-info: #60a5fa;
+  --color-canvas: #111519;
+  --color-panel: #171d22;
+  --color-raised: #222a31;
+  --color-sunken: #10151b;
+  --color-line: #303b44;
+  --color-line-strong: #4a5661;
+  --color-fg: #edf0f2;
+  --color-muted: #b2bbc5;
+  --color-faint: #939fac;
+  --color-accent: #76a6a8;
+  --color-accent-strong: #628e92;
+  --color-accent-deep: #293f44;
+  --color-accent-fg: #0c2024;
+  --color-ok: #7cdb96;
+  --color-warn: #edc55c;
+  --color-bad: #ff9191;
+  --color-info: #9ec4ff;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -61,13 +61,13 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-fg);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-fg) 25%, transparent);
 }
 
 code,
@@ -88,7 +88,7 @@ pre,
 /* React Flow nutzt das dunkle Token-Set. */
 .react-flow {
   --xy-edge-stroke-default: var(--color-line-strong);
-  --xy-edge-stroke-selected-default: var(--color-accent);
+  --xy-edge-stroke-selected-default: var(--color-fg);
   --xy-background-color-default: transparent;
   --xy-minimap-background-color-default: var(--color-panel);
   --xy-controls-button-background-color-default: var(--color-raised);

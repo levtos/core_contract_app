@@ -32,6 +32,7 @@ class ReasonCode(StrEnum):
     HISTORY_GAP = "history_gap"
     DEADLINE_OVERDUE = "deadline_overdue_unprocessed"
     GUARD_REJECTED = "guard_rejected"
+    MANUAL_RESTART = "manual_restart"
 
 
 class Reason(Model):

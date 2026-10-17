@@ -1,7 +1,8 @@
 import { codeLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
+import { useLocation } from 'react-router';
+import { NAVIGATION } from '@/lib/navigation';
 import { Copy, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ConditionList } from '@/components/status-parts';
@@ -20,6 +21,7 @@ import { classifySystem, connectionLabel, REASON_LABELS } from '@/lib/status';
 import { BRIDGE_LABELS } from '@/setup/SetupWizard';
 import { setupRequest } from '@/setup/setup';
 import type { HaEntityPage, TokenRotation } from '@/lib/types';
+import { EventFeed } from '@/features/overview/EventFeed';
 
 function InstallationPanel() {
   const info = useInfo();
@@ -108,7 +110,7 @@ function BridgePanel() {
           { label: uiText("features.admin.AdminPage.resyncs_634ca6"), value: uiText("features.admin.AdminPage.v0_460783", { v0: (live.resyncCount) }) },
         ]} />
         <div className="flex flex-wrap items-center gap-3">
-          <Button size="sm" disabled={discovery.isPending} onClick={() => discovery.mutate()}>{uiText("features.admin.AdminPage.ha_erkennung_testen_nur_lesend_34b8be")}</Button>
+          <Button size="sm" disabled={discovery.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => discovery.mutate()}>{uiText("features.admin.AdminPage.ha_erkennung_testen_nur_lesend_34b8be")}</Button>
           {discovery.isSuccess && <Badge tone="ok">{uiText("features.admin.AdminPage.erreichbar_fb6263")}</Badge>}
           {discovery.isError && <span className="text-xs text-warn">{describeError(discovery.error)}</span>}
         </div>
@@ -155,8 +157,8 @@ function TokensPanel() {
           <ul className="flex flex-col gap-2">
             {(roles.data?.roles ?? []).map((role) => (
               <li key={role} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-line px-3 py-2">
-                <span className="flex items-center gap-2 text-sm"><KeyRound size={14} className="text-accent" /> <strong className="font-medium">{role === 'admin' ? uiText("features.admin.AdminPage.admin_c1c224") : uiText("features.admin.AdminPage.consumer_3fdb18")}</strong><Badge>{role}</Badge></span>
-                <Button size="sm" variant="danger" disabled={rotating} onClick={() => setPending(role as 'admin' | 'consumer')}>{uiText("features.admin.AdminPage.token_rotieren_ce44a8")}</Button>
+                <span className="flex items-center gap-2 text-sm"><KeyRound size={14} className="text-fg" /> <strong className="font-medium">{codeLabel(role)}</strong></span>
+                <Button size="sm" variant="danger" disabled={rotating} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => setPending(role as 'admin' | 'consumer')}>{uiText("features.admin.AdminPage.token_rotieren_ce44a8")}</Button>
               </li>
             ))}
           </ul>
@@ -206,7 +208,8 @@ function AuditPanel() {
   return (
     <Panel>
       <PanelHeader title={uiText("features.admin.AdminPage.audit_verlauf_843625")} description={uiText("features.admin.AdminPage.administrative_operationen_mit_rolle_vertrauensg_2a53f4")} />
-      <div className="p-4">
+      <div className="space-y-5 p-4">
+        <EventFeed limit={50} logLink={false} />
         <HistoryTable
           kind="diagnostics"
           filters={{ limit: 100 }}
@@ -224,16 +227,21 @@ function AuditPanel() {
 }
 
 export default function AdminPage() {
+  const location = useLocation();
+  const section = location.pathname.split('/')[2] ?? 'system';
+  const title = NAVIGATION.find(module => module.id === 'settings')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.system');
+  const live = useLive();
   return (
     <>
-      <PageHeader title={uiText("features.admin.AdminPage.administration_4b42c6")} description={uiText("features.admin.AdminPage.installation_und_einrichtung_bereitschaft_bridge_53e08f")} />
-      <PanelLayout view="admin">
-        <LayoutPanel id="installation" title={uiText("features.admin.AdminPage.installation_c3fc54")} span={1}><InstallationPanel /></LayoutPanel>
-        <LayoutPanel id="readiness" title={uiText("features.admin.AdminPage.readiness_d53d98")} span={2}><ReadinessPanel /></LayoutPanel>
-        <LayoutPanel id="bridge" title={uiText("features.admin.AdminPage.bridge_3892e1")} span={1}><BridgePanel /></LayoutPanel>
-        <LayoutPanel id="tokens" title={uiText("features.admin.AdminPage.tokens_a039df")} span={2}><TokensPanel /></LayoutPanel>
-        <LayoutPanel id="audit" title={uiText("features.admin.AdminPage.audit_bb6aea")}><AuditPanel /></LayoutPanel>
-      </PanelLayout>
+      <PageHeader title={title} />
+      {section === 'system' && <ReadinessPanel />}
+      {section === 'installation' && <InstallationPanel />}
+      {section === 'connections' && <div className="space-y-5"><BridgePanel /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
+        { label: uiText('alpha7.settings.database'), value: connectionLabel(live.service?.persistence ?? 'unknown') },
+        { label: uiText('alpha7.settings.mqtt'), value: connectionLabel(live.service?.mqtt ?? 'unknown') },
+      ]} /></div></Panel></div>}
+      {section === 'keys' && <TokensPanel />}
+      {section === 'log' && <AuditPanel />}
     </>
   );
 }

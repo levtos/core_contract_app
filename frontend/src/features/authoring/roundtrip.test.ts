@@ -51,12 +51,12 @@ describe('import / export round trip', () => {
 describe('pure authoring helpers', () => {
   it('locates validation findings at the editor that owns the object', () => {
     const doc = registry();
-    expect(locateIssue('/definitions/4/machine/transitions/0/event', doc)).toEqual({ to: '/definitions/test.flow/1?tab=machine', label: "Vorlage test.flow@1" });
-    expect(locateIssue('/definitions/1/outputs/value', doc).to).toBe('/definitions/test.either/1?tab=outputs');
-    expect(locateIssue('/contracts/2/inputs/0/ref', doc).to).toBe('/contracts/fixture.either?tab=config');
-    expect(locateIssue('/sources/1/freshness', doc).to).toBe('/sources?tab=sources&item=1');
-    expect(locateIssue('/bindings/0/adapter', doc).to).toBe('/sources?tab=bindings&item=0');
-    expect(locateIssue('/fingerprint_version', doc).to).toBe('/registry');
+    expect(locateIssue('/definitions/4/machine/transitions/0/event', doc)).toEqual({ to: '/templates/details/test.flow/1?tab=machine', label: "Vorlage test.flow@1" });
+    expect(locateIssue('/definitions/1/outputs/value', doc).to).toBe('/templates/details/test.either/1?tab=outputs');
+    expect(locateIssue('/contracts/2/inputs/0/ref', doc).to).toBe('/contracts/view/fixture.either?tab=config');
+    expect(locateIssue('/sources/1/freshness', doc).to).toBe('/sources/devices?tab=sources&item=1');
+    expect(locateIssue('/bindings/0/adapter', doc).to).toBe('/sources/bindings?tab=bindings&item=0');
+    expect(locateIssue('/fingerprint_version', doc).to).toBe('/changes/drafts');
   });
 
   it('structural path diff is symmetric about what changed', () => {

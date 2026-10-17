@@ -31,20 +31,21 @@ export function locateIssue(path: string, config: JsonObject | null | undefined)
   if (collection && COLLECTIONS[collection] && Number.isInteger(i)) {
     const item = asArray(config?.[collection]).filter(isObject)[i];
     const idKey = collection === 'sources' ? 'source_id' : collection === 'bindings' ? 'binding_id' : collection === 'catalogs' ? 'catalog_id' : 'dependency_id';
-    return { to: `/sources?tab=${COLLECTIONS[collection]!.tab}&item=${i}`, label: uiText("features.authoring.locate.v0_v1_24a420", { v0: (COLLECTIONS[collection]!.singular), v1: (item ? str(item[idKey]) : uiText("features.authoring.locate.v0_cdb96d", { v0: (i) })) }) };
+    const tab = COLLECTIONS[collection]!.tab;
+    return { to: `/sources/${tab === 'sources' ? 'devices' : tab}?tab=${tab}&item=${i}`, label: uiText("features.authoring.locate.v0_v1_24a420", { v0: (COLLECTIONS[collection]!.singular), v1: (item ? str(item[idKey]) : uiText("features.authoring.locate.v0_cdb96d", { v0: (i) })) }) };
   }
   if (collection === 'contracts' && Number.isInteger(i)) {
     const contract = asArray(config?.contracts).filter(isObject)[i];
-    return contract ? { to: `/contracts/${encodeURIComponent(str(contract.contract_id))}?tab=config`, label: uiText("features.authoring.locate.contract_v0_fef1f2", { v0: (str(contract.contract_id)) }) } : { to: '/contracts', label: uiText("features.authoring.locate.contracts_0488ac") };
+    return contract ? { to: `/contracts/view/${encodeURIComponent(str(contract.contract_id))}?tab=config`, label: uiText("features.authoring.locate.contract_v0_fef1f2", { v0: (str(contract.contract_id)) }) } : { to: "/contracts/list/all", label: uiText("features.authoring.locate.contracts_0488ac") };
   }
   if (collection === 'definitions' && Number.isInteger(i)) {
     const definition = asArray(config?.definitions).filter(isObject)[i];
     if (definition) {
       const tab = section ? (DEFINITION_TABS[section] ?? 'general') : 'general';
-      return { to: `/definitions/${encodeURIComponent(str(definition.type_id))}/${String(definition.type_version)}?tab=${tab}`, label: uiText("features.authoring.locate.definition_v0_v1_71ce19", { v0: (str(definition.type_id)), v1: (String(definition.type_version)) }) };
+      return { to: `/templates/details/${encodeURIComponent(str(definition.type_id))}/${String(definition.type_version)}?tab=${tab}`, label: uiText("features.authoring.locate.definition_v0_v1_71ce19", { v0: (str(definition.type_id)), v1: (String(definition.type_version)) }) };
     }
   }
-  return { to: '/registry', label: uiText("features.authoring.locate.registry_dokument_fb6686") };
+  return { to: "/changes/drafts", label: uiText("features.authoring.locate.registry_dokument_fb6686") };
 }
 
 /** Pointer-level structural difference (display only; the semantic analysis is the server's). */

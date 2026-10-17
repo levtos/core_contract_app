@@ -25,8 +25,11 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from aiohttp import web
+from aiohttp import ClientSession, web
+from workbench_devices import attach as attach_devices
+from workbench_devices import feed as feed_devices
 
+from core_contracts.adapters.ha import BridgeAdapter
 from core_contracts.api import API
 from core_contracts.clock import SystemClock
 from core_contracts.evidence import Observation
@@ -94,6 +97,10 @@ async def main() -> None:
     clock = SystemClock()
     runtime = Runtime(MemoryStore(), clock, type_registry())
     await runtime.start()
+    session = ClientSession()
+    # This adapter only normalizes synthetic local records; its network methods are never called.
+    adapter = BridgeAdapter(runtime, session, "ws://127.0.0.1:1/unused", "synthetic-only")
+    entities = attach_devices(adapter, ROOT)
     data = Path(tempfile.mkdtemp(prefix="terra-demo-"))
     api = API(
         runtime,
@@ -118,13 +125,16 @@ async def main() -> None:
 
     tasks = [asyncio.create_task(scheduler())]
     if args.seed:
-        document = json.loads((ROOT / "docs" / "alpha4" / "example-registry.json").read_text())
+        document = json.loads(
+            (ROOT / "docs" / "alpha4" / "example-registry.json").read_text(encoding="utf-8")
+        )
         draft = await runtime.submit("draft_create", {"config": document})
         await runtime.submit("activate", {**draft, "expected_active_revision": 0})
         runtime.first_snapshot = True
 
     if args.feed:
         runtime.first_snapshot = True
+        await runtime.submit("bridge_state", ("connected", "connected"))
 
         async def feed() -> None:
             seq = 0
@@ -134,6 +144,7 @@ async def main() -> None:
                 flip = not flip
                 await runtime.submit("observation", observation(runtime, "a", flip, seq))
                 await runtime.submit("observation", observation(runtime, "b", not flip, seq + 1))
+                await feed_devices(adapter, entities)
                 await clock.sleep(args.interval)
 
         tasks.append(asyncio.create_task(feed()))
@@ -145,6 +156,7 @@ async def main() -> None:
             task.cancel()
         await runner.cleanup()
         await runtime.stop()
+        await session.close()
 
 
 if __name__ == "__main__":

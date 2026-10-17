@@ -198,6 +198,10 @@ class MachineDefinition(Model):
     deadline_s: float | None = Field(default=None, gt=0, le=31_536_000)
     sessions: bool = False
     reinitialize_when: Rule
+    # Omit the additive false default so released definition fingerprints stay stable.
+    allow_manual_restart: bool = Field(
+        default=False, strict=True, exclude_if=lambda value: not value
+    )
 
     @model_validator(mode="after")
     def coherent(self) -> Self:

@@ -51,7 +51,7 @@ const RESULT_TEXT: Record<string, string> = {
  * a named, guarded transition; the server decides. The command id is stable, so a
  * lost response can be recovered by asking for the stored result (no blind retry).
  */
-export function CommandsPanel({ contractId, onContract }: { contractId: string; onContract: (id: string) => void }) {
+export function CommandsPanel({ contractId, onContract, fixed = false }: { contractId: string; onContract: (id: string) => void; fixed?: boolean }) {
   const caps = useCapabilities();
   const active = useActiveExport();
   const live = useLive();
@@ -108,24 +108,24 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
   });
 
   if (active.isPending || caps.isPending) return <Spinner />;
-  if (eligible.length === 0) return <Empty title={uiText("features.diagnostics.CommandsPanel.keine_commands_verfugbar_7e30a7")}>{uiText("features.diagnostics.CommandsPanel.commands_gibt_es_nur_fur_aktivierte_contracts_de_eced61")}</Empty>;
+  if (eligible.length === 0 || fixed && !contract) return <Empty title={uiText("features.diagnostics.CommandsPanel.keine_commands_verfugbar_7e30a7")}>{uiText("features.diagnostics.CommandsPanel.commands_gibt_es_nur_fur_aktivierte_contracts_de_eced61")}</Empty>;
 
   return (
-    <><PanelLayout view="diagnostics.commands"><LayoutPanel id="command" title={uiText("features.diagnostics.CommandsPanel.command_713166")} span={2}>
+    <><PanelLayout view={fixed ? 'contract.commands' : 'diagnostics.commands'}><LayoutPanel id="command" title={uiText("features.diagnostics.CommandsPanel.command_713166")} span={2}>
       <Panel>
         <PanelHeader title={uiText("features.diagnostics.CommandsPanel.command_713166")} description={uiText("features.diagnostics.CommandsPanel.nur_fur_die_aktive_registry_ein_command_fordert__3a3fc2")} />
         <div className="flex flex-col gap-4 p-4">
-          <Field label={uiText("features.diagnostics.CommandsPanel.contract_a6f5b0")}>
+          {!fixed && <Field label={uiText("features.diagnostics.CommandsPanel.contract_a6f5b0")}>
             {(p) => (
               <Select {...p} value={contract ? contractId : ''} onChange={(e) => onContract(e.target.value)}>
                 <option value="">{uiText("features.diagnostics.CommandsPanel.wahlen_602246")}</option>
                 {eligible.map((c) => <option key={str(c.contract_id)} value={str(c.contract_id)}>{str(c.contract_id)}</option>)}
               </Select>
             )}
-          </Field>
+          </Field>}
           {contract && spec && (
             <>
-              <Field label={uiText("features.diagnostics.CommandsPanel.befehl_c8505b")}>{(p) => <Select {...p} value={spec.name} onChange={(e) => setCommandName(e.target.value)}>{commands.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}</Select>}</Field>
+              {fixed ? <div className="flex flex-wrap gap-2">{commands.map(command => <Button key={command.name} aria-pressed={spec.name === command.name} onClick={() => setCommandName(command.name)}>{type?.definition ? command.name : codeLabel(command.name)}</Button>)}</div> : <Field label={uiText("features.diagnostics.CommandsPanel.befehl_c8505b")}>{(p) => <Select {...p} value={spec.name} onChange={(e) => setCommandName(e.target.value)}>{commands.map((c) => <option key={c.name} value={c.name}>{type?.definition ? c.name : codeLabel(c.name)}</option>)}</Select>}</Field>}
               {spec.fields && Object.keys(spec.fields).length > 0 && (
                 <fieldset className="flex flex-col gap-3">
                   <legend className="mb-1 text-xs font-medium text-muted">{uiText("features.diagnostics.CommandsPanel.argumente_typisiert_b6a75c")}</legend>
@@ -137,7 +137,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
               {spec.schema && <SchemaForm root={spec.schema} node={spec.schema} value={args} pointer="/args" onChange={(v) => setArgs(isObject(v) ? v : {})} />}
               {spec.fields && Object.keys(spec.fields).length === 0 && <p className="text-xs text-muted">{uiText("features.diagnostics.CommandsPanel.dieser_befehl_hat_keine_argumente_cc8092")}</p>}
               <div>
-                <Button variant="primary" disabled={send.isPending} onClick={() => setConfirming(true)}><Send size={14} /> {uiText("features.diagnostics.CommandsPanel.command_senden_8e5910")}</Button>
+                <Button variant="primary" disabled={send.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => setConfirming(true)}><Send size={14} /> {uiText("features.diagnostics.CommandsPanel.command_senden_8e5910")}</Button>
               </div>
             </>
           )}
@@ -155,7 +155,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
           )}
           {sent?.error && (
             <Notice tone="warn" title={uiText("features.diagnostics.CommandsPanel.antwort_unbekannt_e79d9d")}>
-              {sent.error} {uiText("features.diagnostics.CommandsPanel.der_command_kann_trotzdem_verarbeitet_worden_sei_a1e8f2")}<div className="mt-2"><Button size="sm" disabled={recover.isPending} onClick={() => recover.mutate(sent.id)}>{uiText("features.diagnostics.CommandsPanel.gespeichertes_ergebnis_abfragen_f219ee")}</Button></div>
+              {sent.error} {uiText("features.diagnostics.CommandsPanel.der_command_kann_trotzdem_verarbeitet_worden_sei_a1e8f2")}<div className="mt-2"><Button size="sm" disabled={recover.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => recover.mutate(sent.id)}>{uiText("features.diagnostics.CommandsPanel.gespeichertes_ergebnis_abfragen_f219ee")}</Button></div>
             </Notice>
           )}
           {sent && <KeyValue items={[{ label: uiText("features.diagnostics.CommandsPanel.command_id_8aab8c"), value: <code className="break-all text-xs">{sent.id}</code> }]} />}
@@ -165,7 +165,7 @@ export function CommandsPanel({ contractId, onContract }: { contractId: string; 
         open={confirming}
         onOpenChange={setConfirming}
         title={uiText("features.diagnostics.CommandsPanel.command_wirklich_senden_dfa28f")}
-        description={<>„{spec?.name}{uiText("features.diagnostics.CommandsPanel.wird_an_bc6f65")}<code>{contractId}</code> {uiText("features.diagnostics.CommandsPanel.gesendet_das_ist_eine_aktion_am_laufenden_system_55df5a")}</>}
+        description={<>„{type?.definition ? spec?.name : codeLabel(spec?.name)}{uiText("features.diagnostics.CommandsPanel.wird_an_bc6f65")}<code>{contractId}</code> {uiText("features.diagnostics.CommandsPanel.gesendet_das_ist_eine_aktion_am_laufenden_system_55df5a")}</>}
         confirmLabel={uiText("features.diagnostics.CommandsPanel.senden_079bef")}
         busy={send.isPending}
         onConfirm={() => {

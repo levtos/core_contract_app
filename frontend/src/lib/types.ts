@@ -82,6 +82,8 @@ export interface RevisionRow {
   config: Registry;
   checksum: string;
   created_at: string;
+  actor?: JsonObject;
+  note?: string;
 }
 
 export interface DiffGroup {
@@ -140,6 +142,9 @@ export interface HaEntity {
   device_class: string | null;
   state_class: string | null;
   attributes: string[];
+  current_value?: string | null;
+  area_id?: string | null;
+  area_name?: string | null;
 }
 
 export interface HaEntityPage {

@@ -1,4 +1,5 @@
 import { t as uiText } from '@/i18n';
+import { connectionLabel } from '@/lib/status';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { ContractLiveState } from '@/components/ContractLiveState';
@@ -15,6 +16,7 @@ import { CommandsPanel } from './CommandsPanel';
 import { ContractDiagnosis } from './ContractDiagnosis';
 import { EvidenceTab } from './EvidenceLookup';
 import { HistoryTab, HistoryTable } from './HistoryTab';
+import { MachineRestartPanel } from '@/features/contracts/MachineRestartPanel';
 
 function ContractPicker({ value, onChange, allowNone }: { value: string; onChange: (id: string) => void; allowNone?: boolean }) {
   const live = useLive();
@@ -36,7 +38,7 @@ function StateTab({ contractId, onContract }: { contractId: string; onContract: 
   const live = useLive();
   const envelope = live.contracts?.[contractId] ?? null;
   const ids = Object.keys(live.contracts ?? {});
-  if (live.contracts === null) return live.connection === 'open' || live.connection === 'connecting' ? <Spinner label={uiText("features.diagnostics.DiagnosticsPage.snapshot_wird_erwartet_8f2bea")} /> : <Notice tone="warn" title={uiText("features.diagnostics.DiagnosticsPage.noch_kein_live_zustand_d31d85")}>{uiText("features.diagnostics.DiagnosticsPage.es_wurde_noch_kein_snapshot_empfangen_ec5820")}{live.connection}).</Notice>;
+  if (live.contracts === null) return live.connection === 'open' || live.connection === 'connecting' ? <Spinner label={uiText("features.diagnostics.DiagnosticsPage.snapshot_wird_erwartet_8f2bea")} /> : <Notice tone="warn" title={uiText("features.diagnostics.DiagnosticsPage.noch_kein_live_zustand_d31d85")}>{uiText("features.diagnostics.DiagnosticsPage.es_wurde_noch_kein_snapshot_empfangen_ec5820")}{connectionLabel(live.connection)}).</Notice>;
   if (ids.length === 0) return <Empty title={uiText("features.diagnostics.DiagnosticsPage.keine_aktiven_contracts_ec85c7")}>{uiText("features.diagnostics.DiagnosticsPage.die_aktive_registry_enthalt_keine_aktivierten_co_ee9568")}</Empty>;
   return (
     <div className="flex flex-col gap-4">
@@ -143,7 +145,7 @@ export default function DiagnosticsPage() {
           { value: 'history', label: uiText("features.diagnostics.DiagnosticsPage.historie_4eaa80"), content: <HistoryTab key={contract} initialContract={contract} /> },
           { value: 'publications', label: uiText("features.diagnostics.DiagnosticsPage.publikationen_lucken_44dc70"), content: <PublicationsTab /> },
           { value: 'evidence', label: uiText("features.diagnostics.DiagnosticsPage.evidence_03867a"), content: <EvidenceTab /> },
-          { value: 'commands', label: uiText("features.diagnostics.DiagnosticsPage.commands_b269dc"), content: <CommandsPanel contractId={contract} onContract={(id) => set({ contract: id })} /> },
+          { value: 'commands', label: uiText("features.diagnostics.DiagnosticsPage.commands_b269dc"), content: <div className="space-y-4"><CommandsPanel contractId={contract} onContract={(id) => set({ contract: id })} />{contract && <MachineRestartPanel key={contract} contractId={contract} />}</div> },
         ]}
       />
     </>

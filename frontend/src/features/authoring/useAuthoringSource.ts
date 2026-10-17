@@ -26,7 +26,7 @@ export function useAuthoringSource(): AuthoringSource {
   const active = useActiveExport();
   const caps = useCapabilities();
   const revisions = useRevisions();
-  const config = doc.config ?? active.data ?? null;
+  const config = (doc.editing ? doc.config : null) ?? active.data ?? null;
   const types = useMemo(() => typeCatalog(caps.data, config), [caps.data, config]);
   const activatedVersions = useMemo(() => {
     const map = new Map<string, number>();
@@ -42,8 +42,8 @@ export function useAuthoringSource(): AuthoringSource {
   }, [revisions.data]);
   return {
     config,
-    editable: doc.config !== null,
-    source: doc.config ? 'draft' : active.data ? 'active' : 'none',
+    editable: doc.editing && doc.config !== null,
+    source: doc.editing && doc.config ? 'draft' : active.data ? 'active' : 'none',
     types,
     activatedVersions,
     loading: active.isPending || caps.isPending,

@@ -1,6 +1,6 @@
 import { t as uiText } from '@/i18n';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ArrowDown, ArrowUp, GripVertical, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, RotateCcw } from 'lucide-react';
 import { Children, createContext, isValidElement, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from './ui/button';
 import { Select } from './ui/form';
@@ -67,8 +67,13 @@ export function PanelLayout({ view, children, defaultOrder }: { view: string; ch
     setAnnouncement(uiText("components.PanelLayout.v0_position_v1_von_v2_528978", { v0: (slots.find((s) => s.id === id)?.title), v1: (to + 1), v2: (order.length) }));
   };
   return <section aria-label={uiText("components.PanelLayout.funktionspanels_82acad")}>
-    <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-      <Button size="sm" className="min-h-11" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}><SlidersHorizontal size={13} /> {uiText("components.PanelLayout.layout_anpassen_9d4ca3")}</Button>
+    <div className="relative flex flex-wrap items-center justify-end gap-2">
+      <details className="absolute right-0 -top-11 z-10 rounded-lg bg-panel">
+        <summary className="grid size-8 cursor-pointer list-none place-items-center rounded-lg text-muted hover:bg-raised" aria-label={uiText('alpha7.layout.menu')}><MoreHorizontal size={17} /></summary>
+        <div className="absolute right-0 top-9 min-w-48 rounded-lg border border-line bg-panel p-2 shadow-xl">
+          <Button size="sm" aria-pressed={adjusting} onClick={() => setAdjusting(!adjusting)}>{uiText("components.PanelLayout.layout_anpassen_9d4ca3")}</Button>
+        </div>
+      </details>
       {adjusting && <Button size="sm" className="min-h-11" onClick={() => { save(metadata(null, slots)); setAnnouncement(uiText("components.PanelLayout.standardlayout_wiederhergestellt_6a6783")); }}><RotateCcw size={13} /> {uiText("components.PanelLayout.layout_zurucksetzen_5c6f02")}</Button>}
     </div>
     {adjusting && <p className="mb-3 text-xs text-muted">{uiText("components.PanelLayout.panels_am_griff_ziehen_oder_mit_den_pfeiltasten__f2377c")}</p>}
@@ -113,14 +118,14 @@ function MovablePanel({ slot, span, view, index, count, adjusting, onMove, onDro
     });
     return () => { drag(); drop(); };
   }, [adjusting, slot.id, view]);
-  return <div ref={element} data-layout-panel={slot.id} data-span={span} className={cn('min-w-0', span === 1 ? 'xl:col-span-1' : span === 2 ? 'xl:col-span-2' : 'xl:col-span-3', over && 'rounded-[var(--radius-lg)] ring-2 ring-accent')}>
+  return <div ref={element} data-layout-panel={slot.id} data-span={span} className={cn('min-w-0', span === 1 ? 'xl:col-span-1' : span === 2 ? 'xl:col-span-2' : 'xl:col-span-3', over && 'rounded-[var(--radius-lg)] ring-2 ring-faint')}>
     {adjusting && <div className="mb-1 flex flex-wrap items-center gap-1 rounded-[var(--radius-sm)] border border-line bg-raised p-1">
       <button ref={handle} type="button" aria-label={uiText("components.PanelLayout.panel_v0_verschieben_ee4a83", { v0: (slot.title) })} className="flex min-h-11 min-w-11 cursor-grab items-center gap-1 px-2 text-xs active:cursor-grabbing" onKeyDown={(e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); onMove(index - 1); }
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); onMove(index + 1); }
       }}><GripVertical size={14} /><span>{slot.title}</span></button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_vorne_f637f0", { v0: (slot.title) })} disabled={index === 0} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
-      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_hinten_9b7af0", { v0: (slot.title) })} disabled={index === count - 1} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_vorne_f637f0", { v0: (slot.title) })} disabled={index === 0} disabledReason={uiText('alpha7.copy.firstRow')} onClick={() => onMove(index - 1)}><ArrowUp size={13} /></Button>
+      <Button size="icon" className="min-h-11 min-w-11" aria-label={uiText("components.PanelLayout.v0_nach_hinten_9b7af0", { v0: (slot.title) })} disabled={index === count - 1} disabledReason={uiText('alpha7.copy.lastRow')} onClick={() => onMove(index + 1)}><ArrowDown size={13} /></Button>
       <Select className="ml-auto min-h-11 w-auto min-w-32" aria-label={uiText("components.PanelLayout.v0_panelbreite_116978", { v0: (slot.title) })} value={span} onChange={(e) => onSize(Number(e.target.value) as Span)}><option value="1">{uiText("components.PanelLayout.schmal_ec22ce")}</option><option value="2">{uiText("components.PanelLayout.mittel_660427")}</option><option value="3">{uiText("components.PanelLayout.ganze_zeile_701a57")}</option></Select>
     </div>}
     {slot.children}

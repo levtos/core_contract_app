@@ -13,11 +13,11 @@ const user = userEvent.setup();
 function idleSocket(): SocketLike {
   return { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} };
 }
-function mount() {
+function mount(section = 'keys') {
   const store = new LiveStore({ createSocket: idleSocket });
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[`/settings/${section}`]}>
         <LiveProvider store={store}>
           <AdminPage />
         </LiveProvider>
@@ -99,7 +99,7 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
         { id: '3', kind: 'administrative', operation: 'token_rotated', at: '2026-10-12T09:00:01+00:00', actor: { kind: 'ingress', role: 'admin' }, rotation_id: 'r-done' },
       ], next_cursor: null, limit: 100, order: 'time_desc_key_desc' }),
     });
-    mount();
+    mount('log');
     await screen.findByText("Protokoll-Verlauf");
     await waitFor(() => expect(screen.getAllByText('Ausgang unbestimmt')).toHaveLength(1));
     expect(screen.getAllByText('Home-Assistant-Zugriff', { exact: false }).length).toBeGreaterThan(0);
@@ -115,7 +115,7 @@ describe('T1B-07: the one-time credential is held nowhere but the visible compon
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = render(
       <QueryClientProvider client={client}>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={['/settings/keys']}>
           <LiveProvider store={new LiveStore({ createSocket: idleSocket })}>
             <AdminPage />
           </LiveProvider>

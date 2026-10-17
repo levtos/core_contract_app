@@ -1,17 +1,16 @@
 import { t } from '@/i18n';
 
-/** Display-only helpers. Timestamps are shown as the server delivered them (UTC instants). */
+/** Display-only helpers. Preserve instants and show them in German/Berlin time. */
 
 const dateTime = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
-  timeStyle: 'medium',
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   timeZone: 'Europe/Berlin',
 });
 
 export function formatTime(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : dateTime.format(date);
+  return Number.isNaN(date.getTime()) ? t('alpha7.time.unknown') : dateTime.format(date);
 }
 
 export function shortId(value: string, length = 8): string {
@@ -38,4 +37,15 @@ export function formatDuration(seconds: number): string {
 
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 }).format(Object.is(value, -0) ? 0 : value);
+}
+
+export function relativeTime(value: string, now = Date.now()): string {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return t('alpha7.time.unknown');
+  const seconds = Math.floor((now - timestamp) / 1000);
+  if (seconds < -60) return formatTime(value);
+  if (seconds < 60) return t('alpha7.time.now');
+  if (seconds < 3600) return t('alpha7.time.minutes', { count: Math.floor(seconds / 60) });
+  if (seconds < 86400) return t('alpha7.time.hours', { count: Math.floor(seconds / 3600) });
+  return t('alpha7.time.days', { count: Math.floor(seconds / 86400) });
 }

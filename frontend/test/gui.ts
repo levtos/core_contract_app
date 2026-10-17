@@ -36,8 +36,9 @@ export function gui(user: UserEvent) {
     const formula = `${root}/args/2/left`;
     await setOp(formula, 'formula');
     await type(first(`${formula}/args/0`, 'Wert'), '1');
-    await user.click(within(node(formula)).getAllByRole('button', { name: 'Argument' })[0]!);
+    await user.click(within(node(formula)).getAllByRole('button', { name: 'Eingangswert' })[0]!);
     await setOp(`${formula}/args/1`, 'literal');
+    await user.click(within(node(`${formula}/args/1`)).getByRole('button', { name: 'Erweitert: Werteart' }));
     await user.selectOptions(first(`${formula}/args/1`, 'Typ'), 'number');
     await type(first(`${formula}/args/1`, 'Wert'), '2');
     await type(first(`${root}/args/2/right`, 'Wert'), '2');
@@ -104,6 +105,7 @@ export function gui(user: UserEvent) {
     const literal = async (name: string, fieldType: string, value: string) => {
       const path = `${base}/outputs/${name}`;
       await setOp(path, 'literal');
+      await user.click(within(node(path)).getByRole('button', { name: 'Erweitert: Werteart' }));
       await user.selectOptions(first(path, 'Typ'), fieldType);
       await type(first(path, 'Wert'), value);
     };
@@ -114,6 +116,7 @@ export function gui(user: UserEvent) {
     await addField('metadata', 'object', async () => {
       const path = `${base}/outputs/metadata`;
       await setOp(path, 'literal');
+      await user.click(within(node(path)).getByRole('button', { name: 'Erweitert: Werteart' }));
       await user.selectOptions(first(path, 'Typ'), 'object');
       await user.click(screen.getByRole('button', { name: 'Wert: Eigenschaft hinzufügen' }));
       await type(screen.getByLabelText('Wert: Schlüssel 1'), 'fixture');

@@ -309,8 +309,15 @@ class API:
             after = request.query.get("after", "")
             if not 1 <= limit <= 200 or len(after) > 256:
                 raise ValueError("invalid discovery page")
+            preview = request.query.get("preview", "0")
+            if preview not in {"0", "1"}:
+                raise ValueError("invalid discovery preview")
             try:
-                entities = await runtime.entity_discovery()
+                entities = (
+                    await runtime.entity_discovery(preview=True)
+                    if preview == "1"
+                    else await runtime.entity_discovery()
+                )
             except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError, TypeError:
                 return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
             selected_entities = [e for e in entities if e["entity_id"] > after]
@@ -337,6 +344,14 @@ class API:
             result = runtime.snapshot(selected)
         elif path == "commands" and method == "POST":
             result = await runtime.submit("command", await request.json())
+        elif path.startswith("manual-restarts/preview/") and method == "GET":
+            result = await runtime.submit(
+                "manual_restart_preview", path.removeprefix("manual-restarts/preview/")
+            )
+        elif path == "manual-restarts" and method == "POST":
+            result = await runtime.submit(
+                "manual_restart", {"request": await request.json(), "_actor": request["actor"]}
+            )
         elif path.startswith("commands/") and method == "GET":
             result = await runtime.store.get("command_log", path.removeprefix("commands/"))
             if result is None:
@@ -428,6 +443,7 @@ class API:
                     "commands": machine.definition.commands,
                     "deadline_seconds": machine.definition.deadline_seconds,
                     "sessions": machine.definition.sessions,
+                    "allow_manual_restart": machine.definition.allow_manual_restart,
                     "transitions": [
                         {
                             "source": t.source,

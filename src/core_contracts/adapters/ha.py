@@ -62,14 +62,18 @@ class BridgeAdapter:
         self.retry_delay = 1.0
         self.discovery_cache: list[dict[str, Any]] = []
         self.discovery_at = float("-inf")
+        self.discovery_preview_cache: list[dict[str, Any]] = []
+        self.discovery_preview_at = float("-inf")
         self.discovery_lock = asyncio.Lock()
         runtime.entity_discovery = self.discover
 
-    async def discover(self) -> list[dict[str, Any]]:
-        """Read-only HA discovery; values and arbitrary attributes never leave HA."""
+    async def discover(self, *, preview: bool = False) -> list[dict[str, Any]]:
+        """Read-only discovery; bounded state previews require an explicit admin request."""
         async with self.discovery_lock:
-            if self.runtime.clock.monotonic() - self.discovery_at < 15:
-                return self.discovery_cache
+            cached_at = self.discovery_preview_at if preview else self.discovery_at
+            if self.runtime.clock.monotonic() - cached_at < 15:
+                return self.discovery_preview_cache if preview else self.discovery_cache
+            areas, devices, entries = {}, {}, {}
             async with asyncio.timeout(10):
                 async with self.session.ws_connect(
                     self.url, heartbeat=20, max_msg_size=4_000_000
@@ -82,7 +86,43 @@ class BridgeAdapter:
                     states = await self._result(socket, {"id": 1, "type": "get_states"})
                     if not isinstance(states, list) or len(states) > 10000:
                         raise ValueError("discovery_resource_limit")
-            result = []
+                    if preview:
+                        registries: list[list[dict[str, Any]]] = []
+                        for request_id, kind in enumerate(("area", "device", "entity"), 2):
+                            await socket.send_json(
+                                {"id": request_id, "type": f"config/{kind}_registry/list"}
+                            )
+                            response = await socket.receive_json()
+                            if response.get("id") != request_id:
+                                raise ConnectionError("ha_discovery_protocol")
+                            if not response.get("success"):
+                                if response.get("error", {}).get("code") in {
+                                    "unknown_command",
+                                    "unauthorized",
+                                }:
+                                    registries.append([])
+                                    continue
+                                raise ConnectionError("ha_discovery_registry_failed")
+                            rows = response.get("result")
+                            if not isinstance(rows, list) or len(rows) > 10000:
+                                raise ValueError("discovery_resource_limit")
+                            registries.append([row for row in rows if isinstance(row, dict)])
+                        areas = {
+                            row.get("area_id"): row.get("name")
+                            for row in registries[0]
+                            if isinstance(row.get("area_id"), str)
+                        }
+                        devices = {
+                            row.get("id"): row.get("area_id")
+                            for row in registries[1]
+                            if isinstance(row.get("id"), str)
+                        }
+                        entries = {
+                            row.get("entity_id"): row
+                            for row in registries[2]
+                            if isinstance(row.get("entity_id"), str)
+                        }
+            result: list[dict[str, Any]] = []
             for state in states:
                 if not isinstance(state, dict):
                     continue
@@ -123,9 +163,25 @@ class BridgeAdapter:
                         )[:128],
                     }
                 )
-            self.discovery_cache = sorted(result, key=lambda item: item["entity_id"])
-            self.discovery_at = self.runtime.clock.monotonic()
-            return self.discovery_cache
+                if preview:
+                    entry = entries.get(entity, {})
+                    area_id = entry.get("area_id") or devices.get(entry.get("device_id"))
+                    area_name = areas.get(area_id) if isinstance(area_id, str) else None
+                    result[-1].update(
+                        current_value=state["state"][:256]
+                        if isinstance(state.get("state"), str)
+                        else None,
+                        area_id=area_id[:256] if isinstance(area_id, str) else None,
+                        area_name=area_name[:256] if isinstance(area_name, str) else None,
+                    )
+            result = sorted(result, key=lambda item: item["entity_id"])
+            if preview:
+                self.discovery_preview_cache = result
+                self.discovery_preview_at = self.runtime.clock.monotonic()
+            else:
+                self.discovery_cache = result
+                self.discovery_at = self.runtime.clock.monotonic()
+            return result
 
     def observation(
         self,

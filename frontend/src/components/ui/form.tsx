@@ -1,12 +1,23 @@
-import { t as uiText } from '@/i18n';
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useId, useRef, useState, type InputHTMLAttributes, type ReactNode, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { t } from '@/i18n';
+import { Button } from './button';
 import { cn } from '@/lib/utils';
 
-const control =
-  uiText("components.ui.form.w_full_rounded_var_radius_sm_border_border_line__f48375");
+const control = 'w-full rounded-[var(--radius-sm)] border border-line-strong bg-sunken px-2.5 text-sm text-fg placeholder:text-faint transition-colors hover:border-faint focus-visible:border-fg disabled:opacity-50 disabled:cursor-not-allowed aria-[invalid=true]:border-bad';
 
 export function Input({ className, ref, ...props }: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
   return <input ref={ref} className={cn(control, 'h-9', className)} {...props} />;
+}
+
+/** App-owned copy stays German even when the browser's file control is English. */
+export function FileInput({ className, onChange, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue'>) {
+  const input = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState('');
+  return <div className={cn('flex min-w-0 items-center gap-3', className)}>
+    <input {...props} ref={input} type="file" className="sr-only" tabIndex={-1} onChange={event => { setFileName(event.target.files?.[0]?.name ?? ''); onChange?.(event); }} />
+    <Button disabled={props.disabled} onClick={() => input.current?.click()}>{t('common.file.choose')}</Button>
+    <span className="min-w-0 truncate text-sm text-muted" aria-live="polite" title={fileName || undefined}>{fileName || t('common.file.empty')}</span>
+  </div>;
 }
 
 export function Textarea({ className, ref, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
@@ -46,7 +57,6 @@ export function Field({ label, hint, errors = [], children, className, pointer }
         <div id={`${id}-d`} className="flex flex-col gap-0.5">
           {errors.map((error, i) => (
             <p key={i} role="alert" className="text-xs text-bad">
-              <span className="mono mr-1.5 opacity-70">{error.code}</span>
               {error.message}
             </p>
           ))}

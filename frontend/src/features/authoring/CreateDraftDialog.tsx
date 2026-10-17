@@ -2,7 +2,7 @@ import { t as uiText } from '@/i18n';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { Input, Textarea } from '@/components/ui/form';
+import { FileInput, Input, Textarea } from '@/components/ui/form';
 import { Notice } from '@/components/ui/layout';
 import { Field } from '@/components/ui/form';
 import { describeError } from '@/lib/api';
@@ -12,6 +12,7 @@ import type { Draft, Registry } from '@/lib/types';
 import { emptyRegistry } from './model';
 import { parseRegistryJson } from './importExport';
 import { useWorkingDocument } from './WorkingDocument';
+import { defaultDraftName } from './draftName';
 
 type Origin = 'empty' | 'active' | 'import' | 'copy';
 
@@ -43,7 +44,7 @@ export function CreateDraftDialog({
   useEffect(() => {
     if (!open) return;
     setOrigin(copyOf ? 'copy' : active.data ? 'active' : 'empty');
-    setName(copyOf ? `${copyOf.name} (Kopie)` : '');
+    setName(copyOf ? `${copyOf.name} (Kopie)` : defaultDraftName());
     setText('');
     setError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,7 +53,7 @@ export function CreateDraftDialog({
   const submit = async () => {
     setError('');
     let config: Registry;
-    let display = name.trim();
+    let display = name.trim() || defaultDraftName();
     if (origin === 'empty') config = emptyRegistry();
     else if (origin === 'active') config = clone(active.data ?? emptyRegistry());
     else if (origin === 'copy' && copyOf) config = clone(copyOf.config);
@@ -89,7 +90,7 @@ export function CreateDraftDialog({
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>{uiText("features.authoring.CreateDraftDialog.abbrechen_f7ff11")}</Button>
-           <Button variant="primary" disabled={atLimit || create.isPending || (origin === 'import' && !text.trim())} onClick={submit}>
+           <Button variant="primary" disabled={atLimit || create.isPending || (origin === 'import' && !text.trim())} disabledReason={atLimit ? uiText('alpha7.import.limit') : create.isPending ? uiText('alpha7.copy.inProgress') : uiText('alpha7.import.empty')} onClick={submit}>
             {uiText("features.authoring.CreateDraftDialog.draft_anlegen_0355d8")}</Button>
         </>
       }
@@ -100,8 +101,8 @@ export function CreateDraftDialog({
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-xs font-medium text-muted">{uiText("features.authoring.CreateDraftDialog.ausgangspunkt_4c2d40")}</legend>
           {options.map((option) => (
-            <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-accent/60 bg-accent/5' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
-              <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-accent)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
+            <label key={option.value} className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3 text-sm ${origin === option.value ? 'border-faint bg-raised' : 'border-line'} ${option.disabled ? 'opacity-50' : ''}`}>
+              <input type="radio" name="origin" aria-label={option.label} className="mt-1 accent-[var(--color-fg)]" disabled={option.disabled} checked={origin === option.value} onChange={() => setOrigin(option.value)} />
               <span>
                 <span className="font-medium">{option.label}</span>
                 <span className="block text-xs text-muted">{option.hint}</span>
@@ -113,11 +114,9 @@ export function CreateDraftDialog({
           <div className="flex flex-col gap-2">
             <Field label={uiText("features.authoring.CreateDraftDialog.registry_datei_json_be6006")}>
               {(p) => (
-                <input
+                <FileInput
                   {...p}
-                  type="file"
                   accept="application/json,.json"
-                  className="text-sm file:mr-3 file:cursor-pointer file:rounded-[var(--radius-sm)] file:border file:border-line-strong file:bg-raised file:px-3 file:py-1.5 file:text-fg"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) setText(await file.text());

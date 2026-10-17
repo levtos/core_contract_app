@@ -14,7 +14,7 @@ from pydantic import Field, ValidationError
 from .clock import Clock
 from .model import Model
 from .persistence import State
-from .quality import FieldValue, ReasonCode, unknown
+from .quality import FieldValue, Reason, ReasonCode, unknown
 from .registry import Contract
 from .resolver import Bucket
 from .statemachine import Machine, MachineState
@@ -197,6 +197,23 @@ def state_machine(
         )
         return unknown(code, ctx.contract.contract_id, now)
     assert current is not None
+    if (
+        current.manual_restart
+        and ctx.override is None
+        and ctx.origin == "input"
+        and reinitialize(ctx)
+        and node.get("machine_recovery", {}).get("quality") == "healthy"
+    ):
+        # A genuine declared recovery starts an automatic episode; receipt/ticks,
+        # constants and restore never confirm a manually asserted state.
+        current = machine.initial(now, ctx.state.active_revision, node["fingerprint"]).model_copy(
+            update={
+                "transition_reason": "reinitialize_when",
+                "trigger": "reinitialize_when",
+                "source": "evidence",
+                "evidence": tuple(node.get("machine_recovery", {}).get("evidence", ())),
+            }
+        )
     if ctx.override is None:
         event = "deadline" if current.deadline and current.deadline.due(now) else "input"
         if ctx.origin == "input" or event == "deadline":
@@ -212,9 +229,18 @@ def state_machine(
     return FieldValue(
         status="valid",
         value=current.state,
-        quality="healthy",
+        quality="degraded" if current.manual_restart else "healthy",
         since_at=current.since_at,
         evidence=current.evidence,
+        reasons=(
+            Reason(
+                code=ReasonCode.MANUAL_RESTART,
+                input=ctx.contract.contract_id,
+                since=current.manual_restart_at or current.episode_started_at,
+            ),
+        )
+        if current.manual_restart
+        else (),
     )
 
 

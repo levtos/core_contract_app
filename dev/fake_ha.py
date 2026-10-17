@@ -4,11 +4,12 @@ from aiohttp import web
 
 
 class FakeHA:
-    def __init__(self, states=None, protocol=1, missing=False):
+    def __init__(self, states=None, protocol=1, missing=False, registries=None):
         self.states = states or {}
         self.protocol, self.missing = protocol, missing
         self.requests = []
         self.sockets = set()
+        self.registries = registries or {}
 
     def application(self):
         app = web.Application()
@@ -34,6 +35,8 @@ class FakeHA:
                     result = [
                         {"entity_id": key, **value} for key, value in self.states.items() if value
                     ]
+                if kind.startswith("config/") and kind.endswith("_registry/list"):
+                    result = self.registries.get(kind, [])
                 if kind == "core_contracts_bridge/info":
                     if self.missing:
                         await socket.send_json(

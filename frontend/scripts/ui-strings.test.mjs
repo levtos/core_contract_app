@@ -42,3 +42,9 @@ test('ordinary protocol objects keep their identifiers outside label maps', () =
   const text = `const config = { ref: 'source.a', name: 'a', value: 'on', kind: 'ha_state', type: 'bool', state: 'idle' };`;
   assert.deepEqual(candidates(text, 'registry.ts'), []);
 });
+
+test('nested label arrays and visible default arguments cannot bypass the scanner', () => {
+  const text = `function Editor({ addLabel = 'Eingang' }) { return <List labels={two ? ['Aktuell', 'Vergleich'] : ['Eingang']} />; }`;
+  assert.deepEqual(candidates(text, 'screen.tsx').map(f => f.value), ['Eingang', 'Aktuell', 'Vergleich', 'Eingang']);
+  assert.deepEqual(candidates(`const config = {args: ['input', 'ref']}; const C = () => <List labels={[t('current'), t('comparison')]} />`, 'screen.tsx'), []);
+});

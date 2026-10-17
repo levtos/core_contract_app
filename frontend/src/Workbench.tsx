@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
-import { createHashRouter, RouterProvider, type RouteObject } from 'react-router';
+import { createHashRouter, Navigate, RouterProvider, useLocation, type RouteObject } from 'react-router';
+import { legacyTarget } from '@/lib/navigation';
 import { RouteError } from '@/components/RouteError';
 import { Shell } from '@/components/Shell';
 import { Spinner } from '@/components/ui/layout';
@@ -20,6 +21,11 @@ const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
 };
 
 /** Hash routing: the static Ingress server has no SPA fallback and an unknown URL prefix. */
+function LegacyRoute() {
+  const location = useLocation();
+  return <Navigate replace to={legacyTarget(location.pathname, location.search)} />;
+}
+
 export function workbenchRoutes(onSetup: () => void): RouteObject[] {
   return [
     {
@@ -28,16 +34,21 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
       errorElement: <RouteError />,
       children: [
         { index: true, element: <OverviewPage /> },
-        { path: 'contracts', element: lazyPage(() => import('@/features/contracts/ContractsPage')) },
-        { path: 'contracts/:contractId', element: lazyPage(() => import('@/features/contracts/ContractDetailPage')) },
-        { path: 'definitions', element: lazyPage(() => import('@/features/contracts/DefinitionsPage')) },
-        { path: 'definitions/:typeId/:version', element: lazyPage(() => import('@/features/contracts/DefinitionDetailPage')) },
-        { path: 'sources', element: lazyPage(() => import('@/features/sources/SourcesPage')) },
-        { path: 'registry', element: lazyPage(() => import('@/features/registry/RegistryPage')) },
-        { path: 'registry/drafts/:draftId', element: lazyPage(() => import('@/features/registry/DraftPage')) },
-        { path: 'graph', element: lazyPage(() => import('@/features/graph/GraphPage')) },
-        { path: 'diagnostics', element: lazyPage(() => import('@/features/diagnostics/DiagnosticsPage')) },
-        { path: 'admin', element: lazyPage(() => import('@/features/admin/AdminPage')) },
+        { path: 'contracts/list/all', element: lazyPage(() => import('@/features/contracts/ContractsPage')) },
+        { path: 'contracts/select/contract', element: <LegacyRoute /> },
+        { path: 'contracts/view/:contractId', element: lazyPage(() => import('@/features/contracts/ContractDetailPage')) },
+        { path: 'contracts/import/json', element: lazyPage(() => import('@/features/registry/ImportExportPage')) },
+        { path: 'contracts/relations/graph', element: lazyPage(() => import('@/features/graph/GraphPage')) },
+        { path: 'templates/own', element: lazyPage(() => import('@/features/contracts/DefinitionsPage')) },
+        { path: 'templates/built-in', element: lazyPage(() => import('@/features/contracts/DefinitionsPage')) },
+        { path: 'templates/details/:typeId/:version', element: lazyPage(() => import('@/features/contracts/DefinitionDetailPage')) },
+        ...['devices', 'bindings', 'catalogs', 'dependencies'].map(section => ({ path: `sources/${section}`, element: lazyPage(() => import('@/features/sources/SourcesPage')) })),
+        ...['drafts', 'versions'].map(section => ({ path: `changes/${section}`, element: lazyPage(() => import('@/features/registry/RegistryPage')) })),
+        { path: 'changes/transfer', element: lazyPage(() => import('@/features/registry/ImportExportPage')) },
+        { path: 'changes/drafts/:draftId', element: lazyPage(() => import('@/features/registry/DraftPage')) },
+        ...['system', 'installation', 'connections', 'keys', 'log'].map(section => ({ path: `settings/${section}`, element: lazyPage(() => import('@/features/admin/AdminPage')) })),
+        { path: 'settings/diagnostics', element: lazyPage(() => import('@/features/diagnostics/DiagnosticsPage')) },
+        ...['contracts', 'contracts/:contractId', 'definitions', 'definitions/:typeId/:version', 'sources', 'registry', 'registry/drafts/:draftId', 'graph', 'diagnostics', 'admin'].map(path => ({ path, element: <LegacyRoute /> })),
         { path: '*', element: <OverviewPage /> },
       ],
     },

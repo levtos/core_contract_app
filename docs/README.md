@@ -5,7 +5,10 @@
 | Dokument | Zweck |
 |---|---|
 | [alpha4/workbench-api.md](alpha4/workbench-api.md) | Alpha-4-Implementierung: deklarative Definitionen und Manual-first-APIs, noch keine Releasefreigabe |
-| [workbench/README.md](workbench/README.md) | Terra Workbench (Phase 1B): React-Frontend, Entscheidungen, Capability-Abdeckung, Prüfung |
+| [workbench/README.md](workbench/README.md) | Terra Alpha 7: Module, Aufgabenrouten, Editoren, Diagnose und Nachweise |
+| [workbench/alpha7/ABNAHME.md](workbench/alpha7/ABNAHME.md) | Vollständige P1–P13-/A.11-/Top-15-Matrix mit Tests und Bildnachweisen |
+| [releases/1.0.0a7.md](releases/1.0.0a7.md) | Vorbereiteter Alpha-7-Umfang, Upgrade und Freigabegrenzen |
+| [adr/0004-manual-machine-restart.md](adr/0004-manual-machine-restart.md) | Angenommener begrenzter administrativer Ablauf-Neustart |
 | [workbench/review-resolution.md](workbench/review-resolution.md) | Phase 1B: Korrektur der Review-Befunde T1B-01…07/UX-01 mit Testnachweis |
 | [adr/0003-declarative-platform.md](adr/0003-declarative-platform.md) | Architekturvertrag, Restore, Kompatibilität und Sicherheitsgrenzen für Alpha 4 |
 | [alpha4/completion.md](alpha4/completion.md) | Ist-Soll-Matrix, A1–A16, automatisierte Nachweise und verbleibende Live-Gates |

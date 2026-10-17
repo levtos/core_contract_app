@@ -298,6 +298,11 @@
     "code": "guard_rejected",
     "description": "The transition guard rejected the request.",
     "since_version": 1
+   },
+   {
+    "code": "manual_restart",
+    "description": "An administrator asserted the initial state; valid data has not confirmed it yet.",
+    "since_version": 1
    }
   ],
   "version": 1
@@ -1201,6 +1206,11 @@
     "MachineDefinition": {
      "additionalProperties": false,
      "properties": {
+      "allow_manual_restart": {
+       "default": false,
+       "title": "Allow Manual Restart",
+       "type": "boolean"
+      },
       "commands": {
        "maxProperties": 32,
        "patternProperties": {
@@ -4025,6 +4035,11 @@
     "MachineDefinition": {
      "additionalProperties": false,
      "properties": {
+      "allow_manual_restart": {
+       "default": false,
+       "title": "Allow Manual Restart",
+       "type": "boolean"
+      },
       "commands": {
        "maxProperties": 32,
        "patternProperties": {
@@ -5251,6 +5266,16 @@
   }
  },
  "state_machine": {
+  "administrative_restart": {
+   "default": false,
+   "definition_flag": "allow_manual_restart",
+   "effect": "declared_initial_state_new_episode",
+   "endpoint": "/api/v1/manual-restarts",
+   "marker": "state_machine.manual_restart",
+   "preview": "/api/v1/manual-restarts/preview/{contract_id}",
+   "quality_until_data_confirmation": "degraded",
+   "role": "admin"
+  },
   "command_effect": "guarded_transition_only",
   "episodes": true,
   "guard_rules": "stateless; temporal truths can be supplied through contract inputs",

@@ -1,11 +1,11 @@
 import { t as uiText } from '@/i18n';
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
+import { NAVIGATION } from '@/lib/navigation';
 import { MasterDetail } from '@/components/MasterDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { Empty, PageHeader } from '@/components/ui/layout';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
@@ -17,6 +17,11 @@ import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { BindingEditor, CatalogEditor, DependencyEditor, EntityPicker, SourceEditor, sourceCast } from '@/editors/RegistryObjects';
 import { clone, isObject, setAt, type JsonObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
+import { describeError } from '@/lib/api';
+import { DeviceWizard } from './DeviceWizard';
+import { codeLabel } from '@/i18n/codes';
+import { useSourceSelection } from './useSourceSelection';
+import { SourceMigrationDialog } from './SourceMigrationDialog';
 
 type Name = 'dependencies' | 'sources' | 'bindings' | 'catalogs';
 
@@ -29,24 +34,22 @@ interface CollectionProps {
   subtitle: (item: JsonObject) => string;
   usage: (item: JsonObject, config: JsonObject) => ReactNode;
   copyKeys?: string[];
+  onMove?: (id: string) => void;
 }
 
-function Collection({ name, idKey, singular, make, render, subtitle, usage }: CollectionProps) {
+function Collection({ name, idKey, singular, make, render, subtitle, usage, onMove }: CollectionProps) {
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
   const issues = useAllIssues();
   const config = src.config ?? {};
   const list = useMemo(() => asArray(config[name]).filter(isObject), [config, name]);
-  const [params] = useSearchParams();
-  const initial = params.get('tab') === name && params.get('item') !== null ? Number(params.get('item')) : null;
-  const [selected, setSelected] = useState<number | null>(Number.isInteger(initial) ? initial : null);
+  const [selected, setSelected, selectIdentity] = useSourceSelection(name, list, idKey, src.editable);
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   useEffect(() => {
-    if (params.get('tab') === name && params.has('item')) setSelected(Number(params.get('item')));
-  }, [name, params]);
+    if (pendingSelection && src.editable && list.some(item => item[idKey] === pendingSelection)) { selectIdentity(pendingSelection); setPendingSelection(null); }
+  }, [pendingSelection, src.editable, list]);
   const [removing, setRemoving] = useState<number | null>(null);
-  useEffect(() => {
-    if (selected !== null && selected >= list.length) setSelected(list.length ? list.length - 1 : null);
-  }, [list.length, selected]);
+  const [addError, setAddError] = useState('');
 
   const ids = list.map((item) => str(item[idKey]));
   const items = list.map((item, index) => ({
@@ -55,26 +58,32 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
     sub: subtitle(item),
     errors: issues.filter((i) => i.path === `/${name}/${index}` || i.path.startsWith(`/${name}/${index}/`)).length,
   }));
-  const add = () => {
-    doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), make(c, ids)]));
-    setSelected(list.length);
+  const add = async () => {
+    setAddError('');
+    try {
+      const current = await doc.ensureDraft();
+      const item = make(current, asArray(current[name]).filter(isObject).map(item => str(item[idKey])));
+      doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), item]));
+      setPendingSelection(str(item[idKey]));
+    } catch (error) { setAddError(describeError(error)); }
   };
   const duplicate = (index: number) => {
     const copy = clone(list[index]!);
     copy[idKey] = uniqueName(`${str(copy[idKey])}_kopie`, ids);
     doc.edit((c) => setAt(c, `/${name}`, [...asArray(c[name]), copy]));
-    setSelected(list.length);
+    selectIdentity(str(copy[idKey]));
   };
   const current = selected !== null ? list[selected] : undefined;
 
   return (
     <>
+      {addError && <p role="alert" className="mb-3 text-sm text-bad">{addError}</p>}
       <MasterDetail
         title={singular}
         items={items}
         selected={current ? String(selected) : null}
         onSelect={(key) => setSelected(Number(key))}
-        onAdd={src.editable ? add : undefined}
+        onAdd={() => void add()}
         addLabel={uiText("features.sources.SourcesPage.v0_hinzufugen_198d5a", { v0: (singular) })}
         empty={<Empty title={uiText("features.sources.SourcesPage.v0_wahlen_24a7a9", { v0: (singular) })}>{src.editable ? uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_oder_legen_sie_mi_17add4") : uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_zur_ansicht_257139")}</Empty>}
       >
@@ -82,6 +91,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage }: Co
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-mono text-sm font-semibold">{str(current[idKey]) || uiText("features.sources.SourcesPage.neu_391955")}</h2>
+              {onMove && <Button size="sm" onClick={() => onMove(str(current[idKey]))}>{uiText('alpha7.move.action')}</Button>}
               {src.editable && (
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => duplicate(selected)}><Copy size={13} /> {uiText("features.sources.SourcesPage.duplizieren_9d400c")}</Button>
@@ -119,23 +129,43 @@ const chips = (label: string, ids: string[], to?: (id: string) => string) =>
   ) : (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {label}:
-      {ids.slice(0, 8).map((id) => (to ? <Link key={id} to={to(id)} className="rounded-full border border-line-strong bg-raised px-2 py-0.5 font-mono text-[11px] text-accent hover:border-accent/60">{id}</Link> : <Badge key={id}>{id}</Badge>))}
+      {ids.slice(0, 8).map((id) => (to ? <Link key={id} to={to(id)} className="rounded-full border border-line-strong bg-raised px-2 py-0.5 font-mono text-[11px] text-fg hover:border-faint">{id}</Link> : <Badge key={id}>{id}</Badge>))}
       {ids.length > 8 && <span>+{ids.length - 8}</span>}
     </span>
   );
 
+function SourceSection({ items }: { items: { value: string; label: string; content: ReactNode }[] }) {
+  const section = useLocation().pathname.split('/')[2] ?? 'devices';
+  return <>{items.find(item => item.value === (section === 'devices' ? 'sources' : section))?.content}</>;
+}
+
 export default function SourcesPage() {
   const caps = useCapabilities();
-  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const pageTitle = NAVIGATION.find(module => module.id === 'sources')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.devices');
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
+  const [addingDevice, setAddingDevice] = useState(false);
+  const [deviceError, setDeviceError] = useState('');
+  const [movingSource, setMovingSource] = useState<string | null>(null);
+  const doc = useWorkingDocument();
+  const [params, setParams] = useSearchParams();
+  const addDevice = async () => { setDeviceError(''); try { await doc.ensureDraft(); setAddingDevice(true); } catch (error) { setDeviceError(describeError(error)); } };
+  const beginMove = async (id: string) => { setDeviceError(''); try { await doc.ensureDraft(); setMovingSource(id); } catch (error) { setDeviceError(describeError(error)); } };
+  const requestedMove = params.get('move');
+  useEffect(() => {
+    if (!requestedMove) return;
+    const next = new URLSearchParams(params); next.delete('move'); setParams(next, { replace: true });
+    void beginMove(requestedMove);
+  }, [requestedMove]);
   const registrySchema = caps.data?.schemas.registry;
   return (
     <>
-      <PageHeader title={uiText("features.sources.SourcesPage.sources_bindings_613cff")} description={uiText("features.sources.SourcesPage.quellen_ihre_frische_und_herkunft_bindings_an_ho_823b53")} />
+      <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
+      {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
-      <Tabs
-        value={params.get('tab') ?? 'sources'}
-        onValueChange={(tab) => setParams({ tab }, { replace: true })}
+      <SourceSection
         items={[
           {
             value: 'sources',
@@ -145,7 +175,8 @@ export default function SourcesPage() {
                 name="sources"
                 idKey="source_id"
                 singular={uiText("features.sources.SourcesPage.source_0e570c")}
-                subtitle={(s) => `${str(s.source_type)} · ${str((isObject(s.freshness) ? s.freshness : {}).mode)}`}
+                onMove={id => void beginMove(id)}
+                subtitle={(s) => `${codeLabel(s.source_type)} · ${codeLabel((isObject(s.freshness) ? s.freshness : {}).mode)}`}
                 make={(c, ids) => ({
                   source_id: uniqueName('source.neu', ids),
                   source_type: 'boolean',
@@ -156,7 +187,7 @@ export default function SourcesPage() {
                 })}
                 usage={(item, config) => {
                   const used = consumersOfSource(config, str(item.source_id));
-                  return <span className="flex flex-col gap-1">{chips('Bindings', used.bindings)}{chips('Contracts', used.contracts, (id) => `/contracts/${encodeURIComponent(id)}`)}{used.sources.length > 0 && chips(uiText("features.sources.SourcesPage.liveness_fur_09aba4"), used.sources)}</span>;
+                  return <span className="flex flex-col gap-1">{chips(uiText('alpha7.nav.bindings'), used.bindings)}{chips(uiText('alpha7.nav.contracts'), used.contracts, (id) => `/contracts/view/${encodeURIComponent(id)}`)}{used.sources.length > 0 && chips(uiText("features.sources.SourcesPage.liveness_fur_09aba4"), used.sources)}</span>;
                 }}
                 render={(item, pointer, onChange, config) => (
                   <SourceEditor
@@ -180,7 +211,7 @@ export default function SourcesPage() {
                 name="bindings"
                 idKey="binding_id"
                 singular={uiText("features.sources.SourcesPage.binding_164c69")}
-                subtitle={(b) => `${str((isObject(b.adapter) ? b.adapter : {}).kind)} → ${str(b.source_id)}`}
+                subtitle={(b) => `${codeLabel((isObject(b.adapter) ? b.adapter : {}).kind)} → ${str(b.source_id)}`}
                 make={(c, ids) => {
                   const source = asArray(c.sources).filter(isObject)[0];
                   const transform = sourceCast(source);
@@ -188,8 +219,8 @@ export default function SourcesPage() {
                 }}
                 usage={(item, config) => (
                   <span className="flex flex-col gap-1">
-                    {chips('Quelle', [str(item.source_id)].filter(Boolean))}
-                    {chips(uiText("features.sources.SourcesPage.contracts_uber_diese_quelle_22a5c9"), consumersOfSource(config, str(item.source_id)).contracts, (id) => `/contracts/${encodeURIComponent(id)}`)}
+                    {chips(uiText('alpha7.contract.source'), [str(item.source_id)].filter(Boolean))}
+                    {chips(uiText("features.sources.SourcesPage.contracts_uber_diese_quelle_22a5c9"), consumersOfSource(config, str(item.source_id)).contracts, (id) => `/contracts/view/${encodeURIComponent(id)}`)}
                   </span>
                 )}
                 render={(item, pointer, onChange, config) => (
@@ -230,9 +261,9 @@ export default function SourcesPage() {
                 name="dependencies"
                 idKey="dependency_id"
                 singular={uiText("features.sources.SourcesPage.dependency_711595")}
-                subtitle={(d) => `${str(d.kind)} · ${str(d.monitor)}`}
+                subtitle={(d) => `${codeLabel(d.kind)} · ${codeLabel(d.monitor)}`}
                 make={(_, ids) => ({ dependency_id: uniqueName('dep.neu', ids), kind: 'ha', monitor: 'internal' })}
-                usage={(item, config) => chips('Quellen', sourcesUsingDependency(config, str(item.dependency_id)))}
+                usage={(item, config) => chips(uiText('alpha7.nav.sources'), sourcesUsingDependency(config, str(item.dependency_id)))}
                 render={(item, pointer, onChange, config) => (
                   <DependencyEditor value={item} pointer={pointer} onChange={onChange} schema={registrySchema} sourceIds={asArray(config.sources).filter(isObject).map((s) => str(s.source_id))} />
                 )}

@@ -133,21 +133,22 @@ export function historyPath(kind: string, filters: HistoryFilters, cursor?: stri
 }
 
 /** Cursor-paged history; the cursor is opaque and bound to the filter scope. */
-export const useHistory = (kind: string, filters: HistoryFilters, enabled = true) =>
+export const useHistory = (kind: string, filters: HistoryFilters, enabled = true, refetchMs: number | false = false) =>
   useInfiniteQuery({
     queryKey: keys.history(kind, filters),
     queryFn: ({ pageParam }) => api<HistoryPage>(historyPath(kind, filters, pageParam)),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
     enabled,
+    refetchInterval: refetchMs,
     placeholderData: keepPreviousData,
   });
 
-export const useHaEntities = (search: string, enabled: boolean) =>
+export const useHaEntities = (search: string, enabled: boolean, preview = false) =>
   useInfiniteQuery({
-    queryKey: keys.ha(search),
+    queryKey: keys.ha(`${search}:${preview ? 'preview' : 'metadata'}`),
     queryFn: ({ pageParam }) =>
-      api<HaEntityPage>(`ha/entities?limit=200${pageParam ? `&after=${encodeURIComponent(pageParam)}` : ''}`),
+      api<HaEntityPage>(`ha/entities?limit=200${preview ? '&preview=1' : ''}${pageParam ? `&after=${encodeURIComponent(pageParam)}` : ''}`),
     initialPageParam: '' as string,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     enabled,
@@ -201,31 +202,34 @@ export function useActivation() {
   const client = useQueryClient();
   const done = () =>
     Promise.all(
-      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics].map(
+      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics, ['history']].map(
         (key) => client.invalidateQueries({ queryKey: key }),
       ),
     );
   return {
     activate: useMutation({
       retry: false,
-      mutationFn: (input: { draft: Draft; expectedActiveRevision: number }) =>
+      mutationFn: (input: { draft: Draft; expectedActiveRevision: number; note?: string }) =>
         api<RevisionRow>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}/activate`, {
           method: 'POST',
           body: {
             draft_version: input.draft.draft_version,
             expected_active_revision: input.expectedActiveRevision,
+            ...(input.note?.trim() ? { note: input.note.trim() } : {}),
           },
         }),
-      onSuccess: done,
+      // The mutation response is the committed acknowledgement. Slow cache reads
+      // must not delay its success feedback or make a completed action look stale.
+      onSuccess: () => { void done(); },
     }),
     rollback: useMutation({
       retry: false,
-      mutationFn: (input: { revision: number; expectedActiveRevision: number }) =>
+      mutationFn: (input: { revision: number; expectedActiveRevision: number; note?: string }) =>
         api<RevisionRow>('registry/rollback', {
           method: 'POST',
-          body: { revision: input.revision, expected_active_revision: input.expectedActiveRevision },
+          body: { revision: input.revision, expected_active_revision: input.expectedActiveRevision, ...(input.note?.trim() ? { note: input.note.trim() } : {}) },
         }),
-      onSuccess: done,
+      onSuccess: () => { void done(); },
     }),
   };
 }

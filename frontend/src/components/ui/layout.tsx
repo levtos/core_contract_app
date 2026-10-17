@@ -21,7 +21,7 @@ export function PanelHeader({ title, aside, description }: { title: ReactNode; a
 
 export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 pr-12">
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 max-w-3xl text-sm text-muted">{description}</p>}
@@ -33,7 +33,7 @@ export function PageHeader({ title, description, actions }: { title: ReactNode; 
 
 const noticeTone = {
   info: { icon: Info, cls: 'border-info/40 bg-info/10 text-info' },
-  warn: { icon: AlertTriangle, cls: 'border-warn/40 bg-warn/10 text-warn' },
+  warn: { icon: AlertTriangle, cls: 'text-warn' },
   bad: { icon: CircleAlert, cls: 'border-bad/40 bg-bad/10 text-bad' },
   ok: { icon: Info, cls: 'border-ok/40 bg-ok/10 text-ok' },
 };
@@ -41,7 +41,7 @@ const noticeTone = {
 export function Notice({ tone = 'info', title, children, className, role }: { tone?: keyof typeof noticeTone; title?: ReactNode; children?: ReactNode; className?: string; role?: 'alert' | 'status' }) {
   const { icon: Icon, cls } = noticeTone[tone];
   return (
-    <div role={role ?? (tone === 'bad' ? 'alert' : 'status')} className={cn('flex gap-2.5 rounded-[var(--radius-md)] border px-3 py-2.5 text-sm', cls, className)}>
+    <div role={role ?? (tone === 'bad' ? 'alert' : 'status')} className={cn('flex gap-2.5 text-sm', tone !== 'warn' && 'rounded-[var(--radius-md)] border px-3 py-2.5', cls, className)}>
       <Icon size={16} className="mt-0.5 shrink-0" />
       <div className="min-w-0 text-fg">
         {title && <p className="font-medium">{title}</p>}

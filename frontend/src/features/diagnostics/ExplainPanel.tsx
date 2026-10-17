@@ -60,7 +60,7 @@ export function ExplainPanel({ trace }: { trace: JsonObject | null }) {
       />
       <div className="grid gap-x-8 gap-y-1 px-4 pt-3 text-xs text-muted sm:grid-cols-4">
         <span>{uiText("features.diagnostics.ExplainPanel.zeitpunkt_606cdc")}{formatTime(text(trace.at))}</span>
-        <span>{uiText("features.diagnostics.ExplainPanel.ausloser_4716db")}{text(trace.origin) || '–'}</span>
+        <span>{uiText("features.diagnostics.ExplainPanel.ausloser_4716db")}{trace.origin ? codeLabel(trace.origin) : '–'}</span>
         <span>{uiText("features.diagnostics.ExplainPanel.revision_5fdcbb")}{text(trace.registry_revision)}</span>
         <span>{uiText("features.diagnostics.ExplainPanel.aufwand_a56513")}{text(trace.cost)} {uiText("features.diagnostics.ExplainPanel.schritte_4ca538")}</span>
       </div>
@@ -87,10 +87,10 @@ export function ExplainPanel({ trace }: { trace: JsonObject | null }) {
                 <tr key={i} className="border-b border-line/50 align-top">
                   <td className="px-2 py-1.5 text-xs text-faint">{i + 1}</td>
                   <td className="px-2 py-1.5">{OP_NAMES[step.op] ?? codeLabel(step.op)}</td>
-                  <td className="mono px-2 py-1.5 text-xs">{[step.name, step.id, step.strategy, step.event && `${text(step.source)}→${text(step.target)} (${text(step.event)})`].filter(Boolean).map(text).join(' · ') || '–'}</td>
+                  <td className="px-2 py-1.5 text-xs">{[step.name, step.id, step.strategy ? codeLabel(step.strategy) : '', step.event && `${text(step.source)}→${text(step.target)} (${text(step.event)})`].filter(Boolean).map(text).join(' · ') || '–'}</td>
                   <td className="px-2 py-1.5">
                     {step.op === 'guard' ? (
-                      <Badge tone={step.decision === true ? 'ok' : step.decision === false ? 'bad' : 'warn'}>{step.decision === true ? uiText("features.diagnostics.ExplainPanel.erlaubt_cee957") : step.decision === false ? uiText("features.diagnostics.ExplainPanel.abgelehnt_e31099") : uiText("features.diagnostics.ExplainPanel.unentschieden_ad663a")}</Badge>
+                      <Badge tone="neutral">{step.decision === true ? uiText("features.diagnostics.ExplainPanel.erlaubt_cee957") : step.decision === false ? uiText("features.diagnostics.ExplainPanel.abgelehnt_e31099") : uiText("features.diagnostics.ExplainPanel.unentschieden_ad663a")}</Badge>
                     ) : step.op === 'fusion_selection' ? (
                       <Badge tone="info">{step.selection === 'engine' ? uiText("features.diagnostics.ExplainPanel.engine_auswahl_dd7a28") : step.selection === 'strategy' ? uiText("features.diagnostics.ExplainPanel.strategie_definiert_879b24") : uiText("features.diagnostics.ExplainPanel.auswahl_nicht_aufgezeichnet_092f1a")}</Badge>
                     ) : status ? (

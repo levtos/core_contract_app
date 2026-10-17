@@ -3,12 +3,12 @@ import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 const badge = cva(
-  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap',
+  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium leading-4 whitespace-nowrap',
   {
     variants: {
       tone: {
         neutral: 'border-line-strong bg-raised text-muted',
-        accent: 'border-accent/40 bg-accent/10 text-accent',
+        accent: 'border-line-strong bg-raised text-muted',
         ok: 'border-ok/40 bg-ok/10 text-ok',
         warn: 'border-warn/40 bg-warn/10 text-warn',
         bad: 'border-bad/40 bg-bad/10 text-bad',
