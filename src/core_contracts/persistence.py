@@ -92,6 +92,7 @@ class State(BaseModel):
 
 
 class Store(Protocol):
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None: ...
     async def load(self) -> State: ...
     async def commit(self, state: State) -> None: ...
     async def probe(self) -> None: ...
@@ -117,6 +118,7 @@ class PostgresStore:
         self.pool: asyncpg.Pool[Any] | None = None
         self._committed = State()
         self.before_commit: Callable[[], None] | None = None
+
         self._mutex = asyncio.Lock()
 
     async def open(self) -> None:
@@ -342,8 +344,19 @@ class PostgresStore:
         value = await self.pool.fetchval(
             "SELECT definition FROM registry_revision, "
             "LATERAL jsonb_array_elements(COALESCE(payload->'config'->'definitions','[]'::jsonb)) AS entries(definition) "
-            "WHERE definition->>'type_id'=$1 AND definition->>'type_version'=$2 LIMIT 1",
+            "WHERE definition->>'type_id'=$1 AND definition->>'type_version'=$2 ORDER BY (payload->>'revision')::bigint DESC LIMIT 1",
             type_id,
+            str(version),
+        )
+        return json.loads(value) if value is not None else None
+
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        value = await self.pool.fetchval(
+            "SELECT catalog FROM registry_revision, LATERAL jsonb_array_elements(COALESCE(payload->'config'->'catalogs','[]'::jsonb)) AS entries(catalog) "
+            "WHERE catalog->>'catalog_id'=$1 AND catalog->>'version'=$2 ORDER BY (payload->>'revision')::bigint DESC LIMIT 1",
+            catalog_id,
             str(version),
         )
         return json.loads(value) if value is not None else None
@@ -410,6 +423,22 @@ class MemoryStore:
         self.available = True
         self.locked = True
         self.before_commit: Callable[[], None] | None = None
+
+    async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None:
+        await self.probe()
+        return next(
+            (
+                copy.deepcopy(catalog)
+                for _, revision in sorted(
+                    self.state.tables["registry_revision"].items(),
+                    key=lambda row: int(row[0]),
+                    reverse=True,
+                )
+                for catalog in revision["config"].get("catalogs", [])
+                if (catalog["catalog_id"], catalog["version"]) == (catalog_id, version)
+            ),
+            None,
+        )
 
     async def probe(self) -> None:
         if not self.available or not self.locked:
@@ -500,7 +529,11 @@ class MemoryStore:
         return next(
             (
                 copy.deepcopy(definition)
-                for revision in self.state.tables["registry_revision"].values()
+                for _, revision in sorted(
+                    self.state.tables["registry_revision"].items(),
+                    key=lambda row: int(row[0]),
+                    reverse=True,
+                )
                 for definition in revision["config"].get("definitions", [])
                 if (definition["type_id"], definition["type_version"]) == (type_id, version)
             ),

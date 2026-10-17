@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
+from .lifecycle import Lifecycle
 from .model import Model
 from .schema import FieldSchema, Schema
 
@@ -373,6 +374,10 @@ class DeclarativeDefinition(DeclarativeModel):
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
+    lifecycle: Lifecycle = Field(default="active", exclude_if=lambda value: value == "active")
+    reactivation_note: str | None = Field(
+        default=None, max_length=256, exclude_if=lambda value: value is None
+    )
     refresh_inputs: tuple[Identifier, ...] = Field(default=(), max_length=MAX_INPUTS)
     output_schema: Schema = Field(alias="schema")
     rules: dict[Identifier, Rule] = Field(default_factory=dict, max_length=MAX_NODES)

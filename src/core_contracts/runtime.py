@@ -16,6 +16,7 @@ from .calendar_inputs import project
 from .clock import Alarm, Clock
 from .declarative import GuardEvaluationError
 from .evidence import Observation, assess, is_new, is_older
+from .lifecycle import EDITORIAL, transition_allowed
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
 from .producer import Context, Producer
@@ -193,19 +194,81 @@ class Runtime:
         from .validation import RegistryValidationError, ValidationIssue
 
         issues = []
-        for index, definition in enumerate(config.definitions):
-            previous = await self.store.definition(definition.type_id, definition.type_version)
-            if previous and checksum(
-                {k: v for k, v in previous.items() if k not in {"display_name", "description"}}
-            ) != checksum(
-                definition.model_dump(mode="json", exclude={"display_name", "description"})
+        for kind, objects, identity_key, version_key, getter in (
+            ("definitions", config.definitions, "type_id", "type_version", self.store.definition),
+            ("catalogs", config.catalogs, "catalog_id", "version", self.store.catalog),
+        ):
+            for index, item in enumerate(objects):
+                document = item.model_dump(mode="json")
+                identity = document[identity_key]
+                previous = await getter(identity, document[version_key])
+                if previous and checksum(
+                    {k: v for k, v in previous.items() if k not in EDITORIAL}
+                ) != checksum({k: v for k, v in document.items() if k not in EDITORIAL}):
+                    issues.append(
+                        ValidationIssue(
+                            code="immutable_definition_version",
+                            path=f"/{kind}/{index}/{version_key}",
+                            object_id=identity,
+                            message="immutable version",
+                        )
+                    )
+                if previous and not transition_allowed(
+                    previous.get("lifecycle", "active"),
+                    document.get("lifecycle", "active"),
+                    document.get("reactivation_note"),
+                    previous.get("reactivation_note"),
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="lifecycle_transition",
+                            path=f"/{kind}/{index}/lifecycle",
+                            object_id=identity,
+                            message="explicit lifecycle transition or new reactivation note required",
+                        )
+                    )
+        old = {c.contract_id: c for c in self.config.contracts} if self.config else {}
+        retired = {
+            (d.type_id, d.type_version) for d in config.definitions if d.lifecycle == "retired"
+        }
+        for index, contract in enumerate(config.contracts):
+            prior = old.get(contract.contract_id)
+            if (
+                contract.enabled
+                and (contract.type_id, contract.type_version) in retired
+                and (
+                    prior is None
+                    or not prior.enabled
+                    or (prior.type_id, prior.type_version)
+                    != (contract.type_id, contract.type_version)
+                )
             ):
                 issues.append(
                     ValidationIssue(
-                        code="immutable_definition_version",
-                        path=f"/definitions/{index}/type_version",
-                        object_id=definition.type_id,
-                        message="immutable definition version",
+                        code="version_retired",
+                        path=f"/contracts/{index}/type_version",
+                        object_id=contract.contract_id,
+                        message="retired version cannot be newly bound",
+                    )
+                )
+        old_bindings = {b.binding_id: b for b in self.config.bindings} if self.config else {}
+        retired_catalogs = {c.catalog_id for c in config.catalogs if c.lifecycle == "retired"}
+        for index, binding in enumerate(config.bindings):
+            if (
+                binding.transform
+                and binding.transform.catalog_id in retired_catalogs
+                and (
+                    binding.binding_id not in old_bindings
+                    or old_bindings[binding.binding_id].source_id != binding.source_id
+                    or old_bindings[binding.binding_id].transform != binding.transform
+                )
+            ):
+                issues.append(
+                    ValidationIssue(
+                        code="version_retired",
+                        path=f"/bindings/{index}/transform",
+                        object_id=binding.binding_id,
+                        message="retired catalog cannot be newly bound",
                     )
                 )
         if issues:
