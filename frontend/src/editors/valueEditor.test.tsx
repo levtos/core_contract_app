@@ -114,10 +114,10 @@ describe('UX-01: restricted text values can be created directly', () => {
   it('offers a catalog for a plain text field without the enum detour and keeps the type', async () => {
     let current: FieldSchema = newFieldSchema('text');
     wrap(<Stateful initial={current} onValue={(v) => (current = v as FieldSchema)}>{(v, set) => <FieldSchemaEditor pointer="/s" value={v as FieldSchema} onChange={(n) => set(n as unknown as JsonObject)} />}</Stateful>);
-    expect(screen.queryByLabelText(/^Wertekatalog/)).toBeNull();
+    expect(screen.queryByLabelText(/^Werteliste/)).toBeNull();
     await user.click(screen.getByRole('checkbox', { name: /auf feste Textwerte einschränken/i }));
     for (const value of ['hell', 'dunkel']) {
-      await type(screen.getByLabelText(/^Wertekatalog/), value);
+      await type(screen.getByLabelText(/^Werteliste/), value);
       await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
     }
     expect(current).toMatchObject({ type: 'text', value_catalog: ['hell', 'dunkel'] });
@@ -130,7 +130,7 @@ describe('UX-01: restricted text values can be created directly', () => {
 
   it('an enum still requires its catalog, a number never shows one', () => {
     wrap(<FieldSchemaEditor pointer="/s" value={newFieldSchema('number')} onChange={() => {}} />);
-    expect(screen.queryByLabelText(/^Wertekatalog/)).toBeNull();
+    expect(screen.queryByLabelText(/^Werteliste/)).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /einschränken/ })).toBeNull();
   });
 });

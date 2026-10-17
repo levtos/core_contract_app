@@ -21,7 +21,7 @@ import { useLive } from '@/lib/live-context';
 import type { Envelope } from '@/lib/types';
 import { useActiveRevision, useCapabilities } from '@/lib/queries';
 import { useHaCatalog } from '@/features/sources/useHaCatalog';
-import { contractSources, contractValue, fieldsForContract } from './presentation';
+import { CONTRACT_CATEGORIES, contractState, contractSources, contractValue, fieldsForContract, type ContractCategory } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
 import { DeviceWizard } from '@/features/sources/DeviceWizard';
 
@@ -116,10 +116,10 @@ export default function ContractsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const overviewFilter = params.get('filter');
   const [enabledFilter, setEnabledFilter] = useState<'all' | 'on' | 'off'>(() => ['active', 'healthy', 'degraded'].includes(overviewFilter ?? '') ? 'on' : overviewFilter === 'off' ? 'off' : 'all');
-  const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'degraded' | 'none'>(() => overviewFilter === 'healthy' || overviewFilter === 'degraded' ? overviewFilter : 'all');
+  const [healthFilter, setHealthFilter] = useState<'all' | ContractCategory>(() => CONTRACT_CATEGORIES.includes(overviewFilter as ContractCategory) ? overviewFilter as ContractCategory : 'all');
   useEffect(() => {
     setEnabledFilter(['active', 'healthy', 'degraded'].includes(overviewFilter ?? '') ? 'on' : overviewFilter === 'off' ? 'off' : 'all');
-    setHealthFilter(overviewFilter === 'healthy' || overviewFilter === 'degraded' ? overviewFilter : 'all');
+    setHealthFilter(CONTRACT_CATEGORIES.includes(overviewFilter as ContractCategory) ? overviewFilter as ContractCategory : 'all');
   }, [overviewFilter]);
   const [creating, setCreating] = useState(false);
   const [creationError, setCreationError] = useState('');
@@ -165,7 +165,7 @@ export default function ContractsPage() {
     (r) =>
       (!typeFilter || r.type === typeFilter) &&
       (enabledFilter === 'all' || (enabledFilter === 'on') === r.enabled) &&
-      (healthFilter === 'all' || (healthFilter === 'none' ? !r.envelope : r.envelope?.contract_health === healthFilter)),
+      (healthFilter === 'all' || contractState(r.envelope, r.enabled, r.draftOnly).category === healthFilter),
   );
 
   const columns = [
@@ -208,9 +208,7 @@ export default function ContractsPage() {
           </Select>
           <Select aria-label={uiText("features.contracts.ContractsPage.gesundheit_1c7f2f")} className="w-44" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value as typeof healthFilter)}>
             <option value="all">{uiText("features.contracts.ContractsPage.jede_gesundheit_b848a7")}</option>
-            <option value="healthy">{uiText('alpha7.contract.state.healthy')}</option>
-            <option value="degraded">{uiText('alpha7.contract.state.limited')}</option>
-            <option value="none">{uiText('alpha7.contract.state.unknown')}</option>
+            {CONTRACT_CATEGORIES.map(category => <option key={category} value={category}>{uiText(`alpha7.contract.state.${category === 'degraded' ? 'limited' : category}`)}</option>)}
           </Select>
         </div>
       </Panel></LayoutPanel><LayoutPanel id="instances" title={uiText("features.contracts.ContractsPage.contract_instanzen_1a0c12")}><Panel>

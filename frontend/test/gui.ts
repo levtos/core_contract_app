@@ -88,7 +88,7 @@ export function gui(user: UserEvent) {
   const buildFlow = async (base: string) => {
     await tab(/Ausgaben/);
     await user.selectOptions(first(`${base}/schema/fields/value`, 'Typ'), 'enum');
-    const catalog = screen.getByLabelText(/Wertekatalog/);
+    const catalog = screen.getByLabelText(/Werteliste/);
     for (const entry of ['idle', 'active', 'done']) {
       await type(catalog, entry);
       await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));

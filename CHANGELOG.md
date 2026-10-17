@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0a7.post1 — Befunde aus dem UX-Live-Test (vorbereitet, 2026-10-17)
+
+- Einheitlicher Serverzustand in Übersicht, Vertragsplakette und Filter; konkrete historische Typ-/Einheitskonflikte.
+- Fehlerhafte Entwürfe mit erklärtem Strich im Änderungszähler; einheitenabhängige Rundung.
+- Quellennamen, ein Hinzufügen-Einstieg, passende Aktualitätsfelder und Minutenhilfe.
+- Breiter Verlauf mit beschrifteten Achsen und Ja/Nein-Stufen; betroffener Eingang und Wertalter in „Warum?“.
+- Du-Form, verständliche Entwurfs-/Versions-/Konfliktsprache, 179 ungenutzte deutsche Schlüssel entfernt; App-Beschreibung aktualisiert.
+- [Korrekturen und acht Firefox-Nachweise](docs/workbench/alpha7-post1/KORREKTUR.md), [Release-Vorbereitung](docs/releases/1.0.0a7.post1.md).
+  Kein Merge, Release, Image-Publish oder Installation vor neuem Go. Alpha 8 bleibt getrennt.
+
 ## 1.0.0a7 — Terra nach Aufgaben bedienen (vorbereitet, 2026-10-17)
 
 - UX-Nachprüfung K.01–K.06: Server-Änderungszähler, schlanke Entwurfsleiste, Vertragsnavigation, Alltagssprache, deutsche Zeitwerte, Minutenhilfe und Statusdarstellung korrigiert; 18 neue Chrome-/Firefox-Nachweise.

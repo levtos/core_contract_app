@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { Workbench } from '@/Workbench';
 import { contractSources, contractState, contractValue, fieldsForContract } from '@/features/contracts/presentation';
-import { historyPoints } from '@/features/contracts/ContractSummary';
+import { historyPoints, MiniHistory, observationTime } from '@/features/contracts/ContractSummary';
 import type { Envelope, HaEntity } from '@/lib/types';
 import { installFakeApi, reply, sampleConfig } from '../../test/fakeApi';
 import { idleLive } from '../../test/harness';
@@ -60,7 +60,7 @@ it('shows only four list columns, a single state chip and the HA name', async ()
   expect(await within(table).findByText('Zimmerthermometer')).toBeVisible();
   expect(within(table).getAllByText('Gesund')).toHaveLength(1);
   expect(within(table).getByRole('link', { name: 'Temperatur im Zimmer' })).toHaveAttribute('title', 'zimmer');
-  expect(within(screen.getByRole('combobox', { name: 'Zustand' })).getAllByRole('option').map(option => option.textContent)).toEqual(['Jeder Zustand', 'Gesund', 'Eingeschränkt', 'Unbekannt']);
+  expect(within(screen.getByRole('combobox', { name: 'Zustand' })).getAllByRole('option').map(option => option.textContent)).toEqual(['Jeder Zustand', 'Gesund', 'Eingeschränkt', 'Unbekannt', 'Ausgeschaltet', 'Entwurf']);
 });
 
 it('shows the HA identifier only once when it is also the available name', async () => {
@@ -137,4 +137,34 @@ it('does not label a value from a newer live version with the previous version u
   await screen.findByRole('heading', { name: 'Temperatur im Zimmer' });
   expect(screen.queryByTestId('value-value')).not.toBeInTheDocument();
   expect(screen.queryByText('21,5 °C')).not.toBeInTheDocument();
+});
+
+it('draws boolean history as full-width steps with Ja/Nein axis labels', () => {
+  render(<MiniHistory name="value" schema={{ type: 'bool', required: true, physical_state: false }} points={[
+    { at, field: { ...field, value: false } },
+    { at: '2026-10-16T10:01:00Z', field: { ...field, value: true } },
+  ]} />);
+  const chart = screen.getByRole('img', { name: 'Verlauf: Wert' });
+  expect(chart).toHaveClass('w-full', 'h-auto');
+  expect(within(chart).getByText('Ja')).toBeVisible();
+  expect(within(chart).getByText('Nein')).toBeVisible();
+  expect(chart.querySelector('polyline')).toHaveAttribute('data-interpolation', 'step');
+  expect(chart.querySelector('polyline')?.getAttribute('points')).toBe('110,132 980,132 980,32');
+});
+
+it('orders equal-time publications by server sequence instead of reversing valid samples and gaps', () => {
+  const points = historyPoints([
+    { id: 'later', contract_id: 'zimmer', published_at: at, publication_seq: 2, fields: { value: { ...field, value: true } } },
+    { id: 'earlier', contract_id: 'zimmer', published_at: at, publication_seq: 1, fields: { value: { ...field, value: null, status: 'unknown' } } },
+  ], 'zimmer', 'value');
+  expect(points.map(point => point.field?.status)).toEqual(['unknown', 'valid']);
+});
+
+it('names the affected input and the age of its measured value without treating receipt as measurement', async () => {
+  const api = fake();
+  const measured = new Date(Date.now() - 300_000).toISOString();
+  api.routes.push({ match: /^evidence\/source.heat/, respond: () => reply(200, [{ observation_kind: 'report', ha_last_reported: measured, received_at: new Date().toISOString() }]) });
+  app('#/contracts/view/zimmer', { ...envelope, fields: { value: { ...field, status: 'unknown', value: null, reasons: [{ code: 'input_stale', input: 'source.heat', since: at }] } } });
+  expect(await screen.findByText(/Eingang „Gespeicherter Sensorname“: Der zuletzt gemessene Wert ist 5 min alt/)).toBeVisible();
+  expect(observationTime({ observation_kind: 'report', ha_last_changed: at, received_at: at })).toBeUndefined();
 });

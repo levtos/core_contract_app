@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { t } from '@/i18n';
 import { fieldLabel } from '@/i18n/codes';
@@ -6,9 +7,10 @@ import { Panel, PanelHeader, Spinner } from '@/components/ui/layout';
 import { ContractLiveState } from '@/components/ContractLiveState';
 import { CommandsPanel } from '@/features/diagnostics/CommandsPanel';
 import { useHaCatalog } from '@/features/sources/useHaCatalog';
-import { asArray, asObject, type FieldSchema } from '@/features/authoring/model';
-import { isObject } from '@/lib/json';
-import { formatTime } from '@/lib/format';
+import { asArray, asObject, str, type FieldSchema } from '@/features/authoring/model';
+import { isObject, type JsonObject } from '@/lib/json';
+import { formatDuration, formatTime } from '@/lib/format';
+import { api } from '@/lib/api';
 import { displayValue } from '@/lib/status';
 import { POLL_MS, useHistory } from '@/lib/queries';
 import type { Envelope, FieldValue, HistoryItem, Registry } from '@/lib/types';
@@ -20,33 +22,44 @@ import { MachineRestartPanel } from './MachineRestartPanel';
 interface Point { at: string; field: FieldValue | null }
 export function historyPoints(rows: HistoryItem[], contractId: string, field: string, revision?: number): Point[] {
   return rows.filter(row => row.contract_id === contractId && (revision === undefined || row.registry_revision === revision) && typeof row.published_at === 'string' && Number.isFinite(Date.parse(row.published_at)))
-    .sort((a, b) => Date.parse(String(a.published_at)) - Date.parse(String(b.published_at)))
+    .sort((a, b) => Date.parse(String(a.published_at)) - Date.parse(String(b.published_at)) || Number(a.publication_seq ?? 0) - Number(b.publication_seq ?? 0))
     .slice(-60).map(row => ({ at: String(row.published_at), field: isObject(asObject(row.fields)[field]) ? asObject(row.fields)[field] as unknown as FieldValue : null }));
 }
 
 /** Plots stored samples only; gaps stay gaps and no value is recomputed. */
-function MiniHistory({ points, schema, name }: { points: Point[]; schema?: FieldSchema; name: string }) {
+export function MiniHistory({ points, schema, name }: { points: Point[]; schema?: FieldSchema; name: string }) {
   const categories = [...new Set(points.map(point => point.field?.value).filter(value => typeof value === 'string'))];
   const ordinate = (field: FieldValue | null) => !field || !['valid', 'held'].includes(field.status) || field.value === null ? null : typeof field.value === 'number' && Number.isFinite(field.value) ? field.value : typeof field.value === 'boolean' ? Number(field.value) : typeof field.value === 'string' ? categories.indexOf(field.value) : null;
   const values = points.map(point => ordinate(point.field)).filter((value): value is number => value !== null);
-  const low = Math.min(...values); const high = Math.max(...values); const range = high - low || 1;
+  const boolean = schema?.type === 'bool' || points.some(point => typeof point.field?.value === 'boolean');
+  const low = boolean ? 0 : Math.min(...values); const high = boolean ? 1 : Math.max(...values) === low ? low + 1 : Math.max(...values); const range = high - low || 1;
   const first = Date.parse(points[0]?.at ?? ''); const last = Date.parse(points.at(-1)?.at ?? '');
-  const segments: string[][] = [[]];
+  const segments: { x: number; y: number }[][] = [[]];
   for (const point of points) {
     const value = ordinate(point.field);
     if (value === null) { if (segments.at(-1)!.length) segments.push([]); continue; }
-    const x = 16 + (Date.parse(point.at) - first) / (last - first || 1) * 568; const y = 100 - (value - low) / range * 76;
-    segments.at(-1)!.push(`${x},${y}`);
+    const x = 110 + (Date.parse(point.at) - first) / (last - first || 1) * 870; const y = 132 - (value - low) / range * 100;
+    segments.at(-1)!.push({ x, y });
   }
+  const label = (value: number) => boolean ? t(value ? 'lib.status.ja_cde9e5' : 'lib.status.nein_90ebc1') : categories.length ? categories[value] ?? '' : displayValue({ status: 'valid', value, quality: 'healthy', evidence: [], reasons: [] }, typeof schema?.unit === 'string' ? schema.unit : undefined);
+  const path = (segment: { x: number; y: number }[]) => segment.flatMap((point, index) => boolean && index > 0 ? [`${point.x},${segment[index - 1]!.y}`, `${point.x},${point.y}`] : [`${point.x},${point.y}`]).join(' ');
   return <div className="space-y-2">
     <h3 className="text-sm font-medium">{fieldLabel(name)}</h3>
-    {values.length > 0 ? <svg viewBox="0 0 600 120" role="img" aria-label={t('alpha7.contract.chart', { name: fieldLabel(name) })} className="h-28 w-full text-muted">
-      <path d="M16 108H584" fill="none" stroke="currentColor" opacity="0.4" />
-      {segments.filter(segment => segment.length).map((segment, index) => <g key={index}><polyline points={segment.join(' ')} fill="none" stroke="currentColor" strokeWidth="2" />{segment.map((point, n) => <circle key={n} cx={point.split(',')[0]} cy={point.split(',')[1]} r="3" fill="currentColor" />)}</g>)}
+    {values.length > 0 ? <svg viewBox="0 0 1000 165" role="img" aria-label={t('alpha7.contract.chart', { name: fieldLabel(name) })} className="block h-auto w-full text-muted">
+      <path d="M110 24V140H980" fill="none" stroke="currentColor" opacity="0.5" />
+      {(boolean ? [0, 1] : [low, (low + high) / 2, high]).map(value => <g key={value}><text x="98" y={136 - (value - low) / range * 100} textAnchor="end" fontSize="13" fill="currentColor">{label(value)}</text><path d={`M110 ${132 - (value - low) / range * 100}H980`} fill="none" stroke="currentColor" opacity="0.15" /></g>)}
+      {segments.filter(segment => segment.length).map((segment, index) => <g key={index}><polyline data-interpolation={boolean ? 'step' : 'linear'} points={path(segment)} fill="none" stroke="currentColor" strokeWidth="2" />{segment.map((point, n) => <circle key={n} cx={point.x} cy={point.y} r="3" fill="currentColor" />)}</g>)}
     </svg> : <p className="text-sm text-muted">{t('alpha7.contract.noHistoryValue')}</p>}
     {points.length > 0 && <div className="flex justify-between gap-4 text-xs text-muted"><time dateTime={points[0]!.at}>{formatTime(points[0]!.at)}</time><time dateTime={points.at(-1)!.at}>{formatTime(points.at(-1)!.at)}</time></div>}
     <details className="text-xs"><summary className="cursor-pointer text-muted">{t('alpha7.contract.historyTable')}</summary><table className="mt-2 w-full text-left"><caption className="sr-only">{t('alpha7.contract.historyTable')}</caption><thead><tr><th>{t('alpha7.contract.time')}</th><th>{t('alpha7.contract.value')}</th></tr></thead><tbody>{points.slice(-8).reverse().map((point, index) => <tr key={index}><td className="py-1">{formatTime(point.at)}</td><td>{point.field ? displayValue(point.field, typeof schema?.unit === 'string' ? schema.unit : undefined) : t('alpha7.contract.noValue')}</td></tr>)}</tbody></table></details>
   </div>;
+}
+
+/** Measurement clock from stored observations, never the receipt time or reason onset. */
+export function observationTime(observation: JsonObject): string | undefined {
+  const haTime = observation.observation_kind === 'report' ? observation.ha_last_reported : observation.observation_kind === 'live_change' ? observation.ha_time_fired || observation.ha_last_changed : observation.ha_last_reported || observation.ha_last_changed || observation.ha_time_fired;
+  const value = str(observation.device_time || haTime);
+  return value && Number.isFinite(Date.parse(value)) ? value : undefined;
 }
 
 export function ContractSummary({ envelope, stale, fields, config, machine }: { envelope: Envelope; stale: boolean; fields: Record<string, FieldSchema>; config: Registry | null; machine: boolean }) {
@@ -55,6 +68,12 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
   const sources = contractSources(envelope.contract_id, config, ha.entities);
   const history = useHistory('contracts', { contract_id: envelope.contract_id, limit: 60 }, true, POLL_MS);
   const reasons = Object.values(envelope.fields).flatMap(field => field.reasons);
+  const contract = asArray(config?.contracts).filter(isObject).find(item => item.contract_id === envelope.contract_id);
+  const affected = sources.find(source => reasons.some(reason => source.id === reason.source_id || source.id === reason.input || asArray(contract?.inputs).filter(isObject).some(input => input.name === reason.input && input.ref === source.id)));
+  const affectedName = affected ? str(asArray(config?.sources).filter(isObject)[affected.sourceIndex]?.display_name) || affected.name : '';
+  const evidence = useQuery({ queryKey: ['evidence', 'source', affected?.id, envelope.registry_revision], queryFn: () => api<JsonObject[]>(`evidence/${encodeURIComponent(affected!.id)}`), enabled: !!affected, refetchInterval: POLL_MS, retry: false });
+  const measured = (evidence.isPlaceholderData ? [] : evidence.data ?? []).map(observationTime).filter((at): at is string => !!at).sort().at(-1);
+  const age = measured && Date.parse(measured) <= Date.now() ? formatDuration((Date.now() - Date.parse(measured)) / 1000) : null;
   const why = stale ? t('alpha7.contract.state.oldConnectionHelp') : reasons.length ? problemAdvice(reasons, config, envelope.contract_id).text : contractState(envelope, true).hint;
   return <div className="space-y-4">
     <Panel><PanelHeader title={t('alpha7.contract.now')} aside={<ContractStateChip envelope={envelope} enabled={envelope.enabled} stale={stale} />} />
@@ -64,7 +83,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
       </div>)}</div>
       <p className="px-6 pb-4 text-xs text-muted">{t('alpha7.contract.liveVersion', { version: envelope.registry_revision, time: formatTime(envelope.published_at) })}</p>
     </Panel>
-    <Panel><PanelHeader title={t('alpha7.contract.why')} /><p className="p-5 text-sm">{why}</p></Panel>
+    <Panel><PanelHeader title={t('alpha7.contract.why')} /><p className="p-5 text-sm">{why}{affected && <> {t(age ? 'post1.why.inputAge' : 'post1.why.inputAgeUnknown', { name: affectedName, age })}</>}</p></Panel>
     <Panel><PanelHeader title={t('alpha7.contract.where')} /><div className="p-5">
       {sources.length ? <ul className="space-y-3">{sources.map((source, index) => <li key={index}><Link className="font-medium hover:text-fg" to={`/sources/devices?item=${source.sourceIndex}`} title={source.id}>{source.name}</Link>{source.entityId && source.entityId !== source.name && <p className="mt-1 max-w-full truncate text-xs text-muted" title={source.entityId}>{source.entityId}</p>}</li>)}</ul> : <p className="text-sm text-muted">{t('alpha7.contract.noSource')}</p>}
       {ha.isError && <p className="mt-2 text-xs text-muted">{t('alpha7.contract.namesUnavailable')}</p>}

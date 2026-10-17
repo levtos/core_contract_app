@@ -105,7 +105,8 @@ it('never silently discards malformed imported entries or changes an existing so
 
 it('keeps selection across source subpages and keeps the editor mounted while clearing and renaming its identifier', async () => {
   const user = userEvent.setup(); const api = fake(); app('#/sources/devices');
-  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   await user.click(screen.getByRole('button', { name: 'Erweitert' }));
   const id = screen.getByLabelText('Quelle-ID'); await user.clear(id);

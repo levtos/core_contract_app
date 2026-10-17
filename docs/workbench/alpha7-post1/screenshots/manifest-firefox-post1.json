@@ -1,0 +1,140 @@
+{
+  "viewport": {
+    "width": 1568,
+    "height": 710
+  },
+  "deviceScaleFactor": 1,
+  "locale": "de-DE",
+  "timezone": "Europe/Berlin",
+  "syntheticOnly": true,
+  "startedAt": "2026-10-17T08:20:56.625Z",
+  "sourceHead": "4197066df94bbc147254c4c6d62ca3b354ab27ff",
+  "browsers": [
+    {
+      "name": "firefox",
+      "version": "157.0",
+      "engine": "Mozilla Firefox (Playwright build)",
+      "headless": true
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "post1/firefox/overview.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "overview",
+      "route": "#/",
+      "comparison": "B1: drei serverseitig gesunde Verträge, einschließlich optionalem unbekanntem Zusatzwert",
+      "sha256": "b550d478c1df0f70938eaa10f9e2d4d5c1039a30654eca500d33a644360ac361",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/list-healthy.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "list-healthy",
+      "route": "#/contracts/list/all?filter=healthy",
+      "comparison": "B1: dieselben drei Verträge im Gesund-Filter; Feld unbekannt ändert die Serverkategorie nicht",
+      "sha256": "0bcf84b21d895a87fa5d790b9b1397e67bf3a78a92994236c7512312934ad8f9",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/list-rounded.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "list-rounded",
+      "route": "#/contracts/list/all?filter=healthy",
+      "comparison": "B4: Minuten und Temperatur mit einer Nachkommastelle",
+      "sha256": "a6ca1e34b95e0187e12361813eca0c147a955dfab8a8de0f82ca011fdf57d291",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/sources-list.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "sources-list",
+      "route": "#/sources/devices",
+      "comparison": "B5: Namen über kleinen Kennungen, Du-Form, ein Hinzufügen-Kopfknopf",
+      "sha256": "fca9eb2e575f411ca4100d820b502589d5783901656f67acd68f4200ec439987",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/source-freshness.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "source-freshness",
+      "route": "#/sources/devices?item=1",
+      "comparison": "B6: einmal Aktualität, erforderliches Intervall mit Minutenhilfe, keine unzutreffende Erreichbarkeitspflicht",
+      "sha256": "581be5c6aa292ee04b4b148bb1b637651e99f717d6ddcb4870fa0513f64cb469",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/contract-boolean-history.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "contract-boolean-history",
+      "route": "#/contracts/view/test.window",
+      "comparison": "B7/B8: volle Diagrammbreite, Ja/Nein-Stufen und betroffener Eingang mit Alter",
+      "sha256": "c8b42c881a2ff031609b3debcec39ac1ac92d576092363d72c67ede24abaa2f8",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/draft-invalid.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "draft-invalid",
+      "route": "#/changes/drafts/f028551c-83b9-4d73-b718-80588126f7b7",
+      "comparison": "B3/B9: endgültige Fehlerprüfung zeigt Strich statt endlosem Laden und verständliche Fehlerliste",
+      "sha256": "df13be5f4196010f3a4645d101c9c8a6f83739facab81ed6e899dd27115120df",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    },
+    {
+      "file": "post1/firefox/save-conflict.png",
+      "phase": "post1",
+      "browser": "firefox",
+      "task": "save-conflict",
+      "route": "#/changes/drafts/f028551c-83b9-4d73-b718-80588126f7b7",
+      "comparison": "B9: gespeicherten Stand laden, Du-Form, kein Übernehmen beim Speichern",
+      "sha256": "d63bf133c4ca45ccc558fd20bf0059659347254d94395b776330e878c7954277",
+      "width": 1568,
+      "height": 710,
+      "documentWidth": 1568
+    }
+  ],
+  "checks": [
+    {
+      "browser": "firefox",
+      "check": "B1/B3/B4/B5/B6/B7/B8/B9 targeted UI assertions",
+      "result": "passed",
+      "syntheticClock": "2026-10-17T10:01:05Z",
+      "viewport": {
+        "width": 1568,
+        "height": 710,
+        "language": "de-DE",
+        "timezone": "Europe/Berlin"
+      }
+    },
+    {
+      "browser": "firefox",
+      "phase": "after",
+      "check": "All task pages render without JavaScript errors or document overflow",
+      "result": "passed"
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-10-17T08:21:08.379Z"
+}
