@@ -141,7 +141,7 @@
   "alpha7.template.name": "Name (freiwillig)",
   "alpha7.template.nameExample": "Zum Beispiel: Fenster offen",
   "alpha7.template.initial": "Die neue Vorlage gibt einen Ja/Nein-Eingang unverändert weiter. Danach kannst du ihre Regeln anpassen.",
-  "alpha7.template.prefix": "Mimir ergänzt das nötige Präfix automatisch. Leer lassen, um die Kennung aus dem Namen zu bilden.",
+  "alpha7.template.prefix": "Mimir ergänzt bei Bedarf vertrag. vor deiner Kennung. Leer lassen, um die Kennung aus dem Namen zu bilden.",
   "alpha7.template.oneField": "1 Feld",
   "alpha7.template.fields": "{count} Felder",
   "alpha7.template.constantAdvanced": "Erweitert: Werteart",
@@ -2159,5 +2159,7 @@
   "alpha7.diff.explanation": "Hier siehst du, was sich beim Übernehmen ändert. Aktuelle Werte werden dabei nicht neu berechnet.",
   "alpha7.diff.comparison": "Der Vergleich bezieht sich auf {against}.",
   "alpha7.diff.reinitialize": "Bestehende Abläufe beginnen neu",
-  "alpha7.diff.reinitializeHelp": "Die Berechnungsregeln haben sich geändert. Betroffene Abläufe beginnen nach dem Übernehmen neu."
+  "alpha7.diff.reinitializeHelp": "Die Berechnungsregeln haben sich geändert. Betroffene Abläufe beginnen nach dem Übernehmen neu.",
+  "alpha8.parameters.title": "Einstellungen für diesen Vertrag",
+  "alpha8.parameters.draftHint": "Deine Änderung gilt erst, wenn du den Entwurf übernimmst."
 }

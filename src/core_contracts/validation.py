@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from .declarative import DefinitionValidationErrors, RuleValidationError, all_rules, compatible
 from .declarative_models import DeclarativeDefinition
+from .instance_parameters import validate_slots
 from .model import Model, canonical
 from .registry import (
     Binding,
@@ -428,6 +429,8 @@ def validate_document(
             evaluation_cost += 2 * len(all_rules(declared_definition))
         try:
             declaration.parameters.model_validate(contract.parameters)
+            if declared_definition:
+                validate_slots(declared_definition, contract.parameters)
         except ValidationError as error:
             for finding in error.errors(include_input=False, include_url=False):
                 add(
@@ -436,6 +439,8 @@ def validate_document(
                     "config_incomplete: type or parameters",
                     key,
                 )
+        except ValueError, KeyError:
+            add("parameter.invalid_slot", path + "/parameters", "invalid parameter duration", key)
         if declaration.schema.grace_capable:
             duration = contract.parameters.get(declaration.schema.grace_parameter or "")
             if (

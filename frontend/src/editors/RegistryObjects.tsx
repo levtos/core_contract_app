@@ -561,10 +561,9 @@ export function ContractEditor({ value, onChange, pointer, types, refs, onAddDev
       </section>
 
       <section className="flex flex-col gap-3">
-        <SectionTitle>{uiText("editors.RegistryObjects.parameter_dd066e")}</SectionTitle>
-        {entry?.declarative ? (
-          <p className="text-xs text-muted">{uiText("editors.RegistryObjects.deklarative_typen_haben_keine_instanzparameter_r_67dbe1")}</p>
-        ) : entry?.parameterSchema ? (
+        <SectionTitle>{uiText('alpha8.parameters.title')}</SectionTitle>
+        <p className="text-xs text-muted">{uiText('alpha8.parameters.draftHint')}</p>
+        {entry?.parameterSchema ? (
           <SchemaForm root={entry.parameterSchema} node={entry.parameterSchema} value={asObject(value.parameters)} pointer={join(pointer, 'parameters')} onChange={(next) => set({ parameters: (next ?? {}) as JsonObject })} />
         ) : (
           <p className="text-xs text-faint">{uiText("editors.RegistryObjects.keine_parameter_bekannt_272f5e")}</p>

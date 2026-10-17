@@ -283,7 +283,7 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
-        "language_versions": [1],
+        "language_versions": [1, 2],
         "api_protocol": 1,
         "config_schema_version": 1,
         "fingerprint_versions": [1, 2],
@@ -326,6 +326,7 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
             }
             for name, model in (
                 ("input", "InputRule"),
+                ("parameter", "ParameterRule"),
                 ("ref", "ReferenceRule"),
                 ("literal", "LiteralRule"),
                 ("and", "BooleanRule"),

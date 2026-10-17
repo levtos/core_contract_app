@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, create_model, model_validator
 
 from . import declarative_models as dm
 from .engines import FORMULA_SCHEMAS, FORMULAS, FUSION, FUSION_INPUTS
+from .instance_parameters import number_slot, parameter_model
 from .model import Model
 from .producer import Context, Producer, TemporalParameters, next_machine_due, next_temporal_due
 from .producer import state_machine as evaluate_machine
@@ -127,6 +128,18 @@ def all_rules(definition: dm.DeclarativeDefinition) -> list[dm.Rule]:
 
 def check_definition(definition: dm.DeclarativeDefinition) -> None:
     rules = all_rules(definition)
+    slots = [r.duration_s for r in rules if isinstance(r, dm.TemporalRule)]
+    if definition.machine and definition.machine.deadline_s is not None:
+        slots.append(definition.machine.deadline_s)
+    for slot in slots:
+        if isinstance(slot, dm.ParameterRule):
+            declaration = definition.parameter_schema.get(slot.name)
+            if (
+                not declaration
+                or declaration.field_schema.type != "number"
+                or not declaration.field_schema.required
+            ):
+                raise ValueError("invalid_parameter_slot")
     paths: dict[int, str] = {}
 
     def locate(rule: dm.Rule, path: str) -> None:
@@ -189,6 +202,15 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
             if rule.name not in inputs:
                 raise ValueError("unknown_rule_input")
             return inputs[rule.name]
+        if isinstance(rule, dm.ParameterRule):
+            parameter_declaration = definition.parameter_schema.get(rule.name)
+            if (
+                definition.language_version != 2
+                or not parameter_declaration
+                or not parameter_declaration.field_schema.required
+            ):
+                raise ValueError("unknown_or_optional_parameter")
+            return parameter_declaration.field_schema
         if isinstance(rule, dm.ReferenceRule):
             if rule.name not in definition.rules:
                 raise ValueError("unknown_internal_reference")
@@ -340,8 +362,12 @@ class Evaluation:
         inputs: dict[str, FieldValue],
         now: datetime,
         context: Context | None = None,
+        parameters: dict[str, Any] | None = None,
     ) -> None:
         self.definition, self.inputs, self.now, self.context = definition, inputs, now, context
+        self.parameters = (
+            parameters if parameters is not None else context.contract.parameters if context else {}
+        )
         self.inputs = dict(inputs)
         for declaration in definition.inputs:
             value = self.inputs.get(declaration.name)
@@ -387,6 +413,8 @@ class Evaluation:
         now = self.now
         if isinstance(rule, dm.InputRule):
             return self.inputs.get(rule.name, unknown(ReasonCode.INPUT_ABSENT, rule.name, now))
+        if isinstance(rule, dm.ParameterRule):
+            return FieldValue(status="valid", value=self.parameters[rule.name], quality="healthy")
         if isinstance(rule, dm.ReferenceRule):
             if rule.name not in self.memo:
                 self.memo[rule.name] = self.evaluate(self.definition.rules[rule.name])
@@ -542,17 +570,24 @@ class Evaluation:
             rule.id, {"fingerprint": self.context.node["fingerprint"]}
         )
         context = replace(self.context, node=node, inputs=dict(zip(("a", "b"), args, strict=False)))
-        return evaluate_temporal(context, temporal_parameters(rule))
+        return evaluate_temporal(context, temporal_parameters(rule, self.parameters))
 
 
-def temporal_parameters(rule: dm.TemporalRule) -> TemporalParameters:
+def temporal_parameters(
+    rule: dm.TemporalRule, parameters: dict[str, Any] | None = None
+) -> TemporalParameters:
     return TemporalParameters(
-        operation=rule.operation, duration_s=rule.duration_s, accepts_held=rule.accepts_held
+        operation=rule.operation,
+        duration_s=number_slot(rule.duration_s, parameters or {}),
+        accepts_held=rule.accepts_held,
     )
 
 
 def compile_machine(
-    definition: dm.DeclarativeDefinition, *, evaluation: Evaluation | None = None
+    definition: dm.DeclarativeDefinition,
+    *,
+    evaluation: Evaluation | None = None,
+    parameters: dict[str, Any] | None = None,
 ) -> Machine:
     machine = definition.machine
     assert machine is not None
@@ -560,7 +595,9 @@ def compile_machine(
     def guard(rule: dm.Rule) -> Guard:
         def evaluate(inputs: dict[str, FieldValue], now: datetime) -> bool | None:
             try:
-                value = (evaluation or Evaluation(definition, inputs, now)).evaluate(rule)
+                value = (
+                    evaluation or Evaluation(definition, inputs, now, parameters=parameters)
+                ).evaluate(rule)
             except (ArithmeticError, LookupError, TypeError, ValueError) as error:
                 # Only local evaluator failures cross this boundary. Infrastructure
                 # errors and the command transaction/commit stay outside it.
@@ -581,7 +618,9 @@ def compile_machine(
 
     def data_confirmation(rule: dm.Rule) -> Guard:
         def confirmed(inputs: dict[str, FieldValue], now: datetime) -> bool:
-            value = (evaluation or Evaluation(definition, inputs, now)).evaluate(rule)
+            value = (
+                evaluation or Evaluation(definition, inputs, now, parameters=parameters)
+            ).evaluate(rule)
             return (
                 value.status == "valid"
                 and value.quality == "healthy"
@@ -596,7 +635,11 @@ def compile_machine(
             states=machine.states,
             initial=machine.initial,
             commands=tuple(machine.commands),
-            deadline_seconds=machine.deadline_s,
+            deadline_seconds=number_slot(
+                machine.deadline_s, evaluation.parameters if evaluation else parameters or {}
+            )
+            if machine.deadline_s is not None
+            else None,
             sessions=machine.sessions,
             allow_manual_restart=machine.allow_manual_restart,
             transitions=tuple(
@@ -687,7 +730,9 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
     ) -> datetime | None:
         due = [
             next_temporal_due(
-                temporal_parameters(rule).model_dump(), node.get("rules", {}).get(rule.id, {}), now
+                temporal_parameters(rule, parameters).model_dump(),
+                node.get("rules", {}).get(rule.id, {}),
+                now,
             )
             for rule in temporal_rules
         ]
@@ -699,7 +744,7 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
         type_version=definition.type_version,
         schema=definition.output_schema,
         producer="state_machine" if definition.machine else "resolver",
-        parameters=EmptyParameters,
+        parameters=parameter_model(definition) if definition.parameter_schema else EmptyParameters,
         inputs=tuple(
             InputDeclaration(name=i.name, required=i.field_schema.required)
             for i in definition.inputs
@@ -707,7 +752,9 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
         restore=("rules", "machine") if definition.machine else ("rules",),
         evaluate=Producer(evaluate),
         next_due=next_due,
-        machine_factory=(lambda _: compile_machine(definition)) if definition.machine else None,
+        machine_factory=(lambda values: compile_machine(definition, parameters=values))
+        if definition.machine
+        else None,
         commands={
             name: command_model(name, command)
             for name, command in definition.machine.commands.items()

@@ -93,9 +93,7 @@ async def configure_bridge(token: str) -> dict[str, Any]:
     base = "http://supervisor/core/api/config/config_entries"
     headers = {"Authorization": "Bearer " + token}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-        async with session.get(
-            base + "/entry?domain=bifrost", headers=headers
-        ) as response:
+        async with session.get(base + "/entry?domain=bifrost", headers=headers) as response:
             if response.status != 200:
                 raise ValueError("ha_unavailable")
             entries = await response.json()

@@ -41,6 +41,7 @@ export function typeCatalog(caps: Capabilities | undefined, config: JsonObject |
       declarative: true,
       machine: isObject(raw.machine),
       fields,
+      parameterSchema: declarativeParameterSchema(raw),
       inputs: asArray(raw.inputs)
         .filter(isObject)
         .map((i) => {
@@ -63,8 +64,28 @@ function fromDescription(t: TypeDescription): TypeEntry {
     machine: t.producer === 'state_machine' || (declarative && isObject(t.definition?.machine)),
     fields: t.schema.fields as Record<string, FieldSchema>,
     inputs: t.inputs.map((i) => ({ name: i.name, required: i.required })),
-    parameterSchema: declarative ? undefined : t.parameter_schema,
+    parameterSchema: t.parameter_schema,
   };
+}
+
+export function declarativeParameterSchema(definition: JsonObject): JsonObject {
+  const properties: JsonObject = {};
+  const required: string[] = [];
+  for (const [name, declaration] of Object.entries(asObject(definition.parameter_schema))) {
+    if (!isObject(declaration)) continue;
+    const schema = asObject(declaration.schema);
+    if (schema.required === true) required.push(name);
+    properties[name] = {
+      type: schema.type === 'bool' ? 'boolean' : schema.type === 'number' ? 'number' : 'string',
+      title: str(declaration.label) || name,
+      ...(schema.unit ? { description: `${str(declaration.description)} (${str(schema.unit)})` } : declaration.description ? { description: declaration.description } : {}),
+      ...(Array.isArray(schema.value_catalog) && schema.value_catalog.length ? { enum: schema.value_catalog } : {}),
+      ...(schema.type === 'timestamp' ? { format: 'date-time' } : {}),
+      ...(typeof declaration.minimum === 'number' ? { minimum: declaration.minimum } : {}),
+      ...(typeof declaration.maximum === 'number' ? { maximum: declaration.maximum } : {}),
+    };
+  }
+  return { type: 'object', properties, required, additionalProperties: false };
 }
 
 /** Reference candidates for an instance input: sources and `contract.field` outputs. */

@@ -39,6 +39,42 @@ class InputRule(Model):
     name: Identifier
 
 
+class ParameterRule(Model):
+    op: Literal["parameter"]
+    name: Identifier
+
+
+Duration = Annotated[float, Field(gt=0, le=31_536_000)] | ParameterRule
+
+
+class ParameterDefinition(DeclarativeModel):
+    field_schema: FieldSchema = Field(alias="schema")
+    minimum: float | None = None
+    maximum: float | None = None
+    label: str = ""
+    description: str = ""
+
+    @model_validator(mode="after")
+    def coherent(self) -> Self:
+        if self.field_schema.type == "object":
+            raise ValueError("scalar_parameter_required")
+        if self.field_schema.type == "enum" and not self.field_schema.value_catalog:
+            raise ValueError("enum_catalog_required")
+        if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
+            raise ValueError("parameter_bounds")
+        if self.field_schema.type != "number" and (
+            self.minimum is not None or self.maximum is not None
+        ):
+            raise ValueError("numeric_parameter_bounds_required")
+        return self
+
+
+class ParameterRelation(Model):
+    left: Identifier
+    comparison: Literal["lt", "le", "eq", "ne", "ge", "gt"]
+    right: Identifier
+
+
 class ReferenceRule(Model):
     op: Literal["ref"]
     name: Identifier
@@ -130,7 +166,7 @@ class TemporalRule(Model):
     id: Identifier
     operation: Literal["stable_for", "dwell", "grace", "edge", "delta", "age"]
     args: tuple[Rule, ...] = Field(min_length=1, max_length=2)
-    duration_s: float = Field(gt=0, le=31_536_000)
+    duration_s: Duration
     accepts_held: bool = False
 
     @model_validator(mode="after")
@@ -151,6 +187,7 @@ class NotApplicableRule(Model):
 
 Rule = Annotated[
     InputRule
+    | ParameterRule
     | ReferenceRule
     | LiteralRule
     | BooleanRule
@@ -195,7 +232,7 @@ class MachineDefinition(Model):
     initial: Identifier
     transitions: tuple[TransitionDefinition, ...] = Field(max_length=128)
     commands: dict[Identifier, CommandDefinition] = Field(default_factory=dict, max_length=32)
-    deadline_s: float | None = Field(default=None, gt=0, le=31_536_000)
+    deadline_s: Duration | None = None
     sessions: bool = False
     reinitialize_when: Rule
     # Omit the additive false default so released definition fingerprints stay stable.
@@ -234,7 +271,7 @@ class MachineDefinition(Model):
 class DeclarativeDefinition(DeclarativeModel):
     type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
-    language_version: Literal[1] = 1
+    language_version: Literal[1, 2] = 1
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
@@ -243,6 +280,12 @@ class DeclarativeDefinition(DeclarativeModel):
     rules: dict[Identifier, Rule] = Field(default_factory=dict, max_length=MAX_NODES)
     outputs: dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_FIELDS)
     machine: MachineDefinition | None = None
+    parameter_schema: dict[Identifier, ParameterDefinition] = Field(
+        default_factory=dict, max_length=MAX_INPUTS, exclude_if=lambda value: not value
+    )
+    parameter_relations: tuple[ParameterRelation, ...] = Field(
+        default=(), max_length=MAX_INPUTS, exclude_if=lambda value: not value
+    )
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
@@ -254,6 +297,27 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("output_schema_mismatch")
         if self.output_schema.grace_capable:
             raise ValueError("declarative_grace_uses_rule_duration")
+        if self.parameter_schema and self.language_version != 2:
+            raise ValueError("language_version_2_required")
+        for name in self.parameter_schema:
+            if name.startswith("model_") or hasattr(Model, name):
+                raise ValueError("reserved_parameter_name")
+        for relation in self.parameter_relations:
+            if (
+                relation.left not in self.parameter_schema
+                or relation.right not in self.parameter_schema
+            ):
+                raise ValueError("unknown_parameter_relation")
+            left = self.parameter_schema[relation.left].field_schema
+            right = self.parameter_schema[relation.right].field_schema
+            if left.type != right.type or left.unit != right.unit:
+                raise ValueError("parameter_relation_type_mismatch")
+            if relation.comparison not in {"eq", "ne"} and left.type not in {
+                "number",
+                "text",
+                "timestamp",
+            }:
+                raise ValueError("unordered_parameter_relation")
         return self
 
 
