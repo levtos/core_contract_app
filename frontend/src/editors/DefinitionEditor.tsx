@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox, Tabs, Tip } from '@/components/ui/controls';
 import { Collapsible } from '@/components/ui/controls';
-import { Input, Textarea } from '@/components/ui/form';
+import { Input, Select, Textarea } from '@/components/ui/form';
 import { Notice } from '@/components/ui/layout';
 import {
   asArray,
@@ -30,7 +30,7 @@ import { operatorDefaults, RuleEditor, RuleEnvProvider } from './RuleEditor';
 import { SchemaEditor } from './SchemaEditor';
 import { Extras } from './Extras';
 
-const TYPE_ID = /^test\.[a-zA-Z0-9_.-]+$/;
+const TYPE_ID = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+$/;
 
 /**
  * Complete graphical editor of one declarative definition. Everything the
@@ -129,7 +129,7 @@ export function DefinitionEditor({
               {(p) => <Input {...p} disabled={locked} type="number" min={1} step={1} value={Number(value.type_version ?? 1)} onChange={(e) => set({ type_version: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })} />}
             </Fld>
             <Fld label={uiText("editors.DefinitionEditor.sprachversion_4adccf")} pointer={join(pointer, 'language_version')}>
-              {(p) => <Input {...p} readOnly disabled value={String(value.language_version ?? 1)} />}
+              {(p) => <Select {...p} disabled={locked} value={String(value.language_version ?? 1)} onChange={event => set({ language_version: Number(event.target.value) })}><option value="1">1</option><option value="2">2</option></Select>}
             </Fld>
           </div>
           <Fld label={uiText("editors.DefinitionEditor.anzeigename_redaktionell_44433b")} pointer={join(pointer, 'display_name')} hint={uiText("editors.DefinitionEditor.redaktionelle_felder_andern_die_semantik_nicht_u_20b198")}>
@@ -137,6 +137,12 @@ export function DefinitionEditor({
           </Fld>
           <Fld label={uiText("editors.DefinitionEditor.beschreibung_redaktionell_d5700f")} pointer={join(pointer, 'description')}>
             {(p) => <Textarea {...p} disabled={readOnly} rows={3} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value || undefined })} />}
+          </Fld>
+          <Fld label={uiText('alpha8.lifecycle.title')} pointer={join(pointer, 'lifecycle')}>
+            {props => <Select {...props} disabled={readOnly} value={str(value.lifecycle) || 'active'} onChange={event => set({ lifecycle: event.target.value })}>{['active', 'deprecated', 'retired'].map(state => <option key={state} value={state}>{codeLabel(state)}</option>)}</Select>}
+          </Fld>
+          <Fld label={uiText('alpha8.lifecycle.note')} pointer={join(pointer, 'reactivation_note')} hint={uiText('alpha8.lifecycle.noteHint')}>
+            {props => <Input {...props} disabled={readOnly} value={str(value.reactivation_note)} onChange={event => set({ reactivation_note: event.target.value || undefined })} />}
           </Fld>
           <fieldset disabled={locked} className="flex flex-col gap-2">
             <SectionTitle>{uiText("editors.DefinitionEditor.refresh_eingange_f326cb")}</SectionTitle>

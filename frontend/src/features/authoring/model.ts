@@ -152,8 +152,15 @@ export function ruleChildren(rule: Rule): { key: (string | number)[]; rule: Rule
   const add = (key: (string | number)[], value: Json | undefined) => {
     if (isObject(value) && typeof value.op === 'string') out.push({ key, rule: value as Rule });
   };
-  for (const name of ['arg', 'left', 'right']) add([name], rule[name]);
+  for (const name of ['arg', 'left', 'right', 'at', 'when', 'duration_s']) add([name], rule[name]);
   if (Array.isArray(rule.args)) rule.args.forEach((arg, i) => add(['args', i], arg));
+  else if (isObject(rule.args)) Object.entries(rule.args).forEach(([name, arg]) => add(['args', name], arg));
+  if (Array.isArray(rule.boundaries)) rule.boundaries.forEach((boundary, i) => {
+    if (isObject(boundary)) {
+      add(['boundaries', i, 'at'], boundary.at);
+      if (isObject(boundary.hysteresis)) for (const name of ['lower', 'upper']) add(['boundaries', i, 'hysteresis', name], boundary.hysteresis[name]);
+    }
+  });
   if (Array.isArray(rule.cases)) {
     rule.cases.forEach((item, i) => {
       if (isObject(item)) {

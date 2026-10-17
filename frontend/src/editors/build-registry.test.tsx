@@ -83,8 +83,8 @@ describe('registry objects are fully editable without JSON', () => {
     await user.selectOptions(refSelects[0]!, 'fixture.left');
     await user.selectOptions(refSelects[1]!, 'fixture.right');
     expect(result()).toEqual(doc.contracts![2]);
-    // Declarative types have no instance parameters.
-    expect(within(document.body).getByText(/keine Vertragsparameter/)).toBeInTheDocument();
+    // This legacy definition declares no instance settings; the section stays available.
+    expect(within(document.body).getByText('Einstellungen für diesen Vertrag')).toBeInTheDocument();
   });
 
   it('package-type parameters come from the type schema, not from hard-coded forms', async () => {

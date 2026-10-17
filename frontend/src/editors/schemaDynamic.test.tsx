@@ -157,7 +157,7 @@ describe('SchemaForm on recursive and open structures', () => {
         {(v, set) => <SchemaForm root={root2} node={{ $ref: '#/$defs/Node' }} value={v} pointer="/tree" label="Tree" onChange={(n) => set(n as JsonObject)} />}
       </Stateful>,
     );
-    const labels = screen.getAllByLabelText(/^label/);
+    const labels = screen.getAllByLabelText(/^Bezeichnung/);
     expect(labels).toHaveLength(3);
     await user.clear(labels[2]!);
     await user.type(labels[2]!, 'deep');

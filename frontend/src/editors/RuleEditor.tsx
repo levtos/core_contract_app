@@ -205,7 +205,7 @@ export function RuleEditor({ value, onChange, pointer, label, onRemove, depth = 
           <IssuesAt pointer={pointer} />
           <fieldset disabled={env.locked} className="contents">
             <Body value={value} onChange={onChange} pointer={pointer} depth={depth} />
-            {ruleDef && ruleDef in HANDLED && (
+            {ruleDef && ruleDef in HANDLED && !(value.op === 'bucket' && Array.isArray(value.classes)) && (
               <Extras
                 def={ruleDef}
                 value={value}
@@ -394,8 +394,10 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
     case 'map':
       return <MapBody value={value} onChange={onChange} pointer={pointer} depth={depth} />;
     case 'bucket':
+      if (Array.isArray(value.classes)) return <GenericBody value={value} onChange={onChange} pointer={pointer} depth={depth} />;
       return (
         <div className="flex flex-col gap-3">
+          <AddButton onClick={() => onChange({ op: 'bucket', id: value.id ?? 'bucket', arg: value.arg ?? newRule('input', ctx, defaults), classes: ['niedrig', 'hoch'], schema: { ...newFieldSchema('enum'), value_catalog: ['niedrig', 'hoch'] }, boundaries: [{ at: { op: 'literal', schema: newFieldSchema('number'), value: 1 } }], initial: { unknown: true } })}>{uiText('alpha8.bucket.multiclass')}</AddButton>
           <p className="text-xs text-muted">{uiText("editors.RuleEditor.hysterese_schaltet_erst_uber_oben_ein_und_erst_u_629b5d")}</p>
           <div className="grid gap-3 sm:grid-cols-4">
             <Fld label={uiText("editors.RuleEditor.id_eindeutig_df6df9")} pointer={join(pointer, 'id')}>
@@ -451,7 +453,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
               )}
             </Fld>
           </div>
-          {selected?.inputs?.length ? selected.inputs.map(input => <Child key={input.name} parent={value} pointer={pointer} depth={depth} keyPath={['args', input.name]} label={`${input.name}${input.schema.unit ? ` (${String(input.schema.unit)})` : ''}`} onChange={onChange} />) : <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} />}
+          {selected?.inputs?.length ? selected.inputs.map(input => <div key={input.name}>{isObject(asObject(value.args)[input.name]) ? <><Child parent={value} pointer={pointer} depth={depth} keyPath={['args', input.name]} label={uiText('alpha8.formula.inputLabel', { name: input.name, unit: input.schema.unit ? uiText('alpha8.formula.unit', { unit: String(input.schema.unit) }) : '' })} onChange={onChange} />{!input.required && <button type="button" onClick={() => set({ args: Object.fromEntries(Object.entries(asObject(value.args)).filter(([name]) => name !== input.name)) })}>{uiText('alpha8.formula.removeInput', { name: input.name })}</button>}</> : <AddButton onClick={() => set({ args: { ...asObject(value.args), [input.name]: newRule('input', ctx, defaults) } })}>{uiText('alpha8.formula.addInput', { name: input.name })}</AddButton>}</div>) : <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} />}
         </div>
       );
     }
@@ -509,7 +511,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                 </Select>
               )}
             </Fld>
-            <NumberField label={uiText("editors.RuleEditor.dauer_s_e59ef1")} pointer={join(pointer, 'duration_s')} value={Number(value.duration_s ?? 1)} min={0} onChange={(n) => set({ duration_s: n })} hint={uiText("editors.RuleEditor.gro_er_0_2ae790")} />
+            {isObject(value.duration_s) ? <Child parent={value} pointer={pointer} depth={depth} keyPath={['duration_s']} label={uiText('editors.RuleEditor.dauer_s_e59ef1')} onChange={onChange} /> : <NumberField label={uiText("editors.RuleEditor.dauer_s_e59ef1")} pointer={join(pointer, 'duration_s')} value={Number(value.duration_s ?? 1)} min={0} onChange={(n) => set({ duration_s: n })} hint={uiText("editors.RuleEditor.gro_er_0_2ae790")} />}
             <div className="flex items-end pb-1.5">
               <Checkbox checked={value.accepts_held === true} onCheckedChange={(on) => set({ accepts_held: on || undefined })} label={uiText("editors.RuleEditor.gehaltene_werte_akzeptieren_034eb1")} />
             </div>

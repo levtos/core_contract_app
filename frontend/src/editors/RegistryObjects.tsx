@@ -501,7 +501,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs, onAddDev
               }}
             >
               {!entry && <option value={key}>{key}</option>}
-              {types.map((t) => (
+              {types.filter(t => t.lifecycle !== 'retired' || t.key === key).map((t) => (
                 <option key={t.key} value={t.key}>{t.type_id} {uiText("editors.RegistryObjects.v_0bb917")}{t.type_version}{t.origin === 'draft-definition' ? uiText("editors.RegistryObjects.draft_definition_fd7330") : t.declarative ? uiText("editors.RegistryObjects.definition_96ce96") : uiText("editors.RegistryObjects.paket_92cb87")}</option>
               ))}
             </Select>
@@ -511,6 +511,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs, onAddDev
           <Switch checked={value.enabled !== false} onCheckedChange={(on) => set({ enabled: on })} label={uiText("editors.RegistryObjects.aktiviert_10639c")} />
         </div>
       </div>
+      {entry?.lifecycle && entry.lifecycle !== 'active' && <Notice tone="warn" title={codeLabel(entry.lifecycle)}>{uiText('alpha8.lifecycle.existing')}</Notice>}
       <Fld label={uiText("editors.RegistryObjects.beschreibung_e9262f")} pointer={join(pointer, 'description')}>
         {(p) => <Textarea {...p} rows={2} className="font-sans text-sm" value={str(value.description)} onChange={(e) => set({ description: e.target.value })} />}
       </Fld>

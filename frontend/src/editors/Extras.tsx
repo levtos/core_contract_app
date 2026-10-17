@@ -28,7 +28,7 @@ export const HANDLED = {
   MachineDefinition: ['id', 'states', 'initial', 'transitions', 'commands', 'deadline_s', 'sessions', 'reinitialize_when', 'allow_manual_restart'],
   TransitionDefinition: ['source', 'target', 'event', 'guard', 'reason', 'new_episode', 'ends_episode', 'argument_equals'],
   CommandDefinition: ['arguments'],
-  DeclarativeDefinition: ['type_id', 'type_version', 'language_version', 'display_name', 'description', 'inputs', 'refresh_inputs', 'schema', 'rules', 'outputs', 'machine'],
+  DeclarativeDefinition: ['type_id', 'type_version', 'language_version', 'display_name', 'description', 'lifecycle', 'reactivation_note', 'inputs', 'refresh_inputs', 'schema', 'rules', 'outputs', 'machine'],
   TypedInput: ['name', 'schema'],
   Schema: ['fields', 'available_projection', 'grace_capable', 'grace_parameter', 'fixture'],
   Source: ['source_id', 'source_type', 'source_origin', 'freshness', 'dependency_id', 'physical_source_key', 'display_name', 'value_schema'],
