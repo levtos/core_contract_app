@@ -360,6 +360,17 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
                 "version": version,
                 "input_schema": item.input.model_dump(mode="json"),
                 "output_schema": item.output.model_dump(mode="json"),
+                "category": item.category,
+                "lifecycle": item.lifecycle,
+                "inputs": [
+                    {
+                        "name": i.name,
+                        "schema": i.schema.model_dump(mode="json"),
+                        "quantity": i.quantity,
+                        "required": i.required,
+                    }
+                    for i in item.inputs
+                ],
             }
             for (name, version), item in FORMULA_SCHEMAS.items()
         ],

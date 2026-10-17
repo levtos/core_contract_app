@@ -416,7 +416,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
         </div>
       );
     case 'formula': {
-      const formulas = caps?.formulas ?? [];
+      const formulas = (caps?.formulas ?? []).filter(formula => formula.lifecycle !== 'retired' || formula.name === value.name);
       const names = [...new Set(formulas.map((f) => f.name))];
       const versions = formulas.filter((f) => f.name === value.name).map((f) => f.version);
       const selected = formulas.find((f) => f.name === value.name && f.version === value.version);
@@ -430,7 +430,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
                   value={str(value.name)}
                   onChange={(e) => {
                     const first = formulas.find((f) => f.name === e.target.value);
-                    set({ name: e.target.value, version: first?.version ?? 1 });
+                    set({ name: e.target.value, version: first?.version ?? 1, args: first?.inputs?.length ? Object.fromEntries(first.inputs.filter(input => input.required).map(input => [input.name, newRule('input', ctx, defaults)])) : asArray(value.args) });
                   }}
                 >
                   {!names.includes(str(value.name)) && <option value={str(value.name)}>{str(value.name) || '—'} {uiText("editors.RuleEditor.unbekannt_319b5c")}</option>}
@@ -451,7 +451,7 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
               )}
             </Fld>
           </div>
-          <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} />
+          {selected?.inputs?.length ? selected.inputs.map(input => <Child key={input.name} parent={value} pointer={pointer} depth={depth} keyPath={['args', input.name]} label={`${input.name}${input.schema.unit ? ` (${String(input.schema.unit)})` : ''}`} onChange={onChange} />) : <ArgList value={value} onChange={onChange} pointer={pointer} depth={depth} />}
         </div>
       );
     }

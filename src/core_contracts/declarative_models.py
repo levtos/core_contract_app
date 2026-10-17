@@ -228,7 +228,7 @@ class FormulaRule(Model):
     op: Literal["formula"]
     name: str
     version: int = Field(ge=1)
-    args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
+    args: tuple[Rule, ...] | dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_INPUTS)
 
 
 class FusionRule(Model):

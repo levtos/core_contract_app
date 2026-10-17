@@ -14,7 +14,9 @@ from pydantic import Field, ValidationError, field_validator
 
 from .calendar_inputs import project
 from .clock import Alarm, Clock
-from .declarative import GuardEvaluationError
+from .declarative import GuardEvaluationError, all_rules
+from .declarative_models import FormulaRule
+from .engines import FORMULA_SCHEMAS
 from .evidence import Observation, assess, is_new, is_older
 from .lifecycle import EDITORIAL, transition_allowed
 from .model import Model, canonical, checksum, utc
@@ -233,9 +235,22 @@ class Runtime:
         }
         for index, contract in enumerate(config.contracts):
             prior = old.get(contract.contract_id)
+            definition = next(
+                (
+                    d
+                    for d in config.definitions
+                    if (d.type_id, d.type_version) == (contract.type_id, contract.type_version)
+                ),
+                None,
+            )
+            formula_retired = definition is not None and any(
+                isinstance(rule, FormulaRule)
+                and FORMULA_SCHEMAS[rule.name, rule.version].lifecycle == "retired"
+                for rule in all_rules(definition)
+            )
             if (
                 contract.enabled
-                and (contract.type_id, contract.type_version) in retired
+                and ((contract.type_id, contract.type_version) in retired or formula_retired)
                 and (
                     prior is None
                     or not prior.enabled

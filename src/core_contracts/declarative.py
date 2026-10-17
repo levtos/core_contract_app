@@ -56,6 +56,12 @@ def map_key(value: Any) -> str:
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
+    if isinstance(rule, dm.FormulaRule):
+        return (
+            [(f"args/{name}", child) for name, child in rule.args.items()]
+            if isinstance(rule.args, dict)
+            else [(f"args/{index}", child) for index, child in enumerate(rule.args)]
+        )
     if isinstance(rule, dm.BucketRule) and rule.classes:
         result = [("arg", rule.arg)]
         for index, boundary in enumerate(rule.boundaries):
@@ -80,9 +86,7 @@ def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
             for index, case in enumerate(rule.cases)
             for name, child in (("when", case.when), ("then", case.then))
         ]
-    if isinstance(
-        rule, (dm.BooleanRule, dm.FormulaRule, dm.FusionRule, dm.TemporalRule, dm.TextRule)
-    ):
+    if isinstance(rule, (dm.BooleanRule, dm.FusionRule, dm.TemporalRule, dm.TextRule)):
         return [(f"args/{index}", child) for index, child in enumerate(rule.args)]
     return []
 
@@ -307,6 +311,21 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
             if (rule.name, rule.version) not in FORMULA_SCHEMAS:
                 raise ValueError("unknown_formula_version")
             declaration = FORMULA_SCHEMAS[rule.name, rule.version]
+            if declaration.inputs:
+                if definition.language_version != 2 or not isinstance(rule.args, dict):
+                    raise ValueError("named_formula_arguments_required")
+                specifications = {item.name: item for item in declaration.inputs}
+                if set(rule.args) - specifications.keys() or any(
+                    item.required and item.name not in rule.args for item in declaration.inputs
+                ):
+                    raise ValueError("formula_argument_names")
+                for name, arg in zip(rule.args, args, strict=True):
+                    require(arg, specifications[name].schema)
+                    if arg.unit != specifications[name].schema.unit:
+                        raise ValueError("unit_mismatch")
+                return declaration.output
+            if isinstance(rule.args, dict):
+                raise ValueError("positional_formula_arguments_required")
             for arg in args:
                 require(arg, declaration.input)
             units = {arg.unit for arg in args}
@@ -564,7 +583,14 @@ class Evaluation:
         if isinstance(rule, dm.FirstMatchRule):
             return first_match(list(zip(args[::2], args[1::2], strict=True)), now)
         if isinstance(rule, dm.FormulaRule):
-            return FORMULAS.evaluate(rule.name, rule.version, args, now, raise_errors=True)
+            return FORMULAS.evaluate(
+                rule.name,
+                rule.version,
+                args,
+                now,
+                raise_errors=True,
+                names=tuple(rule.args) if isinstance(rule.args, dict) else None,
+            )
         if isinstance(rule, dm.FusionRule):
             result = FUSION.evaluate(rule.strategy, args, now)
             usable = [index for index, arg in enumerate(args) if arg.usable(now)]
