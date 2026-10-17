@@ -64,3 +64,15 @@ async def test_failed_retention_does_not_delete_or_duplicate_rollups(runtime, co
         assert runtime.store.observation_rollups == {}
     finally:
         runtime.store.before_commit = None
+
+
+async def test_production_readiness_requires_explicit_retention_policy(runtime, config):
+    runtime.require_history_retention = True
+    await activate(runtime, config)
+    runtime.first_snapshot = True
+    assert "history_retention_required" in runtime.readiness_reasons
+    assert not runtime.ready
+    config["history_retention"] = {"raw_days": 1, "rollup_days": 7}
+    await activate(runtime, config)
+    assert "history_retention_required" not in runtime.readiness_reasons
+    assert runtime.ready

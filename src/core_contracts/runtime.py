@@ -78,9 +78,16 @@ class SnapshotBatch:
 
 class Runtime:
     def __init__(
-        self, store: Store, clock: Clock, types: TypeRegistry, *, queue_size: int = 256
+        self,
+        store: Store,
+        clock: Clock,
+        types: TypeRegistry,
+        *,
+        queue_size: int = 256,
+        require_history_retention: bool = False,
     ) -> None:
         self.store, self.clock, self.types = store, clock, types
+        self.require_history_retention = require_history_retention
         self.state = State()
         self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
         self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
@@ -206,6 +213,10 @@ class Runtime:
             reasons.append("persistence_unavailable")
         if self.state.active_revision == 0:
             reasons.append("no_active_registry")
+        elif (
+            self.require_history_retention and self.config and self.config.history_retention is None
+        ):
+            reasons.append("history_retention_required")
         if self.requires_ha_snapshot and not self.first_snapshot:
             reasons.append("first_bridge_snapshot_pending")
         return reasons
@@ -416,12 +427,7 @@ class Runtime:
 
     @property
     def ready(self) -> bool:
-        return (
-            not self.configuration_error
-            and self.persistence
-            and self.state.active_revision > 0
-            and (not self.requires_ha_snapshot or self.first_snapshot)
-        )
+        return not self.readiness_reasons
 
     @property
     def requires_ha_snapshot(self) -> bool:

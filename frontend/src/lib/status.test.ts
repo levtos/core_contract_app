@@ -29,6 +29,12 @@ describe('system conditions are named separately', () => {
   it('unconfirmed publication and pending first snapshot are readiness facts', () => {
     expect(kinds({ service: { ...healthy, publication_confirmed: false, reasons: ['first_bridge_snapshot_pending'] }, connection: 'open', hasActiveRegistry: true })).toEqual(['readiness_pending', 'publication_unconfirmed']);
   });
+  it('explains missing retention as incomplete setup before production', () => {
+    const result = classifySystem({ service: { ...healthy, ready: false, reasons: ['history_retention_required'] }, connection: 'open', hasActiveRegistry: true });
+    expect(result[0]?.title).toBe('Aufbewahrung der Messwerte fehlt');
+    expect(result[0]?.detail).toContain('Einzelmessungen und Stundenwerte');
+    expect(overallState(result, { ...healthy, ready: false }).label).toBe('Nicht bereit');
+  });
 
   it('a healthy system has no conditions and reads "Bereit"', () => {
     const none = classifySystem({ service: healthy, connection: 'open', hasActiveRegistry: true });

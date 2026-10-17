@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -82,6 +83,7 @@ async def database_probe():
                 json.dumps(template),
                 previous + 1,
                 count,
+                timeout=120,
             )
             previous = count
             await writer.execute("ANALYZE source_observation_history")
@@ -101,7 +103,12 @@ async def database_probe():
                 (
                     "source_time",
                     "SELECT h.key,h.payload FROM cc_observation_index i JOIN source_observation_history h ON h.key=i.reference WHERE i.source_id=$1 AND i.received_at>=$2::timestamptz ORDER BY i.received_at DESC,i.reference DESC LIMIT 201",
-                    ("source.a", template["received_at"].replace("2026-01-01", "2025-12-01")),
+                    (
+                        "source.a",
+                        datetime.fromisoformat(
+                            template["received_at"].replace("2026-01-01", "2025-12-01")
+                        ),
+                    ),
                 ),
             ):
                 elapsed = []

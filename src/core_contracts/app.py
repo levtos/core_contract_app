@@ -166,7 +166,7 @@ async def run(options: Options | None, data: Path, migrations: Path, frontend: P
         migrations,
         tls=False,
     )
-    runtime = Runtime(store, clock, type_registry())
+    runtime = Runtime(store, clock, type_registry(), require_history_retention=True)
     runtime.task = asyncio.create_task(runtime.run(), name="processor")
     stopped = asyncio.Event()
     loop = asyncio.get_running_loop()
