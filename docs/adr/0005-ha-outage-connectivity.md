@@ -1,7 +1,7 @@
 # ADR 0005 — G17: HA-Ausfall und Connectivity
 
 Datum: 17.10.2026. Produktentscheidung: **Benni, beschlossen**. Technisches Design:
-**Vorschlag für Claude-Review; Umsetzung erst nach Review-Freigabe**.
+**Claude-Review freigegeben; Auflagen übernommen, Umsetzung A2 freigegeben**.
 Grundlage: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 [Matrix G17](../audits/akte-gap-2026-10.md), Akte P4-65 §7/§13, M30-45 §7,
 M30-46 §7/§13 und APP-01. Basis: `main@a08a51d`.
@@ -45,7 +45,12 @@ im normalen Envelope. Neue Felder/Reason-Zuordnungen benötigen API-/Client-Test
 
 - `periodic_ttl` und `report_heartbeat` laufen bis zum belegten Ablaufzeitpunkt;
   `liveness_source` folgt ihrer ausdrücklich gebundenen Liveness-Evidence.
-  `event_stateful` wird durch Alter allein nicht ungültig. Explizit gemeldetes
+  `event_stateful` bleibt bei HA-Ausfall **ohne Ablauf gültig**. Deshalb müssen
+  sicherheitsrelevante Quellen (Öffnungen, Heizfreigabe K3) gemäß Akte P4-65 §3
+  `report_heartbeat` oder explizite Liveness nutzen; keine implizite Umstellung
+  durch die Plattform. Die Übersicht zeigt bei Trennung den Hinweis
+  „Home Assistant getrennt seit … – n Werte ohne Frist gelten unverändert weiter“.
+  Explizit gemeldetes
   `unavailable`, `restored`, unzulässige Zeitstempel und andere harte Gates gelten weiter.
 - Beispiel: letzte Messung 10:00, TTL 60 s, HA-Abbruch 10:00:10: Messung bis
   10:01 verwendbar, danach `input_stale`. Der Abbruch erneuert weder Zeit noch Grace.
@@ -62,7 +67,8 @@ im normalen Envelope. Neue Felder/Reason-Zuordnungen benötigen API-/Client-Test
 
 ## Tests und betroffene Stellen
 
-Geplant: alle vier Freshness-Modi bei Abbruch, exakter TTL-/Heartbeat-Ablauf,
+Geplant: alle vier Freshness-Modi bei Abbruch, event_stateful ohne Ablauf samt
+Übersichtshinweis und Anzahl weiter gültiger Werte, exakter TTL-/Heartbeat-Ablauf,
 keine Grace-Verlängerung, keine sofortige Mehrfach-Invalidierung, Gap-Deduplikation,
 Kontinuitätsunterbrechung, unveränderte/neue Snapshot-Zeitstempel, HA-Start/Stop,
 fehlende/inkompatible Bridge, Erststart ohne Evidence, Core-Restart und DB-Recovery,

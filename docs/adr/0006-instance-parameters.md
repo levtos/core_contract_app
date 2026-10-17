@@ -1,7 +1,7 @@
 # ADR 0006 — G19: Parameter an der Vertragsinstanz
 
 Datum: 17.10.2026. **Benni beschließt Variante A**. Technisches Design:
-**Vorschlag für Claude-Review; keine Implementierungsfreigabe**.
+**Claude-Review freigegeben; Auflagen übernommen, Umsetzung A2 freigegeben**.
 Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 [Matrix G19](../audits/akte-gap-2026-10.md), M30-38 §1/§4, M30-44 §9,
 M30-45 Parameter-Audit, M30-03/A-06 und M30-30.
@@ -76,8 +76,8 @@ Fehlgeschlagener Commit lässt aktiven Stand und Publication unverändert.
 
 Am Vertrag: Abschnitt **„Einstellungen für diesen Vertrag“**, Name, Erklärung,
 Einheit, Wert und Feldfehler. Aktion **„Im Entwurf ändern“**, anschließend
-**„Prüfen“** und vorhandener Aktivierungsdialog. Erläuterung in Du-Form:
-„Deine Änderung gilt erst, wenn Du den Entwurf aktivierst.“ Relationsfehler:
+**„Prüfen“** und vorhandener Dialog zum Übernehmen. Erläuterung in du-Form:
+„Deine Änderung gilt erst, wenn du den Entwurf übernimmst.“ Relationsfehler:
 „Der nahe Abstand muss kleiner als der weite Abstand sein.“ Die Auswirkungsprüfung
 zeigt neue Vergleichsbasis und betroffene Verträge; kein stiller Direktsave in
 die Runtime. Alle Texte über den bestehenden i18n-Katalog, verständliche Namen

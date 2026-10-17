@@ -1,7 +1,8 @@
 # ADR 0009 — Vorabversionen und vollständige Tag-Prüfung
 
 Datum: 17.10.2026. **Benni beschließt:** neuer Mimir-Slug, Start `1.0.0a8`;
-niemals `.postN` oder `.devN` an Vor-Releases. Technischer Prüfplan im Review.
+niemals `.postN` oder `.devN` an Vor-Releases. Claude-Review freigegeben;
+Benni entscheidet: Monotonie gilt je Supervisor-Slug-Linie.
 Bezug: [Matrix §7](../audits/akte-gap-2026-10.md),
 [#23](https://github.com/Levtos/core_contract_app/issues/23),
 [#24](https://github.com/Levtos/core_contract_app/issues/24).
@@ -24,27 +25,25 @@ ausgewiesen. Exit-Code und maschinenlesbarer Bericht sind Release-Voraussetzung.
 
 Berichtsskizze: `{candidate, awesomeversion, tag_snapshot, comparisons:
 [{tag, version, newer, slug_lineage, classification}], errors, passed}`.
-`slug_lineage` darf nur aus explizit dokumentierten Release-/Slug-Metadaten
-stammen, niemals aus dem gewünschten Vergleichsergebnis.
+`slug_lineage` wird maschinell aus dem Feld `slug` der App-`config.yaml` **des
+jeweiligen Tags** gelesen, niemals handgepflegt oder aus dem Vergleich abgeleitet.
+Fehlende/mehrdeutige Slug-Metadaten blockieren die Prüfung.
 
-## Offener Widerspruch für Review und Release-Gate
+## Entscheidung zur Supervisor-Slug-Linie (Benni, A1-Review)
 
 Matrix und vorhandenes Prüfskript dokumentieren bei AwesomeVersion 25.8.0:
 `1.0.0a8 > 1.0.0a7.post1` ist **false**. Ein neuer Supervisor-Slug beseitigt den
 Updatekonflikt, verändert aber diesen Vergleich nicht. Die GitHub-Umbenennung
 behält die historischen Terra-Tags.
 
-Deshalb kann die wörtliche bisherige Matrix-Regel „neuer als **alle** Tags“
-mit `v1.0.0a8` nicht grün werden. Es werden weder historische Tags gelöscht
-noch Versionsnummer, Bibliothek oder Vergleich still geändert. Teil B bleibt
-hier gesperrt, bis Benni eine präzise Gate-Regel bestätigt.
-
-**Review-Vorschlag, noch nicht beschlossen:** alle Tags vergleichen und protokollieren;
-strenge Monotonie innerhalb derselben Supervisor-Slug-Linie, dokumentierte
-Terra-Vergleiche als andere Installationslinie ausweisen. Für die erste Mimir-
-Version zusätzlich den Neubeginn der Linie prüfen. Eine solche Ausnahme ist
-eine Änderung der globalen Matrix-Regel und braucht Bennis Entscheidung.
-Bis dahin muss die strenge Prüfung beim bekannten Terra-Tag fehlschlagen.
+Alle Tags werden verglichen und protokolliert. Innerhalb derselben aus dem
+Tag-Inhalt gelesenen Supervisor-Slug-Linie muss die neue Version gegen **alle**
+Tags neuer sein. Andere Slugs werden als **„andere App“** ausgewiesen und
+blockieren nicht, auch wenn AwesomeVersion den Vergleich als false bewertet.
+Damit kann die erste Mimir-Version `1.0.0a8` den Terra-Tag korrekt als andere
+App behandeln. Ein irrtümlich gleich zugeordneter Slug muss weiterhin blockieren.
+Die globale Matrix-Regel ist in diesem Punkt durch Bennis Entscheidung ersetzt;
+historische Tags, Bibliothek und Versionsnummern bleiben unverändert.
 
 ## Beispiele, Tests und betroffene Stellen
 

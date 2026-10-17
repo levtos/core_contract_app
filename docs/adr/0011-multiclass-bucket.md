@@ -1,6 +1,6 @@
 # ADR 0011 — G13: Bucket mit n Klassen und Eingangsgrenzen
 
-Datum: 17.10.2026. **Designvorschlag für Claude-Review; Umsetzung erst nach Freigabe.**
+Datum: 17.10.2026. **Claude-Review freigegeben; Umsetzung A2 freigegeben.**
 Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 [Matrix G13](../audits/akte-gap-2026-10.md), M30-10/11/12, M30-45 §3,
 A-06; Build-Spezifikation §6.5, §9.1/§9.2/§9.5.

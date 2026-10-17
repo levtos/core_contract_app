@@ -1,6 +1,6 @@
 # ADR 0010 — G1: Lokale Zeit und Kalender als Vertragseingang
 
-Datum: 17.10.2026. **Designvorschlag für Claude-Review, Umsetzung erst nach Freigabe.**
+Datum: 17.10.2026. **Claude-Review freigegeben; Auflagen übernommen, Bau A2 freigegeben.**
 Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 [Matrix G1](../audits/akte-gap-2026-10.md), M30-20, M30-41;
 Build-Spezifikation §8, §9.6, §10.2 und §18.
@@ -20,9 +20,11 @@ Source-/Binding-IDs bleiben stabil. Projektionen sind abschließend:
 
 | `projection` | Typ / Inhalt | nächste fachliche Änderung |
 |---|---|---|
-| `timestamp` | Timestamp, RFC 3339 UTC | explizite Auflösung `second` oder `minute` |
+| `timestamp` | Timestamp, RFC 3339 UTC | standardmäßig `minute`, `second` nur ausdrücklich |
 | `date` | Text, strikt `YYYY-MM-DD` | nächster lokaler Tagesbeginn |
-| `time` | Text, strikt `HH:mm:ss` | nächste deklarierte Sekunde/Minute |
+| `time` (optional) | Text, strikt `HH:mm:ss` | nächste deklarierte Sekunde/Minute |
+| `minute_of_day` | Number, lokale Minute 0–1439 | nächste Minute, Europe/Berlin |
+| `day_of_year` | Number, Kalendertag 1–366 | nächster lokaler Tagesbeginn |
 | `weekday` | Number, ISO 1–7 | nächster lokaler Tagesbeginn |
 | `season` | Enum, deklarierte Klassen | nächste deklarierte Saison-Grenze |
 | `anniversary` | Bool für deklarierten Monat/Tag | Beginn/Ende dieses lokalen Tages |
@@ -79,7 +81,8 @@ nicht als aktueller Uhrwert. Ungültige Clock-Evidence bleibt sichtbar ungültig
 
 ## Tests und betroffene Stellen
 
-Geplant: alle Projektionen und Typen, Wochen-/Monats-/Jahreswechsel, Saisonwechsel,
+Geplant: alle Projektionen und Typen, minute_of_day in beiden DST-Wechseln,
+Minutenstandard ohne unnötige Sekundenauswertungen, Wochen-/Monats-/Jahreswechsel, Saisonwechsel,
 29.02.-Strategien, DST-Lücke/Doppelstunde, FakeClock ohne Warten, ein Alarm am
 Ziel statt Polling, Terminersatz/-entfernung, veraltete Revisionsalarme, held und
 unknown, Vorwärts-/Rückwärtssprung, überfälliger Restart ohne Replay,

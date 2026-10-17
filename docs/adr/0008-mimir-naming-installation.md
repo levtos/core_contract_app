@@ -1,7 +1,7 @@
 # ADR 0008 — Mimir, Bifröst und neue Installation
 
 Datum: 17.10.2026. **Benni beschließt neuen Slug jetzt in Alpha 8, erste Version
-`1.0.0a8`**. Technische Umstellung: Vorschlag für Claude-Review, Umsetzung erst A2.
+`1.0.0a8`**. Technische Umstellung: Claude-Review freigegeben, Umsetzung A2.
 Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),
 [#23](https://github.com/Levtos/core_contract_app/issues/23), APP-01,
 [Profil-Delta-Audit](../audits/profile-delta-audit-2026-10-07.md).
@@ -54,6 +54,8 @@ Consumer-Cutover. Beide Apps haben isolierte Writer/DBs. GitHub-Repo-Weiterleitu
 ersetzt keinen Supervisor-Slug, HACS-Installationspfad oder GHCR-Image-Pfad.
 Vor Umbenennung sind bestehende Terra-Image-Tags und alte Release-Assets zu
 inventarisieren und ihre unveränderte Abrufbarkeit zu prüfen.
+Teil B prüft ausdrücklich, ob der Supervisor dem umbenannten Repository folgt.
+Andernfalls wird die neue Repo-URL im App-Store hinterlegt; der Terra-Eintrag bleibt.
 
 Die spätere `docs/naming.md` enthält: Mimir = Core Contracts (App), Bifröst =
 HA-Bridge, Yggdrasil = Proxmox-Anzeigename (Hostname `einhornstation` bleibt),
