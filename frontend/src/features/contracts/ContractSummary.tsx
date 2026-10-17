@@ -76,6 +76,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
   const age = measured && Date.parse(measured) <= Date.now() ? formatDuration((Date.now() - Date.parse(measured)) / 1000) : null;
   const why = stale ? t('alpha7.contract.state.oldConnectionHelp') : reasons.length ? problemAdvice(reasons, config, envelope.contract_id).text : contractState(envelope, true).hint;
   return <div className="space-y-4">
+    {Object.values(envelope.fields).some(field => field.configuration?.complete === false) && <Panel className="p-5"><h3 className="font-medium">{t('alpha8.configuration.title')}</h3><p className="text-sm text-muted">{t('alpha8.configuration.validHint')}</p><ul className="mt-2 text-sm">{Object.entries(envelope.fields).flatMap(([name, field]) => (field.configuration?.hints ?? []).map((hint, index) => <li key={`${name}:${index}`}>{hint.message || t('alpha8.configuration.unassigned')}</li>))}</ul></Panel>}
     <Panel><PanelHeader title={t('alpha7.contract.now')} aside={<ContractStateChip envelope={envelope} enabled={envelope.enabled} stale={stale} />} />
       <div className="flex flex-wrap gap-x-12 gap-y-5 p-6">{Object.entries(envelope.fields).map(([name, field]) => <div key={name}>
         {Object.keys(envelope.fields).length > 1 && <p className="mb-1 text-sm text-muted">{fieldLabel(name)}</p>}

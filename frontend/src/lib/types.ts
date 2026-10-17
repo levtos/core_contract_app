@@ -39,6 +39,7 @@ export interface Reason {
 }
 
 export interface FieldValue {
+  configuration?: { complete: boolean; hints: { code: string; message: string }[] };
   status: FieldStatus;
   value: Json;
   quality: 'healthy' | 'degraded';

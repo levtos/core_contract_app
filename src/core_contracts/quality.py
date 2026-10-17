@@ -45,6 +45,22 @@ class Reason(Model):
     _utc = field_validator("since")(utc)
 
 
+class ConfigurationHint(Model):
+    code: str = PField(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    message: str = PField(default="", max_length=256)
+
+
+class ConfigurationStatus(Model):
+    complete: bool = True
+    hints: tuple[ConfigurationHint, ...] = ()
+
+    @model_validator(mode="after")
+    def coherent(self) -> Self:
+        if self.complete == bool(self.hints):
+            raise ValueError("configuration_hint_required")
+        return self
+
+
 class FieldValue(Model):
     status: Literal["valid", "held", "unknown", "not_applicable", "unresolved"]
     value: Any = None
@@ -57,6 +73,9 @@ class FieldValue(Model):
     measured_at: datetime | None = None
     grace_declared: bool = False
     positively_not_applicable: bool = False
+    configuration: ConfigurationStatus = PField(
+        default_factory=ConfigurationStatus, exclude_if=lambda value: value.complete
+    )
 
     @field_validator("held_until", "since_at", "measured_at")
     @classmethod
@@ -104,12 +123,15 @@ def unknown(code: ReasonCode, input_id: str, now: datetime) -> FieldValue:
 
 def derive(value: Any, inputs: list[FieldValue], now: datetime) -> FieldValue:
     """Only decisive inputs belong here; their Grace cannot be renewed."""
+    hints = tuple(dict.fromkeys(hint for item in inputs for hint in item.configuration.hints))
+    configuration = ConfigurationStatus(complete=not hints, hints=hints)
     if any(not item.usable(now) for item in inputs):
         reasons = tuple(r for i in inputs for r in i.reasons)
         return FieldValue(
             status="unknown",
             quality="degraded",
             reasons=reasons or (Reason(code=ReasonCode.INPUT_UNKNOWN, input="inputs", since=now),),
+            configuration=configuration,
         )
     ends = [i.held_until for i in inputs if i.status == "held" and i.held_until]
     times = [i.measured_at for i in inputs if i.measured_at]
@@ -122,4 +144,5 @@ def derive(value: Any, inputs: list[FieldValue], now: datetime) -> FieldValue:
         reasons=tuple(r for i in inputs for r in i.reasons),
         evidence=tuple(dict.fromkeys(e for i in inputs for e in i.evidence)),
         measured_at=min(times) if times else None,
+        configuration=configuration,
     )

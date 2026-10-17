@@ -266,6 +266,14 @@ class TimeReachedRule(Model):
     at: Rule
 
 
+class ConfigurationHintRule(Model):
+    op: Literal["configuration_hint"]
+    arg: Rule
+    when: Rule
+    code: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    message: str = Field(default="", max_length=256)
+
+
 class TextRule(Model):
     op: Literal["lower", "strip", "normalize_key", "matches", "contains", "compound_key"]
     args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
@@ -298,7 +306,8 @@ Rule = Annotated[
     | MachineRule
     | NotApplicableRule
     | TimeReachedRule
-    | TextRule,
+    | TextRule
+    | ConfigurationHintRule,
     Field(discriminator="op"),
 ]
 
@@ -441,6 +450,7 @@ for _model in (
     NotApplicableRule,
     TimeReachedRule,
     TextRule,
+    ConfigurationHintRule,
     DeclarativeDefinition,
 ):
     _model.model_rebuild()

@@ -71,6 +71,18 @@ it('shows the server count of unbounded values during HA loss', async () => {
   expect(await screen.findByText(/Home Assistant getrennt seit .* – 3 Werte ohne Frist gelten unverändert weiter/)).toBeVisible();
 });
 
+it('keeps valid unassigned values healthy and lists configuration separately', async () => {
+  installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });
+  const live = idleLive();
+  const current = { ...envelope('room', 'healthy'), fields: { value: { status: 'valid', value: 'unassigned', quality: 'healthy', reasons: [], evidence: [], configuration: { complete: false, hints: [{ code: 'activity_mapping_missing', message: 'Noch nicht zugeordnet' }] } } } } as Envelope;
+  vi.spyOn(live, 'getSnapshot').mockReturnValue({ ...live.getSnapshot(), stale: false, registryRevision: 4, contracts: { room: current } });
+  app(live);
+  expect(await screen.findByRole('link', { name: '1 gesund' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Signal gestört' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Konfiguration unvollständig' })).toBeVisible();
+  expect(screen.getByText('Noch nicht zugeordnet')).toBeVisible();
+});
+
 it('uses status colors for known counts and equally sized quick actions', async () => {
   const user = userEvent.setup();
   installFakeApi({ revisions: [{ revision: 4, config, checksum: 'sum', created_at: at }] });

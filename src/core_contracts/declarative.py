@@ -18,7 +18,7 @@ from .multibucket import MultiBucket
 from .producer import Context, Producer, TemporalParameters, next_machine_due, next_temporal_due
 from .producer import state_machine as evaluate_machine
 from .producer import temporal as evaluate_temporal
-from .quality import FieldValue, ReasonCode, derive, unknown
+from .quality import ConfigurationHint, ConfigurationStatus, FieldValue, ReasonCode, derive, unknown
 from .resolver import Bucket, boolean, compare, first_match
 from .schema import ContractType, FieldSchema, InputDeclaration
 from .statemachine import Definition, Guard, Machine, Transition
@@ -56,6 +56,8 @@ def map_key(value: Any) -> str:
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
+    if isinstance(rule, dm.ConfigurationHintRule):
+        return [("arg", rule.arg), ("when", rule.when)]
     if isinstance(rule, dm.FormulaRule):
         return (
             [(f"args/{name}", child) for name, child in rule.args.items()]
@@ -249,6 +251,11 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.LiteralRule):
             return rule.field_schema
         args = [infer(child, guard=guard, depth=depth + 1) for child in children(rule)]
+        if isinstance(rule, dm.ConfigurationHintRule):
+            if definition.language_version != 2:
+                raise ValueError("language_version_2_required")
+            require(args[1], scalar("bool"))
+            return args[0]
         if isinstance(rule, dm.TextRule):
             if definition.language_version != 2:
                 raise ValueError("language_version_2_required")
@@ -548,6 +555,22 @@ class Evaluation:
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.ConfigurationHintRule):
+            result = args[0]
+            if not args[1].usable(now) or args[1].value is True:
+                hint = ConfigurationHint(
+                    code=rule.code if args[1].usable(now) else "configuration_check_unavailable",
+                    message=rule.message if args[1].usable(now) else "",
+                )
+                result = result.model_copy(
+                    update={
+                        "configuration": ConfigurationStatus(
+                            complete=False,
+                            hints=tuple(dict.fromkeys((*result.configuration.hints, hint))),
+                        )
+                    }
+                )
+            return result
         if isinstance(rule, dm.TextRule):
             return evaluate_text(rule, args, now)
         if isinstance(rule, dm.TimeReachedRule):

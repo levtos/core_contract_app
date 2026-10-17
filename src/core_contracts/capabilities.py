@@ -327,6 +327,7 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
                 ("input", "InputRule"),
                 ("parameter", "ParameterRule"),
                 ("time_reached", "TimeReachedRule"),
+                ("configuration_hint", "ConfigurationHintRule"),
                 *(
                     (name, "TextRule")
                     for name in (

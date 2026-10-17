@@ -359,6 +359,12 @@ class API:
             result = result["result"]
         elif path == "diagnostics/problems" and method == "GET":
             result = {
+                "configuration_problems": [
+                    {"contract_id": k, "field": f, "configuration": v["configuration"]}
+                    for k, c in state.tables["contract_state_current"].items()
+                    for f, v in c["fields"].items()
+                    if not v.get("configuration", {}).get("complete", True)
+                ],
                 "service": runtime.service_state(),
                 "problems": [
                     {"contract_id": k, "field": f, "status": v["status"], "reasons": v["reasons"]}
