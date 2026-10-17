@@ -203,6 +203,7 @@ async function extraAfter(page, server, browser) {
   await page.getByRole('tab', { name: /Ablauf/ }).click();
   await page.getByRole('checkbox', { name: 'Administratoren dürfen diesen Ablauf manuell neu starten', exact: true }).check();
   await capture(page, 'after', browser, 'template-restart-permission', 'P9: ausdrückliche Freigabe in neuer Ablaufversion');
+  await page.getByLabel('Weitere Entwurfsaktionen').click();
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await apply(page, 3, 'Synthetische Browserprüfung: begrenzten Neustart freigegeben');
   await page.getByRole('button', { name: 'Live ansehen', exact: true }).click();

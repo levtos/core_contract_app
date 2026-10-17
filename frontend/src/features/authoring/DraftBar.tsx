@@ -1,6 +1,6 @@
 import { t as uiText } from '@/i18n';
 import { CheckCircle2, CircleAlert, Loader2, MoreHorizontal, Redo2, Save, Undo2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -161,6 +161,7 @@ export function ReviewDraftButton({ children }: { children?: React.ReactNode }) 
 
 export function DraftBar() {
   const doc = useWorkingDocument();
+  const saveStatusId = useId();
   const [picker, setPicker] = useState(false);
   const [closing, setClosing] = useState(false);
   const [startError, setStartError] = useState('');
@@ -190,15 +191,13 @@ export function DraftBar() {
       {startError && <span role="alert" className="text-xs text-bad">{startError}</span>}
       {doc.draft && doc.editing ? (
         <>
-          <span title={doc.displayName} className="max-w-36 truncate text-xs text-muted">{doc.displayName}</span>
+          <span className="min-w-0 text-xs text-muted"><span title={draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })} className="block max-w-40 truncate">{draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })}</span><span id={saveStatusId} role="status" className="block">{uiText(doc.saving ? 'alpha7.draft.saving' : doc.dirty ? 'alpha7.draft.notSaved' : 'alpha7.draft.saved')}</span></span>
           <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
-          <span className="text-xs text-muted">{doc.dirty ? uiText('alpha7.draft.notSaved') : uiText('alpha7.draft.saved')}</span>
           <ValidationChip />
-          <Button size="sm" disabled={!doc.dirty || doc.saving} disabledReason={doc.saving ? uiText('alpha7.draft.saving') : uiText('alpha7.draft.saved')} onClick={() => void doc.save()} title={uiText("features.authoring.DraftBar.strg_s_bda7e5")}>
-            {doc.saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}{uiText(doc.saving ? 'alpha7.draft.saving' : 'features.authoring.DraftBar.speichern_f6b2ff')}</Button>
           <Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button>
           <ReviewDraftButton />
-          <details className="relative"><summary aria-label={uiText('alpha7.draft.more')} className="grid size-8 cursor-pointer list-none place-items-center rounded-lg hover:bg-raised"><MoreHorizontal size={16} /></summary><div className="absolute right-0 top-9 z-30 flex min-w-48 flex-col items-start gap-1 rounded-lg border border-line bg-panel p-2 shadow-xl">
+          <details className="relative" onClick={event => { if ((event.target as HTMLElement).closest('button')) event.currentTarget.open = false; }}><summary aria-label={uiText('alpha7.draft.more')} className="grid size-8 cursor-pointer list-none place-items-center rounded-lg hover:bg-raised"><MoreHorizontal size={16} /></summary><div className="absolute right-0 top-9 z-30 flex min-w-48 flex-col items-start gap-1 rounded-lg border border-line bg-panel p-2 shadow-xl">
+            <Button size="sm" variant="ghost" disabled={!doc.dirty || doc.saving} aria-describedby={saveStatusId} onClick={() => void doc.save()} title={uiText('features.authoring.DraftBar.strg_s_bda7e5')}><Save size={13} />{uiText('features.authoring.DraftBar.speichern_f6b2ff')}</Button>
             {doc.canUndo && <Button size="sm" variant="ghost" onClick={doc.undo}><Undo2 size={13} />{uiText('features.authoring.DraftBar.ruckgangig_dd7bd2')}</Button>}
             {doc.canRedo && <Button size="sm" variant="ghost" onClick={doc.redo}><Redo2 size={13} />{uiText('features.authoring.DraftBar.wiederholen_e0ef00')}</Button>}
             <Button size="sm" variant="ghost" onClick={() => setPicker(true)}>{uiText('alpha7.draft.switch')}</Button>

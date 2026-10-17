@@ -28,7 +28,11 @@ export function flow(user: UserEvent) {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: "Neuer Entwurf" })?.textContent ?? null).toBeNull(), { timeout: 65_000 });
   };
 
-  const saveButton = () => screen.getAllByRole('button', { name: /Speichern/ })[0]!;
+  const saveButton = async () => {
+    const menu = screen.getByLabelText('Weitere Entwurfsaktionen');
+    if (!menu.closest('details')?.open) await user.click(menu);
+    return screen.getByRole('button', { name: 'Speichern' });
+  };
 
   /** Builds the complete Alpha-4 example registry in the open (empty) draft, by operating controls only. */
   const buildExampleRegistry = async () => {

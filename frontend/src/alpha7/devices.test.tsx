@@ -76,6 +76,7 @@ it('adds a missing contract input through the guide and explains an incompatible
   expect(within(wizard).getByText(/passt nicht zur Werteart oder Einheit/)).toBeVisible();
   await user.click(within(wizard).getByRole('radio', { name: 'Fensterkontakt' }));
   await user.click(within(wizard).getByRole('button', { name: 'Gerät hinzufügen' }));
+  await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(await screen.findByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect([...api.drafts.values()][0]!.config.contracts).toEqual([expect.objectContaining({ inputs: [{ name: 'geraet', ref: 'source.binary_sensor_fenster' }] })]));
   expect(window.location.hash).toBe('#/contracts/view/fenster?tab=config');
@@ -115,6 +116,7 @@ it('keeps selection across source subpages and keeps the editor mounted while cl
   await screen.findByRole('heading', { level: 1, name: 'Verknüpfungen' });
   await user.click(screen.getByRole('link', { name: 'Geräte aus Home Assistant' }));
   expect(await screen.findByLabelText('Name')).toHaveValue('Mein Sensor');
+  await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect([...api.drafts.values()][0]!.config.sources).toEqual([expect.objectContaining({ source_id: 'source.temperatur' })]));
   expect(Object.values(sessionStorage).some(value => typeof value === 'string' && value.includes('Mein Sensor'))).toBe(false);

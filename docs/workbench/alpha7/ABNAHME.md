@@ -136,6 +136,7 @@ Neue Dialoge besitzen naturgemäß nur Nachher-Bilder. [Browserverfahren und 162
 | Punkt | Anforderung | Status / Grund | Test | Screenshot |
 |---|---|---|---|---|
 | K.01 | Ein aktueller Serververgleich zählt hinzugefügte, geänderte und entfernte Objekte; sonst „…“ | erledigt; identische Stände ergeben 0, keine Browser-Pfaddifferenz | corrections.test.tsx; geführter Vertrag und identischer Stand im Engine-E2E | neue Bilder unter K.06 folgen |
+| K.02 | Schlanke Leiste, ein Speicherzustand, ein Prüfergebnis je Stelle; Übernahme ausschließlich in der Leiste | erledigt; Speichern im ⋯-Menü, Übernahmekarte nur Checkliste | versions.test.tsx; draftMode.test.tsx; bestehende Speichern-/Übernahme-Flows | neue Bilder unter K.06 folgen |
 
 ### Vorheriger Gesamtnachweis
 

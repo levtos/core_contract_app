@@ -76,6 +76,7 @@ it('opens from live, checks the exact migration and applies only to the draft; c
   await user.click(within(dialog).getByRole('button', { name: 'Umzug prüfen' }));
   await waitFor(() => expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeEnabled());
   await user.click(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' }));
+  await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect(objects([...api.drafts.values()][0]!.config.sources)).toHaveLength(2));
   expect(api.revisions).toHaveLength(1); expect(api.revisions[0]!.config).toEqual(config);

@@ -51,7 +51,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await screen.findAllByText('GUI-Aufbau');
     await f.buildExampleRegistry();
 
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     await waitFor(() => expect([...api.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
     expect(savedConfig()).toEqual(registry); // exact, including the object value, the machine and the nested rules
 
@@ -85,7 +85,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     await user.tab();
     await user.selectOptions(screen.getByLabelText('Wert für aus: Typ'), 'null');
 
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     const expected = { ...enriched, catalogs: [{ catalog_id: 'catalog.struktur', kind: 'map', version: 1, entries: { an: { liste: ['eins', null] }, aus: null } }] };
     await waitFor(() => expect(api.drafts.get(imported.draft_id)!.draft_version).toBeGreaterThan(1));
     expect(savedConfig(imported.draft_id)).toEqual(expected);

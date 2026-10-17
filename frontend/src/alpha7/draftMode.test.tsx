@@ -27,7 +27,7 @@ it('makes a successful explicit check visible', async () => {
   const user = userEvent.setup(); installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
   await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
-  expect(await screen.findByText('Prüfung abgeschlossen: keine Fehler')).toBeVisible();
+  expect(await screen.findByText('Keine Fehler')).toBeVisible();
 });
 
 it('starts a named draft automatically from a creation action and stays on the source page', async () => {

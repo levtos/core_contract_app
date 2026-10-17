@@ -312,7 +312,7 @@
   "alpha7.draft.errors": "{count} Fehler",
   "alpha7.draft.recheck": " · erneut prüfen",
   "alpha7.draft.changed": "Änderungen noch einmal prüfen",
-  "alpha7.draft.noErrors": "Prüfung abgeschlossen: keine Fehler",
+  "alpha7.draft.noErrors": "Keine Fehler",
   "alpha7.draft.checkResult": "Prüfergebnis",
   "alpha7.draft.close": "Schließen",
   "alpha7.draft.preparingReview": "Übernehmen wird vorbereitet …",

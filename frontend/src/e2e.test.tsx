@@ -93,7 +93,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     // 1. Build from an empty draft — controls only — and save.
     await f.createDraft('E2E', "Leere Konfiguration");
     await f.buildExampleRegistry();
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     const drafts = (await waitFor(async () => {
       const list = (await raw<{ draft_id: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
       expect(list[0]!.draft_version).toBeGreaterThan(1);
@@ -140,7 +140,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await screen.findByRole('tab', { name: 'Allgemein' });
     await f.tab(/Ausgaben/);
     await f.setOp('/definitions/5/outputs/value', 'not'); // v2 negates its input (unlocked, never activated)
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     await waitFor(async () => {
       const current = (await raw<{ config: { definitions: JsonObject[] } }>(`registry/drafts/${reimported.draft_id}`)).body;
       expect(current.config.definitions).toHaveLength(6);
@@ -178,7 +178,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const current = (await raw<{ draft_version: number; config: JsonObject }>(`registry/drafts/${draftId}`)).body;
     const other = await raw(`registry/drafts/${draftId}`, json('PUT', { config: { ...current.config, other_session: true }, draft_version: current.draft_version }));
     expect(other.status).toBe(200);
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     await screen.findByRole('dialog', { name: /Versionskonflikt/ }, { timeout: 65_000 });
     expect(((await raw<{ config: JsonObject }>(`registry/drafts/${draftId}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
   }, 300_000);
@@ -199,7 +199,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
         if (remaining) throw new Error(`Device picker did not close: ${remaining.textContent}`);
       }, { timeout: 65_000 });
     }
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     const saved = await waitFor(async () => {
       const draft = (await raw<{ config: JsonObject; draft_version: number }>(`registry/drafts/${imported.draft_id}`)).body;
       expect(draft.draft_version).toBeGreaterThan(1); return draft;
@@ -248,7 +248,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await f.type(within(adding).getByLabelText('Name'), 'P8 Temperatur');
     await user.click(within(adding).getByRole('button', { name: 'Vertrag anlegen' }));
     // K.01: the guided objects use the same server comparison in the bar and page.
-    await user.click(f.saveButton());
+    await user.click(await f.saveButton());
     const guided = await waitFor(async () => {
       const drafts = (await raw<{ draft_id: string; display_name: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
       const draft = drafts.find(item => item.display_name === 'P8 Quellenumzug')!;

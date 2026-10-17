@@ -20,7 +20,15 @@ const revision = (n: number) => ({ revision: n, checksum: String(n).repeat(64), 
 it('shows one global save button on the open draft page', async () => {
   installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] }); app('#/changes/drafts/d1');
   await screen.findByRole('heading', { name: 'd1', level: 1 }, { timeout: 5000 });
+  expect(screen.getByRole('button', { name: 'Speichern' }).closest('details')).not.toHaveAttribute('open');
+  expect(screen.getAllByText('im Entwurf gespeichert')).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Übernehmen' })).toHaveLength(1);
+  await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   expect(screen.getAllByRole('button', { name: 'Speichern' })).toHaveLength(1);
+  await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
+  await userEvent.click(screen.getByRole('button', { name: 'Prüfen' }));
+  await screen.findByText('Keine Fehler gefunden');
+  expect(screen.getAllByText('Keine Fehler')).toHaveLength(1); // only the global check chip
 });
 
 it('shows time, recorded actor and note; exposes rollback only on an older version', async () => {

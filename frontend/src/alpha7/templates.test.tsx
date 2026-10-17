@@ -23,6 +23,7 @@ it('opens without a red identity error, adds the prefix automatically and create
   expect(within(dialog).queryByLabelText('Typ-ID')).not.toBeInTheDocument();
   await user.type(within(dialog).getByLabelText('Name (freiwillig)'), 'Fenster offen');
   await user.click(within(dialog).getByRole('button', { name: 'Anlegen' }));
+  await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(await screen.findByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect([...api.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
   expect([...api.drafts.values()][0]!.config.definitions).toEqual([expect.objectContaining({
